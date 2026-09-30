@@ -367,6 +367,112 @@
     .install-card strong { display:block; margin-bottom:4px; }
     .install-card p { color: var(--muted); font-size:14px; line-height:1.4; margin-bottom:12px; }
 
+
+    .home-card.notes-card { grid-column: 1 / -1; min-height: 118px; }
+    .home-card.notes-card .icon-wrap { background: #e7e5dc; color: #625f53; }
+
+    .today-shell { padding-bottom: 112px; }
+    .daily-panel { display: none; }
+    .daily-panel.active { display: block; animation: fadeIn .18s ease; }
+    .daily-nav {
+      position: sticky;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      z-index: 30;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+      margin-top: 16px;
+      padding: 8px;
+      border: 1px solid rgba(223,225,216,.92);
+      border-radius: 24px;
+      background: rgba(255,255,255,.94);
+      box-shadow: 0 14px 34px rgba(34,42,34,.16);
+      backdrop-filter: blur(14px);
+    }
+    .daily-nav button {
+      min-height: 64px;
+      border: 0;
+      border-radius: 18px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 850;
+      padding: 6px 2px;
+      display: grid;
+      place-items: center;
+      gap: 3px;
+      cursor: pointer;
+    }
+    .daily-nav button svg { width: 23px; height: 23px; }
+    .daily-nav button.active { background: var(--accent-soft); color: var(--accent-strong); }
+
+    .habit-item { border: 1px solid var(--line); border-radius: var(--radius-lg); background:#fff; padding:12px; }
+    .habit-row { display:flex; align-items:flex-start; gap:10px; }
+    .habit-main { flex:1; min-width:0; }
+    .habit-name { font-weight:800; line-height:1.25; }
+    .habit-desc { color:var(--muted); font-size:13px; line-height:1.4; margin-top:4px; }
+    .habit-history-button { border:0; background:var(--surface-soft); color:var(--accent-strong); border-radius:12px; min-width:42px; min-height:42px; cursor:pointer; font-weight:900; }
+    .habit-list { display:grid; gap:9px; }
+    .history-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:7px; margin-top:12px; }
+    .history-day { aspect-ratio:1; border-radius:10px; display:grid; place-items:center; background:var(--surface-soft); color:var(--muted); font-size:11px; font-weight:800; }
+    .history-day.done { background:var(--accent); color:#fff; }
+    .history-day.today { outline:2px solid var(--accent); outline-offset:2px; }
+
+    .dump-hero { text-align:center; padding:24px 10px 18px; }
+    .dump-mic {
+      width:132px; height:132px; border-radius:50%; border:14px solid var(--accent-soft);
+      background:var(--accent); color:white; display:grid; place-items:center; margin:10px auto 14px;
+      cursor:pointer; box-shadow:0 12px 30px rgba(69,98,77,.18);
+    }
+    .dump-mic.listening { animation:pulse 1.1s infinite; }
+    @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(69,98,77,.18)} 50%{box-shadow:0 0 0 18px rgba(69,98,77,0)} }
+    .dump-input-row { display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:12px; }
+    .dump-item { border:1px solid var(--line); border-radius:17px; padding:12px; background:#fff; }
+    .dump-item-top { display:flex; gap:10px; align-items:flex-start; }
+    .dump-text { flex:1; font-weight:700; line-height:1.4; }
+    .dump-time { color:var(--muted); font-size:12px; margin-top:5px; }
+    .dump-actions { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:10px; }
+    .mini-button { min-height:40px; border:0; border-radius:12px; background:var(--surface-soft); color:var(--text); font-weight:800; cursor:pointer; }
+    .mini-button.accent { background:var(--accent-soft); color:var(--accent-strong); }
+    .mini-button.danger { color:var(--danger); }
+
+    .tasks-toolbar { display:grid; grid-template-columns:1fr auto; gap:8px; margin-bottom:12px; }
+    .task-actions { display:flex; gap:7px; flex-wrap:wrap; margin:10px 0 0 36px; }
+    .task-action { min-height:36px; border:0; border-radius:11px; padding:7px 10px; background:var(--surface-soft); color:var(--muted); font-size:12px; font-weight:800; cursor:pointer; }
+    .task-action.primary { background:var(--accent-soft); color:var(--accent-strong); }
+    .task-action.danger { color:var(--danger); }
+    .paused-label { margin:18px 2px 8px; color:var(--muted); font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; }
+
+    .focus-hero { text-align:center; padding:18px 8px; }
+    .focus-task-name { font-family:Georgia, 'Times New Roman', serif; font-size:31px; line-height:1.1; margin:12px 0 8px; }
+    .focus-step { color:var(--muted); font-size:14px; min-height:20px; }
+    .focus-clock { width:210px; height:210px; border:16px solid var(--accent-soft); border-radius:50%; display:grid; place-items:center; margin:22px auto; }
+    .focus-clock strong { font-family:Georgia,'Times New Roman',serif; font-size:50px; font-variant-numeric:tabular-nums; }
+    .focus-duration-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+    .duration-button { min-height:52px; border:1px solid var(--line); border-radius:15px; background:#fff; color:var(--text); font-weight:850; cursor:pointer; }
+    .duration-button.selected { background:var(--accent); border-color:var(--accent); color:#fff; }
+    .focus-controls { display:grid; gap:9px; margin-top:12px; }
+
+    .shutdown-summary { background:linear-gradient(180deg,#fff,#fafaf6); border:1px solid var(--line); border-radius:26px; padding:20px; margin-bottom:14px; }
+    .completed-line { display:flex; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); }
+    .completed-line:last-child { border-bottom:0; }
+    .completed-check { width:30px; height:30px; border-radius:50%; background:var(--accent); color:white; display:grid; place-items:center; flex:0 0 auto; }
+    .completed-name { flex:1; font-weight:800; }
+    .completed-time { color:var(--muted); font-size:13px; }
+    .shutdown-open { border:1px solid var(--line); border-radius:17px; padding:12px; background:#fff; margin-bottom:8px; }
+    .shutdown-actions { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:10px; }
+    .shutdown-actions button { min-height:40px; border:0; border-radius:12px; background:var(--surface-soft); color:var(--text); font-size:11px; font-weight:850; cursor:pointer; }
+    .closed-card { text-align:center; padding:28px 18px; }
+    .closed-card h3 { font-family:Georgia,'Times New Roman',serif; font-size:30px; margin-bottom:8px; }
+
+    .notes-placeholder { text-align:center; padding:34px 20px; }
+    .notes-placeholder .big-icon { width:72px; height:72px; border-radius:22px; margin:0 auto 18px; display:grid; place-items:center; background:#e7e5dc; color:#625f53; }
+    .notes-placeholder h3 { font-size:24px; }
+    .notes-placeholder p { color:var(--muted); line-height:1.55; }
+
+    .suggestion-box { background:var(--accent-soft); border-radius:15px; padding:12px; margin-top:10px; color:var(--accent-strong); font-size:13px; line-height:1.45; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+
     @media (min-width: 700px) {
       .app-shell { padding-top: 32px; }
       .home-card { min-height: 170px; }
@@ -382,30 +488,27 @@
         <p class="subtitle">Alles wat je vandaag nodig hebt, zonder omwegen.</p>
       </header>
 
+
       <div class="home-grid">
         <button class="home-card" data-open="today" aria-label="Open Vandaag">
-          <div class="icon-wrap" aria-hidden="true">
-            <svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M8 3v3M16 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
-          </div>
-          <div><strong>Vandaag</strong><span>Energie, taken en routines</span></div>
+          <div class="icon-wrap" aria-hidden="true"><svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M8 3v3M16 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></div>
+          <div><strong>Vandaag</strong><span>Start, dump, taken, focus en afsluiten</span></div>
         </button>
         <button class="home-card" data-open="menu" aria-label="Open Weekmenu">
-          <div class="icon-wrap" aria-hidden="true">
-            <svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M7 3v8M4.5 3v5A2.5 2.5 0 0 0 7 10.5M9.5 3v5A2.5 2.5 0 0 1 7 10.5V21M16 3c2.2 0 4 2.5 4 5.5S18.2 14 16 14V3Zm0 0v18" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
+          <div class="icon-wrap" aria-hidden="true"><svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M7 3v8M4.5 3v5A2.5 2.5 0 0 0 7 10.5M9.5 3v5A2.5 2.5 0 0 1 7 10.5V21M16 3c2.2 0 4 2.5 4 5.5S18.2 14 16 14V3Zm0 0v18" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div><strong>Weekmenu</strong><span>7 makkelijke avondmaaltijden</span></div>
         </button>
         <button class="home-card" data-open="shopping" aria-label="Open Boodschappen">
-          <div class="icon-wrap" aria-hidden="true">
-            <svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7M10 20h.01M17 20h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
+          <div class="icon-wrap" aria-hidden="true"><svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7M10 20h.01M17 20h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div><strong>Boodschappen</strong><span>Lijst uit je weekmenu</span></div>
         </button>
         <button class="home-card" data-open="projects" aria-label="Open Projecten">
-          <div class="icon-wrap" aria-hidden="true">
-            <svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M4 7.5h6l1.5 2H20v8.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7.5Zm0 0v-1A2.5 2.5 0 0 1 6.5 4H10l1.5 2H18A2 2 0 0 1 20 8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
+          <div class="icon-wrap" aria-hidden="true"><svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M4 7.5h6l1.5 2H20v8.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7.5Zm0 0v-1A2.5 2.5 0 0 1 6.5 4H10l1.5 2H18A2 2 0 0 1 20 8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div><strong>Projecten</strong><span>Eenvoudig overzicht</span></div>
+        </button>
+        <button class="home-card notes-card" data-open="notes" aria-label="Open Notities">
+          <div class="icon-wrap" aria-hidden="true"><svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l3 3v15H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm8 0v4h4M8 11h6M8 15h7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div><strong>Notities</strong><span>Komt in de volgende ronde: notities en mappen</span></div>
         </button>
       </div>
 
@@ -416,44 +519,87 @@
       </div>
     </section>
 
+
     <section class="view" data-view="today">
-      <header class="screen-header">
-        <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
-        <div class="screen-title-wrap"><h2>Vandaag</h2><p>Maak je dag passend bij je energie.</p></div>
-      </header>
+      <div class="today-shell">
+        <header class="screen-header">
+          <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
+          <div class="screen-title-wrap"><h2>Vandaag</h2><p id="todaySubTitle">Je dag in vijf rustige stappen.</p></div>
+        </header>
 
-      <div class="section-card">
-        <div class="section-heading"><h3>Hoeveel energie heb je?</h3></div>
-        <div class="energy-grid" id="energyGrid">
-          <button class="energy-btn" data-energy="1">1<small>rustig</small></button>
-          <button class="energy-btn" data-energy="2">2<small>normaal</small></button>
-          <button class="energy-btn" data-energy="3">3<small>veel</small></button>
-        </div>
-      </div>
+        <div class="daily-panel active" data-daily-panel="start">
+          <div id="dayClosedArea"></div>
+          <div id="dayOpenArea">
+            <div class="section-card">
+              <div class="section-heading"><h3>Hoeveel energie heb je?</h3></div>
+              <div class="energy-grid" id="energyGrid">
+                <button class="energy-btn" data-energy="1">1<small>rustig</small></button>
+                <button class="energy-btn" data-energy="2">2<small>normaal</small></button>
+                <button class="energy-btn" data-energy="3">3<small>veel</small></button>
+              </div>
+            </div>
 
-      <div class="section-card">
-        <div class="section-heading">
-          <div><h3 style="margin-bottom:3px;">Routines & gewoontes</h3><span class="small-muted">Deze komen elke dag terug.</span></div>
-        </div>
-        <div class="routine-list" id="routineList"></div>
-      </div>
+            <div class="section-card">
+              <div class="section-heading">
+                <div><h3 style="margin-bottom:3px;">Gewoontes</h3><span class="small-muted">Dagelijkse structuur, los van je belangrijke taken.</span></div>
+                <button class="mini-button accent" id="addHabitButton">+ Nieuw</button>
+              </div>
+              <div class="habit-list" id="habitList"></div>
+            </div>
 
-      <div class="section-card">
-        <div class="section-heading">
-          <div><h3 style="margin-bottom:3px;">Belangrijk vandaag</h3><span class="small-muted">Gekozen op energie en deadline.</span></div>
-          <span class="small-muted" id="taskCounter">0 / 2</span>
+            <div class="section-card">
+              <div class="section-heading">
+                <div><h3 style="margin-bottom:3px;">Belangrijk vandaag</h3><span class="small-muted">Deadline eerst, binnen je energiebudget.</span></div>
+                <span class="small-muted" id="taskCounter">0 / 2</span>
+              </div>
+              <div class="task-list" id="taskList"></div>
+              <button class="primary-button" id="addTaskButton">+ Taak toevoegen</button>
+              <div class="limit-note" id="taskLimitNote"></div>
+            </div>
+          </div>
         </div>
-        <div class="task-list" id="taskList"></div>
-        <button class="primary-button" id="addTaskButton">+ Taak toevoegen</button>
-        <div class="limit-note" id="taskLimitNote"></div>
-      </div>
 
-      <div class="section-card" id="laterCard">
-        <div class="section-heading">
-          <div><h3 style="margin-bottom:3px;">Later</h3><span class="small-muted">Taken die vandaag niet in je energiebudget passen.</span></div>
-          <span class="small-muted" id="laterCounter">0</span>
+        <div class="daily-panel" data-daily-panel="dump">
+          <div class="section-card">
+            <div class="dump-hero">
+              <p class="eyebrow">EXTERN GEHEUGEN</p>
+              <h2 style="font-family:Georgia,'Times New Roman',serif; font-size:34px;">Zeg het maar. Ik hou het vast.</h2>
+              <button class="dump-mic" id="dumpMicButton" aria-label="Inspreken">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm-7 9a7 7 0 0 0 14 0M12 19v3M9 22h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              </button>
+              <p class="small-muted" id="speechHint">Tik om te spreken, of typ hieronder.</p>
+              <div class="dump-input-row"><input class="text-input" id="dumpTextInput" placeholder="Losse gedachte..." /><button class="soft-button" id="addDumpButton" style="width:auto;min-width:88px;">Bewaar</button></div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-heading"><div><h3 style="margin-bottom:3px;">Nog te verwerken</h3><span class="small-muted">Je hoeft nu nog niets te ordenen.</span></div><span class="small-muted" id="dumpCounter">0</span></div>
+            <div id="dumpList"></div>
+          </div>
         </div>
-        <div class="later-list" id="laterTaskList"></div>
+
+        <div class="daily-panel" data-daily-panel="tasks">
+          <div class="section-card">
+            <div class="section-heading"><div><h3 style="margin-bottom:3px;">Alle taken</h3><span class="small-muted">Vandaag, later, deadlines en rustende taken.</span></div></div>
+            <div class="tasks-toolbar"><button class="primary-button" id="addTaskFromListButton">+ Taak</button><button class="secondary-button" id="wakeAllButton" style="width:auto;min-width:96px;">Alles actief</button></div>
+            <div id="allTasksList"></div>
+          </div>
+        </div>
+
+        <div class="daily-panel" data-daily-panel="focus">
+          <div class="section-card" id="focusCard"></div>
+        </div>
+
+        <div class="daily-panel" data-daily-panel="shutdown">
+          <div id="shutdownContent"></div>
+        </div>
+
+        <nav class="daily-nav" aria-label="Vandaag navigatie">
+          <button class="active" data-daily-tab="start"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Start</span></button>
+          <button data-daily-tab="dump"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v11M8 11l4 4 4-4M5 19h14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Dump</span></button>
+          <button data-daily-tab="tasks"><svg viewBox="0 0 24 24" fill="none"><path d="M8 6h11M8 12h11M8 18h11M4 6h.01M4 12h.01M4 18h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg><span>Taken</span></button>
+          <button data-daily-tab="focus"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Focus</span></button>
+          <button data-daily-tab="shutdown"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v9M7 5.5a8 8 0 1 0 10 0" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg><span>Afsluiten</span></button>
+        </nav>
       </div>
     </section>
 
@@ -499,7 +645,20 @@
         <button class="primary-button" id="newProjectButton">+ Nieuw project</button>
       </div>
     </section>
+
+    <section class="view" data-view="notes">
+      <header class="screen-header">
+        <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
+        <div class="screen-title-wrap"><h2>Notities</h2><p>Deze plek staat alvast klaar.</p></div>
+      </header>
+      <div class="section-card notes-placeholder">
+        <div class="big-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l3 3v15H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm8 0v4h4M8 11h6M8 15h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Notities komen hier</h3>
+        <p>In een volgende ronde maken we hier losse notities en mappen, zoals je bij TickTick prettig vindt. Voor versie 1.2 blijft dit bewust alleen een vaste plek.</p>
+      </div>
+    </section>
   </main>
+
 
   <div class="modal-backdrop" id="inputModal" role="dialog" aria-modal="true" aria-labelledby="inputModalTitle">
     <div class="sheet">
@@ -514,12 +673,26 @@
         <label class="field-label" for="taskDeadline">Deadline <span style="font-weight:600;color:var(--muted);">(optioneel)</span></label>
         <input class="text-input" type="date" id="taskDeadline" />
         <div class="spacer-14"></div>
-        <label class="field-label" for="taskSubtasks">Subtaken <span style="font-weight:600;color:var(--muted);">(optioneel)</span></label>
-        <textarea class="text-input textarea-input" id="taskSubtasks" placeholder="Bijv.&#10;Koelkast bekijken&#10;Maaltijden kiezen&#10;Boodschappenlijst maken"></textarea>
-        <p class="field-help">Zet elke kleine stap op een nieuwe regel. Ze tellen samen als één hoofdtaak.</p>
+        <label class="field-label" for="taskSubtasks">Microstappen</label>
+        <textarea class="text-input textarea-input" id="taskSubtasks" placeholder="Microstappen verschijnen automatisch zodra je een taaknaam invult."></textarea>
+        <div class="suggestion-box">Versie 1.2 maakt microstappen lokaal met eenvoudige taak-sjablonen. Je kunt het voorstel altijd aanpassen. Slimmere voorstellen kunnen later.</div>
+        <button class="secondary-button" id="regenerateStepsButton" style="margin-top:9px;">Maak nieuw voorstel</button>
+      </div>
+      <div id="habitOptions" style="display:none;">
+        <div class="spacer-14"></div>
+        <label class="field-label" for="habitDescription">Korte omschrijving</label>
+        <textarea class="text-input textarea-input" id="habitDescription" placeholder="Bijv. Opstaan • medicijn • wassen • aankleden • honden uit"></textarea>
       </div>
       <div class="spacer-14"></div>
       <button class="primary-button" id="modalSaveButton">Opslaan</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="habitModal" role="dialog" aria-modal="true" aria-labelledby="habitModalTitle">
+    <div class="sheet">
+      <div class="sheet-head"><div><h3 id="habitModalTitle">Gewoonte</h3><p class="small-muted" id="habitModalDesc" style="margin:5px 0 0;"></p></div><button class="close-button" data-close-habit aria-label="Sluiten">×</button></div>
+      <div class="section-heading"><h3 style="font-size:16px;">Laatste 28 dagen</h3><span class="small-muted" id="habitHistoryCount"></span></div>
+      <div class="history-grid" id="habitHistoryGrid"></div>
     </div>
   </div>
 
@@ -659,565 +832,204 @@
   const defaultState = {
     energy: 2,
     tasks: [],
-    routines: [
-      { id: "routine-morning", name: "Ochtendroutine", done: false },
-      { id: "routine-move", name: "Even bewegen", done: false },
-      { id: "routine-evening", name: "Avondroutine", done: false }
+    habits: [
+      { id: "habit-morning", name: "Ochtendroutine", description: "Opstaan • medicijn • wassen • aankleden • honden uit", history: {} },
+      { id: "habit-move", name: "Even bewegen", description: "Een kort beweegmoment dat past bij de dag.", history: {} },
+      { id: "habit-evening", name: "Avondroutine", description: "Rustig afronden en klaarzetten voor morgen.", history: {} }
     ],
-    routineDate: null,
     todayPlan: { date: null, taskIds: [] },
-    weekMenu: [],
-    shopping: [],
-    projects: []
+    dump: [],
+    dayClosedDate: null,
+    focus: { taskId: null, durationSec: 300, remainingSec: 300, running: false },
+    weekMenu: [], shopping: [], projects: []
   };
 
   let state = loadState();
   let inputMode = null;
   let toastTimer = null;
+  let dailyTab = 'start';
+  let speechRecognition = null;
 
-  function localDateKey(date = new Date()) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
+  function uid(prefix) { return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`; }
+  function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+  function localDateKey(date = new Date()) { const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0'); return `${y}-${m}-${d}`; }
+  function addDaysKey(days){ const d=new Date(); d.setDate(d.getDate()+days); return localDateKey(d); }
 
   function normalizeTask(task) {
     return {
-      id: task.id || uid('task'),
-      name: task.name || 'Taak',
-      done: Boolean(task.done),
-      elapsed: Number(task.elapsed || 0),
-      running: false,
-      deadline: task.deadline || '',
-      createdAt: task.createdAt || Date.now(),
-      subtasks: Array.isArray(task.subtasks)
-        ? task.subtasks.map(st => typeof st === 'string'
-          ? { id: uid('sub'), name: st, done: false }
-          : { id: st.id || uid('sub'), name: st.name || 'Stap', done: Boolean(st.done) })
-        : []
+      id: task.id || uid('task'), name: task.name || 'Taak', done: Boolean(task.done), elapsed: Number(task.elapsed || 0), running: false,
+      deadline: task.deadline || '', createdAt: task.createdAt || Date.now(), completedAt: task.completedAt || null,
+      paused: Boolean(task.paused), deferUntil: task.deferUntil || '',
+      subtasks: Array.isArray(task.subtasks) ? task.subtasks.map(st => typeof st === 'string' ? {id:uid('sub'),name:st,done:false} : {id:st.id||uid('sub'),name:st.name||'Stap',done:Boolean(st.done)}) : []
     };
   }
+  function normalizeHabit(h) { return { id:h.id||uid('habit'), name:h.name||'Gewoonte', description:h.description||'', history:(h.history && typeof h.history==='object')?h.history:{} }; }
 
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return structuredClone(defaultState);
       const saved = JSON.parse(raw);
-      const loaded = {
-        ...structuredClone(defaultState),
-        ...saved,
+      let habits = Array.isArray(saved.habits) ? saved.habits.map(normalizeHabit) : null;
+      if (!habits && Array.isArray(saved.routines)) {
+        const today = localDateKey();
+        habits = saved.routines.map(r => ({id:r.id||uid('habit'), name:r.name||'Gewoonte', description:'', history: (saved.routineDate===today && r.done) ? {[today]:true} : {}}));
+      }
+      return {
+        ...structuredClone(defaultState), ...saved,
         tasks: Array.isArray(saved.tasks) ? saved.tasks.map(normalizeTask) : [],
-        routines: Array.isArray(saved.routines) ? saved.routines : structuredClone(defaultState.routines),
-        weekMenu: Array.isArray(saved.weekMenu) ? saved.weekMenu : [],
-        shopping: Array.isArray(saved.shopping) ? saved.shopping : [],
-        projects: Array.isArray(saved.projects) ? saved.projects : []
+        habits: habits || structuredClone(defaultState.habits),
+        dump: Array.isArray(saved.dump) ? saved.dump : [],
+        todayPlan: saved.todayPlan && Array.isArray(saved.todayPlan.taskIds) ? saved.todayPlan : {date:null,taskIds:[]},
+        focus: {...structuredClone(defaultState.focus), ...(saved.focus||{}), running:false},
+        weekMenu: Array.isArray(saved.weekMenu)?saved.weekMenu:[], shopping:Array.isArray(saved.shopping)?saved.shopping:[], projects:Array.isArray(saved.projects)?saved.projects:[]
       };
-      if (!loaded.todayPlan || !Array.isArray(loaded.todayPlan.taskIds)) {
-        loaded.todayPlan = { date: null, taskIds: [] };
-      }
-      return loaded;
-    } catch {
-      return structuredClone(defaultState);
-    }
+    } catch { return structuredClone(defaultState); }
+  }
+  function saveState(){ try { const s=structuredClone(state); s.tasks=s.tasks.map(t=>({...t,running:false})); s.focus.running=false; localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {} }
+
+  function showView(name){ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===name)); window.scrollTo({top:0,behavior:'instant'}); if(name==='today'){ setDailyTab(dailyTab); renderToday(); } if(name==='menu')renderMenu(); if(name==='shopping')renderShopping(); if(name==='projects')renderProjects(); }
+  function showToast(message){ const el=document.getElementById('toast'); el.textContent=message; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2100); }
+  function setDailyTab(tab){ dailyTab=tab; document.querySelectorAll('[data-daily-panel]').forEach(p=>p.classList.toggle('active',p.dataset.dailyPanel===tab)); document.querySelectorAll('[data-daily-tab]').forEach(b=>b.classList.toggle('active',b.dataset.dailyTab===tab)); const titles={start:'Je dag passend bij je energie.',dump:'Even uit je hoofd.',tasks:'Alles op één takenlijst.',focus:'Eén ding tegelijk.',shutdown:'Rustig de dag dicht.'}; document.getElementById('todaySubTitle').textContent=titles[tab]||''; if(tab==='focus')renderFocus(); if(tab==='shutdown')renderShutdown(); if(tab==='dump')renderDump(); if(tab==='tasks')renderAllTasks(); window.scrollTo({top:0,behavior:'instant'}); }
+
+  function energyLimit(){ return Number(state.energy)||1; }
+  function deadlinePriority(task){
+    if(task.paused) return [9,99999,task.createdAt||0];
+    const today=localDateKey();
+    if(task.deferUntil && task.deferUntil>today) return [8,Math.round((new Date(task.deferUntil+'T12:00:00')-new Date(today+'T12:00:00'))/86400000),task.createdAt||0];
+    if(!task.deadline) return [3,99999,task.createdAt||0];
+    const days=Math.round((new Date(task.deadline+'T12:00:00')-new Date(today+'T12:00:00'))/86400000);
+    if(days<0)return[0,days,task.createdAt||0]; if(days===0)return[1,0,task.createdAt||0]; return[2,days,task.createdAt||0];
+  }
+  function compareTaskPriority(a,b){ const pa=deadlinePriority(a),pb=deadlinePriority(b); for(let i=0;i<pa.length;i++)if(pa[i]!==pb[i])return pa[i]-pb[i]; return 0; }
+  function isEligibleToday(t){ const today=localDateKey(); return !t.done && !t.paused && (!t.deferUntil || t.deferUntil<=today); }
+  function refillTodayPlan(rebalance=false){
+    const limit=energyLimit(),today=localDateKey();
+    const ids=state.todayPlan?.date===today?state.todayPlan.taskIds:[];
+    let selected=ids.map(id=>state.tasks.find(t=>t.id===id)).filter(t=>t && (t.done||isEligibleToday(t))).slice(0,limit);
+    if(rebalance) selected=selected.filter(t=>t.done);
+    const need=()=>Math.max(0,limit-selected.length);
+    if(need()>0) state.tasks.filter(t=>isEligibleToday(t)&&!selected.some(x=>x.id===t.id)).sort(compareTaskPriority).slice(0,need()).forEach(t=>selected.push(t));
+    state.todayPlan={date:today,taskIds:selected.map(t=>t.id)};
+  }
+  function ensureDailyState(){ const today=localDateKey(); if(!state.todayPlan||state.todayPlan.date!==today){ state.todayPlan={date:today,taskIds:[]}; refillTodayPlan(true); saveState(); } }
+
+  function deadlineDisplay(task){ if(task.deferUntil && task.deferUntil>localDateKey()) return {text:`Vanaf ${formatDateShort(task.deferUntil)}`,cls:''}; if(!task.deadline)return null; const today=localDateKey(),tomorrow=addDaysKey(1); if(task.deadline<today)return{text:'Te laat',cls:'urgent'}; if(task.deadline===today)return{text:'Vandaag',cls:'today'}; if(task.deadline===tomorrow)return{text:'Morgen',cls:'today'}; return{text:formatDateShort(task.deadline),cls:''}; }
+  function formatDateShort(key){ return new Intl.DateTimeFormat('nl-NL',{day:'numeric',month:'short'}).format(new Date(key+'T12:00:00')); }
+  function subtaskProgress(task){ if(!task.subtasks?.length)return null; return `${task.subtasks.filter(s=>s.done).length}/${task.subtasks.length} stappen`; }
+  function formatTime(totalSeconds){ const s=Math.max(0,Math.floor(totalSeconds||0)),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60; return h>0?`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`:`${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
+  function formatClock(ts){ return new Intl.DateTimeFormat('nl-NL',{hour:'2-digit',minute:'2-digit'}).format(new Date(ts)); }
+
+  function renderTaskCard(task, options={}){
+    const deadline=deadlineDisplay(task),progress=subtaskProgress(task), showActions=Boolean(options.actions);
+    return `<div class="task-item ${task.done?'done':''}" data-task-id="${task.id}">
+      <div class="task-row"><input class="check" type="checkbox" ${task.done?'checked':''} data-task-check="${task.id}" aria-label="Taak afvinken" />
+      <div class="task-main"><div class="task-name">${escapeHtml(task.name)}</div>${(deadline||progress||task.paused)?`<div class="task-meta">${deadline?`<span class="task-badge ${deadline.cls}">${escapeHtml(deadline.text)}</span>`:''}${progress?`<span class="task-badge">${escapeHtml(progress)}</span>`:''}${task.paused?`<span class="task-badge">Rust even</span>`:''}</div>`:''}</div>
+      <button class="timer-button" data-focus-task="${task.id}">Focus</button></div>
+      ${task.subtasks?.length?`<div class="subtask-list">${task.subtasks.map(st=>`<label class="subtask-row ${st.done?'done':''}"><input class="check" type="checkbox" ${st.done?'checked':''} data-subtask-check="${task.id}|${st.id}" /><span class="subtask-name">${escapeHtml(st.name)}</span></label>`).join('')}</div>`:''}
+      ${showActions?`<div class="task-actions"><button class="task-action primary" data-focus-task="${task.id}">Focus</button><button class="task-action" data-toggle-pause="${task.id}">${task.paused?'Weer actief':'Laat rusten'}</button><button class="task-action" data-tomorrow="${task.id}">Morgen</button></div>`:''}
+    </div>`;
   }
 
-  function saveState() {
-    const serializable = structuredClone(state);
-    serializable.tasks = serializable.tasks.map(t => ({...t, running: false}));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
-  }
-
-  function uid(prefix) { return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`; }
-  function escapeHtml(value) {
-    return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-  }
-
-  function showView(name) {
-    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === name));
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    if (name === 'today') renderToday();
-    if (name === 'menu') renderMenu();
-    if (name === 'shopping') renderShopping();
-    if (name === 'projects') renderProjects();
-  }
-
-  function showToast(message) {
-    const el = document.getElementById('toast');
-    el.textContent = message;
-    el.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 2100);
-  }
-
-  function energyLimit() { return Number(state.energy) || 1; }
-
-  function deadlinePriority(task) {
-    if (!task.deadline) return [3, Number.MAX_SAFE_INTEGER, task.createdAt || 0];
-    const today = localDateKey();
-    const target = new Date(`${task.deadline}T12:00:00`);
-    const base = new Date(`${today}T12:00:00`);
-    const days = Math.round((target - base) / 86400000);
-    if (days < 0) return [0, days, task.createdAt || 0];
-    if (days === 0) return [1, 0, task.createdAt || 0];
-    return [2, days, task.createdAt || 0];
-  }
-
-  function compareTaskPriority(a, b) {
-    const pa = deadlinePriority(a), pb = deadlinePriority(b);
-    for (let i = 0; i < pa.length; i++) {
-      if (pa[i] !== pb[i]) return pa[i] - pb[i];
-    }
-    return 0;
-  }
-
-  function refillTodayPlan(rebalance = false) {
-    const limit = energyLimit();
-    const today = localDateKey();
-    const currentIds = state.todayPlan?.date === today ? state.todayPlan.taskIds : [];
-    const completedSelected = currentIds
-      .map(id => state.tasks.find(t => t.id === id))
-      .filter(t => t && t.done)
-      .slice(0, limit);
-
-    let selected = [...completedSelected];
-    const remainingSlots = () => Math.max(0, limit - selected.length);
-
-    if (!rebalance && remainingSlots() > 0) {
-      currentIds
-        .map(id => state.tasks.find(t => t.id === id))
-        .filter(t => t && !t.done && !selected.some(x => x.id === t.id))
-        .slice(0, remainingSlots())
-        .forEach(t => selected.push(t));
-    }
-
-    if (remainingSlots() > 0) {
-      state.tasks
-        .filter(t => !t.done && !selected.some(x => x.id === t.id))
-        .sort(compareTaskPriority)
-        .slice(0, remainingSlots())
-        .forEach(t => selected.push(t));
-    }
-
-    state.todayPlan = { date: today, taskIds: selected.map(t => t.id) };
-  }
-
-  function ensureDailyState() {
-    const today = localDateKey();
-    let changed = false;
-    if (state.routineDate !== today) {
-      state.routines = state.routines.map(r => ({...r, done: false}));
-      state.routineDate = today;
-      changed = true;
-    }
-    if (!state.todayPlan || state.todayPlan.date !== today) {
-      state.todayPlan = { date: today, taskIds: [] };
-      refillTodayPlan(true);
-      changed = true;
-    }
-    if (changed) saveState();
-  }
-
-  function deadlineDisplay(task) {
-    if (!task.deadline) return null;
-    const today = localDateKey();
-    const tomorrowDate = new Date();
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    const tomorrow = localDateKey(tomorrowDate);
-    if (task.deadline < today) return { text: 'Te laat', cls: 'urgent' };
-    if (task.deadline === today) return { text: 'Vandaag', cls: 'today' };
-    if (task.deadline === tomorrow) return { text: 'Morgen', cls: 'today' };
-    const dt = new Date(`${task.deadline}T12:00:00`);
-    const text = new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' }).format(dt);
-    return { text, cls: '' };
-  }
-
-  function subtaskProgress(task) {
-    if (!task.subtasks?.length) return null;
-    const done = task.subtasks.filter(s => s.done).length;
-    return `${done}/${task.subtasks.length} stappen`;
-  }
-
-  function renderTaskCard(task) {
-    const deadline = deadlineDisplay(task);
-    const progress = subtaskProgress(task);
-    return `
-      <div class="task-item ${task.done ? 'done' : ''}" data-task-id="${task.id}">
-        <div class="task-row">
-          <input class="check" type="checkbox" ${task.done ? 'checked' : ''} data-task-check="${task.id}" aria-label="Taak afvinken" />
-          <div class="task-main">
-            <div class="task-name">${escapeHtml(task.name)}</div>
-            ${(deadline || progress) ? `<div class="task-meta">
-              ${deadline ? `<span class="task-badge ${deadline.cls}">${escapeHtml(deadline.text)}</span>` : ''}
-              ${progress ? `<span class="task-badge">${escapeHtml(progress)}</span>` : ''}
-            </div>` : ''}
-          </div>
-          <button class="timer-button ${task.running ? 'running' : ''}" data-timer="${task.id}">${task.running ? 'Pauze' : 'Start'}</button>
-        </div>
-        ${task.subtasks?.length ? `<div class="subtask-list">
-          ${task.subtasks.map(st => `<label class="subtask-row ${st.done ? 'done' : ''}">
-            <input class="check" type="checkbox" ${st.done ? 'checked' : ''} data-subtask-check="${task.id}|${st.id}" aria-label="Subtaak afvinken" />
-            <span class="subtask-name">${escapeHtml(st.name)}</span>
-          </label>`).join('')}
-        </div>` : ''}
-        <div class="timer-readout" data-timer-readout="${task.id}">${formatTime(task.elapsed || 0)}</div>
-      </div>`;
-  }
-
-  function renderToday() {
+  function renderToday(){
     ensureDailyState();
-    document.querySelectorAll('.energy-btn').forEach(btn => btn.classList.toggle('selected', Number(btn.dataset.energy) === Number(state.energy)));
-    const limit = energyLimit();
-    const planned = state.todayPlan.taskIds.map(id => state.tasks.find(t => t.id === id)).filter(Boolean);
-    const plannedIds = new Set(planned.map(t => t.id));
-    const later = state.tasks.filter(t => !t.done && !plannedIds.has(t.id)).sort(compareTaskPriority);
-
-    document.getElementById('taskCounter').textContent = `${planned.length} / ${limit}`;
-    document.getElementById('taskLimitNote').textContent = planned.length >= limit
-      ? `Je dag zit op maximaal ${limit} belangrijke ${limit === 1 ? 'taak' : 'taken'}. Nieuwe taken blijven onder Later.`
-      : `Er ${limit - planned.length === 1 ? 'is' : 'zijn'} nog ${limit - planned.length} ${limit - planned.length === 1 ? 'plek' : 'plekken'} voor een belangrijke taak.`;
-
-    const taskList = document.getElementById('taskList');
-    taskList.innerHTML = planned.length
-      ? planned.map(renderTaskCard).join('')
-      : `<div class="empty-state">Nog geen belangrijke taak voor vandaag.</div>`;
-
-    const routineList = document.getElementById('routineList');
-    routineList.innerHTML = state.routines.map(r => `
-      <div class="routine-item ${r.done ? 'done' : ''}">
-        <div class="routine-row">
-          <input class="check" type="checkbox" ${r.done ? 'checked' : ''} data-routine-check="${r.id}" aria-label="Routine afvinken" />
-          <div class="routine-name">${escapeHtml(r.name)}</div>
-        </div>
-      </div>`).join('');
-
-    document.getElementById('laterCounter').textContent = String(later.length);
-    document.getElementById('laterTaskList').innerHTML = later.length
-      ? later.map(task => {
-          const deadline = deadlineDisplay(task);
-          const progress = subtaskProgress(task);
-          return `<div class="later-task">
-            <div class="later-task-name">${escapeHtml(task.name)}</div>
-            ${(deadline || progress) ? `<div class="task-meta">
-              ${deadline ? `<span class="task-badge ${deadline.cls}">${escapeHtml(deadline.text)}</span>` : ''}
-              ${progress ? `<span class="task-badge">${escapeHtml(progress)}</span>` : ''}
-            </div>` : ''}
-          </div>`;
-        }).join('')
-      : `<div class="later-empty">Geen extra taken.</div>`;
-  }
-
-  function formatTime(totalSeconds) {
-    const s = Math.max(0, Math.floor(totalSeconds || 0));
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    return h > 0
-      ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
-      : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-  }
-
-  setInterval(() => {
-    let changed = false;
-    state.tasks.forEach(task => {
-      if (task.running) {
-        task.elapsed = (task.elapsed || 0) + 1;
-        const readout = document.querySelector(`[data-timer-readout="${task.id}"]`);
-        if (readout) readout.textContent = formatTime(task.elapsed);
-        changed = true;
-      }
-    });
-    if (changed && (Math.max(...state.tasks.map(t => t.elapsed || 0), 0) % 10 === 0)) saveState();
-  }, 1000);
-
-  function generateWeekMenu() {
-    const shuffled = [...recipes].sort(() => Math.random() - 0.5);
-    state.weekMenu = shuffled.slice(0, 7).map(r => r.id);
-    state.shopping = [];
+    document.querySelectorAll('.energy-btn').forEach(btn=>btn.classList.toggle('selected',Number(btn.dataset.energy)===Number(state.energy)));
+    const closed=state.dayClosedDate===localDateKey();
+    document.getElementById('dayClosedArea').innerHTML=closed?`<div class="section-card closed-card"><p class="eyebrow">VANDAAG</p><h3>Vandaag is rond.</h3><p class="small-muted">Morgen begint opnieuw bij je energie.</p><button class="secondary-button" id="reopenDayButton">Toch nog iets doen</button></div>`:'';
+    document.getElementById('dayOpenArea').style.display=closed?'none':'block';
+    renderHabits();
+    refillTodayPlan(false);
+    const limit=energyLimit(),planned=state.todayPlan.taskIds.map(id=>state.tasks.find(t=>t.id===id)).filter(Boolean);
+    document.getElementById('taskCounter').textContent=`${planned.length} / ${limit}`;
+    document.getElementById('taskLimitNote').textContent=planned.length>=limit?`Je dag zit op maximaal ${limit} belangrijke ${limit===1?'taak':'taken'}.`:`Nog ${limit-planned.length} ${limit-planned.length===1?'plek':'plekken'} beschikbaar.`;
+    document.getElementById('taskList').innerHTML=planned.length?planned.map(t=>renderTaskCard(t)).join(''):`<div class="empty-state">Nog geen belangrijke taak voor vandaag.</div>`;
     saveState();
-    renderMenu();
-    showToast('Je weekmenu is klaar.');
   }
+  function renderHabits(){ const today=localDateKey(); document.getElementById('habitList').innerHTML=state.habits.length?state.habits.map(h=>`<div class="habit-item"><div class="habit-row"><input class="check" type="checkbox" ${h.history?.[today]?'checked':''} data-habit-check="${h.id}"/><div class="habit-main"><div class="habit-name">${escapeHtml(h.name)}</div>${h.description?`<div class="habit-desc">${escapeHtml(h.description)}</div>`:''}</div><button class="habit-history-button" data-habit-history="${h.id}" aria-label="Historie bekijken">↗</button></div></div>`).join(''):`<div class="empty-state">Nog geen gewoontes.</div>`; }
+  function openHabitHistory(id){ const h=state.habits.find(x=>x.id===id); if(!h)return; document.getElementById('habitModalTitle').textContent=h.name; document.getElementById('habitModalDesc').textContent=h.description||'Dagelijkse gewoonte'; let days=[],count=0; for(let i=27;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=localDateKey(d),done=Boolean(h.history?.[key]); if(done)count++; days.push(`<div class="history-day ${done?'done':''} ${key===localDateKey()?'today':''}" title="${key}">${d.getDate()}</div>`);} document.getElementById('habitHistoryGrid').innerHTML=days.join(''); document.getElementById('habitHistoryCount').textContent=`${count} van 28 gedaan`; document.getElementById('habitModal').classList.add('open'); }
 
-  function recipeById(id) { return recipes.find(r => r.id === id); }
+  function renderDump(){ const items=state.dump.filter(x=>!x.processed).sort((a,b)=>b.createdAt-a.createdAt); document.getElementById('dumpCounter').textContent=String(items.length); document.getElementById('dumpList').innerHTML=items.length?`<div style="display:grid;gap:9px;">${items.map(i=>`<div class="dump-item"><div class="dump-item-top"><div class="dump-text">${escapeHtml(i.text)}</div></div><div class="dump-time">${formatClock(i.createdAt)}</div><div class="dump-actions"><button class="mini-button accent" data-dump-task="${i.id}">Maak taak</button><button class="mini-button danger" data-dump-delete="${i.id}">Verwijder</button></div></div>`).join('')}</div>`:`<div class="empty-state">Je dump is leeg. Mooi rustig.</div>`; }
+  function addDump(text){ text=text.trim(); if(!text)return; state.dump.push({id:uid('dump'),text,createdAt:Date.now(),processed:false}); saveState(); renderDump(); }
+  function setupSpeech(){ const Ctor=window.SpeechRecognition||window.webkitSpeechRecognition; const hint=document.getElementById('speechHint'); if(!Ctor){ hint.textContent='Inspreken wordt door deze browser niet ondersteund. Typen werkt wel.'; return; } speechRecognition=new Ctor(); speechRecognition.lang='nl-NL'; speechRecognition.interimResults=false; speechRecognition.maxAlternatives=1; speechRecognition.onstart=()=>{document.getElementById('dumpMicButton').classList.add('listening');hint.textContent='Ik luister...';}; speechRecognition.onend=()=>{document.getElementById('dumpMicButton').classList.remove('listening');hint.textContent='Tik om te spreken, of typ hieronder.';}; speechRecognition.onerror=()=>showToast('Inspreken lukte niet. Typen kan altijd.'); speechRecognition.onresult=e=>{ const text=e.results?.[0]?.[0]?.transcript||''; if(text){addDump(text);showToast('Gedachte bewaard.');} }; }
 
-  function renderMenu() {
-    const wrap = document.getElementById('weekMenu');
-    const actions = document.getElementById('menuShoppingActions');
-    if (!state.weekMenu.length) {
-      wrap.innerHTML = `<div class="section-card"><div class="empty-state">Druk op “Maak mijn weekmenu” voor 7 avondmaaltijden.</div></div>`;
-      actions.style.display = 'none';
-      return;
-    }
-    wrap.innerHTML = state.weekMenu.map((id, index) => {
-      const r = recipeById(id);
-      if (!r) return '';
-      return `<article class="menu-day">
-        <div class="menu-day-top">
-          <div class="day-badge">${DAYS[index].slice(0,2)}</div>
-          <div><div class="meal-title">${escapeHtml(r.name)}</div><div class="meal-meta">${r.time} · ${r.category} · 2 personen</div></div>
-        </div>
-        <div class="meal-actions">
-          <button class="meal-action" data-recipe="${r.id}">Bekijk recept</button>
-          <button class="meal-action replace" data-replace-day="${index}">Vervang gerecht</button>
-        </div>
-      </article>`;
-    }).join('');
-    actions.style.display = 'grid';
-  }
+  function renderAllTasks(){ const active=state.tasks.filter(t=>!t.done&&!t.paused).sort(compareTaskPriority), paused=state.tasks.filter(t=>!t.done&&t.paused).sort(compareTaskPriority), done=state.tasks.filter(t=>t.done).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0)).slice(0,8); document.getElementById('allTasksList').innerHTML=`${active.length?active.map(t=>renderTaskCard(t,{actions:true})).join(''):`<div class="empty-state">Geen actieve taken.</div>`}${paused.length?`<div class="paused-label">Rust even</div>${paused.map(t=>renderTaskCard(t,{actions:true})).join('')}`:''}${done.length?`<div class="paused-label">Recent voltooid</div>${done.map(t=>renderTaskCard(t)).join('')}`:''}`; }
 
-  function replaceMeal(index) {
-    const current = new Set(state.weekMenu);
-    const candidates = recipes.filter(r => !current.has(r.id));
-    if (!candidates.length) return;
-    const replacement = candidates[Math.floor(Math.random() * candidates.length)];
-    state.weekMenu[index] = replacement.id;
-    state.shopping = [];
-    saveState();
-    renderMenu();
-    showToast(`${DAYS[index]} is vervangen.`);
-  }
+  function nextOpenSubtask(task){ return task?.subtasks?.find(s=>!s.done)?.name||''; }
+  function focusTask(){ return state.tasks.find(t=>t.id===state.focus.taskId&&!t.done) || state.todayPlan.taskIds.map(id=>state.tasks.find(t=>t.id===id)).find(t=>t&&!t.done) || state.tasks.filter(isEligibleToday).sort(compareTaskPriority)[0] || null; }
+  function selectFocusTask(id){ state.focus.taskId=id; state.focus.remainingSec=state.focus.durationSec||300; state.focus.running=false; saveState(); setDailyTab('focus'); }
+  function renderFocus(){ const task=focusTask(); if(task && state.focus.taskId!==task.id){state.focus.taskId=task.id;state.focus.running=false;if(!state.focus.remainingSec)state.focus.remainingSec=state.focus.durationSec||300;} const wrap=document.getElementById('focusCard'); if(!task){wrap.innerHTML=`<div class="empty-state">Geen open taak om op te focussen. Voeg eerst een taak toe.</div><button class="primary-button" id="focusAddTaskButton">+ Taak toevoegen</button>`;return;} const dur=Math.round((state.focus.durationSec||300)/60); wrap.innerHTML=`<div class="focus-hero"><p class="eyebrow">NU AAN DE BEURT</p><div class="focus-task-name">${escapeHtml(task.name)}</div><div class="focus-step">${escapeHtml(nextOpenSubtask(task)||'Eén ding tegelijk.')}</div><div class="focus-clock"><div><span class="small-muted">${state.focus.running?'nog':'ongeveer'}</span><br><strong id="focusClockText">${formatTime(state.focus.remainingSec||state.focus.durationSec||300)}</strong></div></div><div class="focus-duration-grid">${[5,15,25].map(m=>`<button class="duration-button ${dur===m?'selected':''}" data-focus-duration="${m}">${m} min</button>`).join('')}</div><div class="dump-input-row"><input class="text-input" type="number" min="1" max="180" id="customFocusMinutes" placeholder="Zelf minuten"/><button class="secondary-button" id="customFocusButton" style="width:auto;">Kies</button></div><div class="focus-controls"><button class="primary-button" id="focusStartButton">${state.focus.running?'Pauze':'Start focus'}</button><button class="secondary-button" data-task-done-now="${task.id}">Taak klaar</button><button class="secondary-button" id="chooseFocusTaskButton">Andere taak kiezen</button></div></div>`; }
 
-  function openRecipe(id) {
-    const r = recipeById(id);
-    if (!r) return;
-    document.getElementById('recipeTitle').textContent = r.name;
-    document.getElementById('recipeMeta').textContent = `${r.time} · 2 personen`;
-    document.getElementById('recipeIngredients').innerHTML = r.ingredients.map(i => `<li>${formatAmount(i.amount)} ${escapeHtml(i.unit)} ${escapeHtml(i.name)}</li>`).join('');
-    document.getElementById('recipeSteps').innerHTML = r.steps.map(s => `<li>${escapeHtml(s)}</li>`).join('');
-    document.getElementById('recipeModal').classList.add('open');
-  }
+  function renderShutdown(){ const today=localDateKey(), completed=state.tasks.filter(t=>t.done&&t.completedAt&&localDateKey(new Date(t.completedAt))===today).sort((a,b)=>a.completedAt-b.completedAt), open=state.todayPlan.taskIds.map(id=>state.tasks.find(t=>t.id===id)).filter(t=>t&&!t.done), dumps=state.dump.filter(d=>!d.processed).length; document.getElementById('shutdownContent').innerHTML=`<div class="shutdown-summary"><p class="eyebrow">DAGAFSLUITING</p><h2 style="font-family:Georgia,'Times New Roman',serif;font-size:34px;">Dit is gelukt vandaag.</h2>${completed.length?completed.map(t=>`<div class="completed-line"><div class="completed-check">✓</div><div class="completed-name">${escapeHtml(t.name)}</div><div class="completed-time">${formatClock(t.completedAt)}</div></div>`).join(''):`<div class="empty-state" style="text-align:left;padding-left:0;">Vandaag hoefde niet vol te zijn.</div>`}</div><div class="section-card"><div class="section-heading"><div><h3 style="margin-bottom:3px;">Wat blijft liggen?</h3><span class="small-muted">Geef open taken een bestemming.</span></div></div>${open.length?open.map(t=>`<div class="shutdown-open"><strong>${escapeHtml(t.name)}</strong><div class="shutdown-actions"><button data-tomorrow="${t.id}">Morgen</button><button data-toggle-pause="${t.id}">Rust</button><button data-keep-list="${t.id}">Op lijst</button></div></div>`).join(''):`<div class="empty-state">Geen open belangrijke taken.</div>`}${dumps?`<button class="secondary-button" id="reviewDumpButton">Bekijk ${dumps} ${dumps===1?'dump-item':'dump-items'}</button>`:''}<div class="spacer-8"></div><button class="primary-button" id="closeDayButton">Dag afronden</button></div>`; }
 
-  function formatAmount(amount) {
-    if (Number.isInteger(amount)) return String(amount);
-    return String(amount).replace('.', ',');
-  }
+  function generateMicrosteps(name){ const s=name.toLowerCase(); const t=(a,b,c)=>[a,b,c]; if(/weekmenu|maaltijd/.test(s))return t('Bekijk wat er nog in huis is','Kies de maaltijden','Maak de boodschappenlijst'); if(/boodschap/.test(s))return t('Bekijk voorraad','Maak of controleer de lijst','Haal de boodschappen'); if(/bel|bellen/.test(s))return t('Zoek nummer of gegevens erbij','Doe het telefoontje','Noteer wat er nog moet gebeuren'); if(/opruim|schoonmaak|kamer|kast/.test(s))return t('Kies één klein beginpunt','Sorteer wat weg / blijft / elders hoort','Ruim het gekozen deel af'); if(/mail|e-mail|bericht/.test(s))return t('Verzamel de nodige informatie','Schrijf een korte versie','Controleer en verstuur'); if(/afspraak|regelen/.test(s))return t('Bepaal wat je precies nodig hebt','Neem contact op of regel het','Controleer of het bevestigd is'); if(/wandeling|wandelen|workout|sport/.test(s))return t('Kies duur en startpunt','Begin rustig','Rond af en noteer dat het gedaan is'); return t(`Bepaal de eerste kleine stap voor “${name}”`,`Werk het belangrijkste deel van “${name}” af`,`Controleer wat nog nodig is en rond af`); }
+  function fillSuggestedSteps(force=false){ const name=document.getElementById('modalInput').value.trim(), ta=document.getElementById('taskSubtasks'); if(!name)return; if(!force && ta.value.trim())return; ta.value=generateMicrosteps(name).join('\n'); }
 
-  function makeShoppingList() {
-    if (state.weekMenu.length !== 7) {
-      showToast('Maak eerst een volledig weekmenu.');
-      return;
-    }
-    const aggregate = new Map();
-    state.weekMenu.forEach(id => {
-      const r = recipeById(id);
-      if (!r) return;
-      r.ingredients.forEach(i => {
-        const key = `${i.name.toLowerCase()}|${i.unit}|${i.cat}`;
-        if (!aggregate.has(key)) aggregate.set(key, { id: uid('shop'), name: i.name, amount: 0, unit: i.unit, cat: i.cat, done: false, manual: false });
-        aggregate.get(key).amount += i.amount;
-      });
-    });
-    state.shopping = [...aggregate.values()].sort((a,b) => a.cat.localeCompare(b.cat, 'nl') || a.name.localeCompare(b.name, 'nl'));
-    saveState();
-    renderShopping();
-    showView('shopping');
-    showToast('Boodschappenlijst gemaakt.');
-  }
+  function openInputModal(mode){ inputMode=mode; const title=document.getElementById('inputModalTitle'),hint=document.getElementById('inputModalHint'),label=document.getElementById('inputLabel'),input=document.getElementById('modalInput'),save=document.getElementById('modalSaveButton'); input.value=''; document.getElementById('taskDeadline').value=''; document.getElementById('taskSubtasks').value=''; document.getElementById('habitDescription').value=''; document.getElementById('taskOptions').style.display='none'; document.getElementById('habitOptions').style.display='none'; if(mode==='task'){title.textContent='Nieuwe taak';hint.textContent='Microstappen worden automatisch voorgesteld. Een deadline helpt bij de dagkeuze.';label.textContent='Wat wil je doen?';input.placeholder='Bijv. weekmenu + boodschappenlijst maken';save.textContent='Taak toevoegen';document.getElementById('taskOptions').style.display='block';} else if(mode==='habit'){title.textContent='Nieuwe gewoonte';hint.textContent='Deze verschijnt elke dag bij Start.';label.textContent='Naam van de gewoonte';input.placeholder='Bijv. Ochtendroutine';save.textContent='Gewoonte toevoegen';document.getElementById('habitOptions').style.display='block';} else {title.textContent='Nieuw project';hint.textContent='Voor nu alleen een eenvoudige projectnaam.';label.textContent='Projectnaam';input.placeholder='Bijv. Schuur opruimen';save.textContent='Project toevoegen';} document.getElementById('inputModal').classList.add('open'); setTimeout(()=>input.focus(),100); }
+  function closeInputModal(){document.getElementById('inputModal').classList.remove('open');inputMode=null;} function closeRecipeModal(){document.getElementById('recipeModal').classList.remove('open');}
+  function saveModalInput(){ const value=document.getElementById('modalInput').value.trim(); if(!value)return showToast('Vul eerst een naam in.'); if(inputMode==='task'){fillSuggestedSteps(false); const deadline=document.getElementById('taskDeadline').value||'',subtasks=document.getElementById('taskSubtasks').value.split('\n').map(x=>x.trim()).filter(Boolean).map(name=>({id:uid('sub'),name,done:false})); const task={id:uid('task'),name:value,done:false,elapsed:0,running:false,deadline,subtasks,createdAt:Date.now(),completedAt:null,paused:false,deferUntil:''}; state.tasks.push(task); refillTodayPlan(Boolean(deadline)); saveState(); closeInputModal(); renderToday(); renderAllTasks(); showToast(state.todayPlan.taskIds.includes(task.id)?'Taak staat bij Vandaag.':'Taak toegevoegd aan je lijst.'); } else if(inputMode==='habit'){state.habits.push({id:uid('habit'),name:value,description:document.getElementById('habitDescription').value.trim(),history:{}});saveState();closeInputModal();renderHabits();} else {state.projects.push({id:uid('project'),name:value});saveState();closeInputModal();renderProjects();} }
 
-  function renderShopping() {
-    const wrap = document.getElementById('shoppingContent');
-    if (!state.shopping.length) {
-      wrap.innerHTML = `<div class="section-card"><div class="empty-state">Nog geen boodschappenlijst. Maak er één vanuit je weekmenu, of voeg hieronder zelf iets toe.</div></div>`;
-      return;
-    }
-    const groups = {};
-    state.shopping.forEach(item => {
-      const cat = item.cat || 'Overig';
-      (groups[cat] ||= []).push(item);
-    });
-    wrap.innerHTML = `<div class="section-card">${Object.entries(groups).map(([cat, items]) => `
-      <div class="shopping-category">${escapeHtml(cat)}</div>
-      <div class="shopping-list">
-        ${items.map(item => `
-          <div class="shopping-item ${item.done ? 'done' : ''}">
-            <div class="shopping-row">
-              <input class="check" type="checkbox" ${item.done ? 'checked' : ''} data-shopping-check="${item.id}" aria-label="Product afvinken" />
-              <div class="shopping-name">${escapeHtml(item.name)}</div>
-              <div class="shopping-qty">${item.manual ? '' : `${formatAmount(item.amount)} ${escapeHtml(item.unit)}`}</div>
-            </div>
-          </div>`).join('')}
-      </div>`).join('')}</div>`;
-  }
+  function markTask(task,done){ task.done=done; task.completedAt=done?Date.now():null; task.running=false; if(done&&state.focus.taskId===task.id)state.focus.running=false; refillTodayPlan(false); saveState(); renderToday(); renderAllTasks(); renderFocus(); renderShutdown(); }
 
-  function renderProjects() {
-    const wrap = document.getElementById('projectList');
-    wrap.innerHTML = state.projects.length
-      ? state.projects.map(p => `<div class="project-item"><div class="project-row" style="width:100%;"><div class="project-dot"></div><div class="project-name">${escapeHtml(p.name)}</div></div></div>`).join('')
-      : `<div class="empty-state">Nog geen projecten. Voeg alleen een naam toe; verdere projectfuncties komen later.</div>`;
-  }
+  setInterval(()=>{ if(state.focus.running){ state.focus.remainingSec=Math.max(0,(state.focus.remainingSec||0)-1); const task=state.tasks.find(t=>t.id===state.focus.taskId); if(task)task.elapsed=(task.elapsed||0)+1; const el=document.getElementById('focusClockText');if(el)el.textContent=formatTime(state.focus.remainingSec); if(state.focus.remainingSec<=0){state.focus.running=false;showToast('Focusblok klaar.');renderFocus();} if(state.focus.remainingSec%10===0)saveState(); } },1000);
 
-  function openInputModal(mode) {
-    inputMode = mode;
-    const title = document.getElementById('inputModalTitle');
-    const hint = document.getElementById('inputModalHint');
-    const label = document.getElementById('inputLabel');
-    const input = document.getElementById('modalInput');
-    const save = document.getElementById('modalSaveButton');
-    const taskOptions = document.getElementById('taskOptions');
-    input.value = '';
-    document.getElementById('taskDeadline').value = '';
-    document.getElementById('taskSubtasks').value = '';
-    if (mode === 'task') {
-      title.textContent = 'Nieuwe taak';
-      hint.textContent = 'Een deadline helpt bepalen wat vandaag belangrijk is.';
-      label.textContent = 'Wat wil je doen?';
-      input.placeholder = 'Bijv. weekmenu + boodschappenlijst maken';
-      save.textContent = 'Taak toevoegen';
-      taskOptions.style.display = 'block';
-    } else {
-      title.textContent = 'Nieuw project';
-      hint.textContent = 'Voor nu alleen een eenvoudige projectnaam.';
-      label.textContent = 'Projectnaam';
-      input.placeholder = 'Bijv. Schuur opruimen';
-      save.textContent = 'Project toevoegen';
-      taskOptions.style.display = 'none';
-    }
-    document.getElementById('inputModal').classList.add('open');
-    setTimeout(() => input.focus(), 100);
-  }
+  function generateWeekMenu(){ const shuffled=[...recipes].sort(()=>Math.random()-.5);state.weekMenu=shuffled.slice(0,7).map(r=>r.id);state.shopping=[];saveState();renderMenu();showToast('Je weekmenu is klaar.'); }
+  function recipeById(id){return recipes.find(r=>r.id===id);} function formatAmount(amount){return Number.isInteger(amount)?String(amount):String(amount).replace('.',',');}
+  function renderMenu(){const wrap=document.getElementById('weekMenu'),actions=document.getElementById('menuShoppingActions');if(!state.weekMenu.length){wrap.innerHTML=`<div class="section-card"><div class="empty-state">Druk op “Maak mijn weekmenu” voor 7 avondmaaltijden.</div></div>`;actions.style.display='none';return;}wrap.innerHTML=state.weekMenu.map((id,index)=>{const r=recipeById(id);if(!r)return'';return`<article class="menu-day"><div class="menu-day-top"><div class="day-badge">${DAYS[index].slice(0,2)}</div><div><div class="meal-title">${escapeHtml(r.name)}</div><div class="meal-meta">${r.time} · ${r.category} · 2 personen</div></div></div><div class="meal-actions"><button class="meal-action" data-recipe="${r.id}">Bekijk recept</button><button class="meal-action replace" data-replace-day="${index}">Vervang gerecht</button></div></article>`;}).join('');actions.style.display='grid';}
+  function replaceMeal(index){const current=new Set(state.weekMenu),candidates=recipes.filter(r=>!current.has(r.id));if(!candidates.length)return;state.weekMenu[index]=candidates[Math.floor(Math.random()*candidates.length)].id;state.shopping=[];saveState();renderMenu();showToast(`${DAYS[index]} is vervangen.`);}
+  function openRecipe(id){const r=recipeById(id);if(!r)return;document.getElementById('recipeTitle').textContent=r.name;document.getElementById('recipeMeta').textContent=`${r.time} · 2 personen`;document.getElementById('recipeIngredients').innerHTML=r.ingredients.map(i=>`<li>${formatAmount(i.amount)} ${escapeHtml(i.unit)} ${escapeHtml(i.name)}</li>`).join('');document.getElementById('recipeSteps').innerHTML=r.steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('');document.getElementById('recipeModal').classList.add('open');}
+  function makeShoppingList(){if(state.weekMenu.length!==7)return showToast('Maak eerst een volledig weekmenu.');const aggregate=new Map();state.weekMenu.forEach(id=>{const r=recipeById(id);if(!r)return;r.ingredients.forEach(i=>{const key=`${i.name.toLowerCase()}|${i.unit}|${i.cat}`;if(!aggregate.has(key))aggregate.set(key,{id:uid('shop'),name:i.name,amount:0,unit:i.unit,cat:i.cat,done:false,manual:false});aggregate.get(key).amount+=i.amount;});});state.shopping=[...aggregate.values()].sort((a,b)=>a.cat.localeCompare(b.cat,'nl')||a.name.localeCompare(b.name,'nl'));saveState();renderShopping();showView('shopping');showToast('Boodschappenlijst gemaakt.');}
+  function renderShopping(){const wrap=document.getElementById('shoppingContent');if(!state.shopping.length){wrap.innerHTML=`<div class="section-card"><div class="empty-state">Nog geen boodschappenlijst. Maak er één vanuit je weekmenu, of voeg hieronder zelf iets toe.</div></div>`;return;}const groups={};state.shopping.forEach(item=>{const cat=item.cat||'Overig';(groups[cat]||=[]).push(item);});wrap.innerHTML=`<div class="section-card">${Object.entries(groups).map(([cat,items])=>`<div class="shopping-category">${escapeHtml(cat)}</div><div class="shopping-list">${items.map(item=>`<div class="shopping-item ${item.done?'done':''}"><div class="shopping-row"><input class="check" type="checkbox" ${item.done?'checked':''} data-shopping-check="${item.id}"/><div class="shopping-name">${escapeHtml(item.name)}</div><div class="shopping-qty">${item.manual?'':`${formatAmount(item.amount)} ${escapeHtml(item.unit)}`}</div></div></div>`).join('')}</div>`).join('')}</div>`;}
+  function renderProjects(){const wrap=document.getElementById('projectList');wrap.innerHTML=state.projects.length?state.projects.map(p=>`<div class="project-item"><div class="project-row" style="width:100%;"><div class="project-dot"></div><div class="project-name">${escapeHtml(p.name)}</div></div></div>`).join(''):`<div class="empty-state">Nog geen projecten. Voeg alleen een naam toe; verdere projectfuncties komen later.</div>`;}
 
-  function closeInputModal() { document.getElementById('inputModal').classList.remove('open'); inputMode = null; }
-  function closeRecipeModal() { document.getElementById('recipeModal').classList.remove('open'); }
-
-  function saveModalInput() {
-    const input = document.getElementById('modalInput');
-    const value = input.value.trim();
-    if (!value) { showToast('Vul eerst een naam in.'); return; }
-    if (inputMode === 'task') {
-      ensureDailyState();
-      const deadline = document.getElementById('taskDeadline').value || '';
-      const subtasks = document.getElementById('taskSubtasks').value
-        .split('\n')
-        .map(line => line.trim())
-        .filter(Boolean)
-        .map(name => ({ id: uid('sub'), name, done: false }));
-      const task = { id: uid('task'), name: value, done: false, elapsed: 0, running: false, deadline, subtasks, createdAt: Date.now() };
-      state.tasks.push(task);
-      const hadRoom = state.todayPlan.taskIds.length < energyLimit();
-      refillTodayPlan(Boolean(deadline));
-      saveState(); closeInputModal(); renderToday();
-      const planned = state.todayPlan.taskIds.includes(task.id);
-      showToast(planned ? 'Taak staat bij Vandaag.' : (hadRoom ? 'Taak toegevoegd.' : 'Taak staat onder Later.'));
-    } else if (inputMode === 'project') {
-      state.projects.push({ id: uid('project'), name: value });
-      saveState(); closeInputModal(); renderProjects();
-    }
-  }
-
-  document.addEventListener('click', e => {
-    const open = e.target.closest('[data-open]');
-    if (open) return showView(open.dataset.open);
-    if (e.target.closest('[data-back]')) return showView('home');
-
-    const energy = e.target.closest('[data-energy]');
-    if (energy) {
-      state.energy = Number(energy.dataset.energy);
-      ensureDailyState();
-      refillTodayPlan(false);
-      saveState(); renderToday(); return;
-    }
-
-    if (e.target.closest('#addTaskButton')) return openInputModal('task');
-    if (e.target.closest('#newProjectButton')) return openInputModal('project');
-    if (e.target.closest('#generateMenuButton')) return generateWeekMenu();
-    if (e.target.closest('#makeShoppingButton')) return makeShoppingList();
-
-    const recipeBtn = e.target.closest('[data-recipe]');
-    if (recipeBtn) return openRecipe(recipeBtn.dataset.recipe);
-    const replaceBtn = e.target.closest('[data-replace-day]');
-    if (replaceBtn) return replaceMeal(Number(replaceBtn.dataset.replaceDay));
-
-    const timerBtn = e.target.closest('[data-timer]');
-    if (timerBtn) {
-      const task = state.tasks.find(t => t.id === timerBtn.dataset.timer);
-      if (!task) return;
-      task.running = !task.running;
-      saveState(); renderToday(); return;
-    }
-
-    if (e.target.closest('[data-close-modal]')) return closeInputModal();
-    if (e.target.closest('[data-close-recipe]')) return closeRecipeModal();
-    if (e.target.closest('#modalSaveButton')) return saveModalInput();
-
-    if (e.target.closest('#addProductButton')) {
-      const input = document.getElementById('manualProduct');
-      const name = input.value.trim();
-      if (!name) return showToast('Vul eerst een product in.');
-      state.shopping.push({ id: uid('shop'), name, amount: 1, unit: '', cat: 'Overig', done: false, manual: true });
-      input.value = '';
-      saveState(); renderShopping(); return;
-    }
+  document.addEventListener('click',e=>{
+    const open=e.target.closest('[data-open]');if(open)return showView(open.dataset.open); if(e.target.closest('[data-back]'))return showView('home');
+    const tab=e.target.closest('[data-daily-tab]');if(tab)return setDailyTab(tab.dataset.dailyTab);
+    const energy=e.target.closest('[data-energy]');if(energy){state.energy=Number(energy.dataset.energy);refillTodayPlan(false);saveState();return renderToday();}
+    if(e.target.closest('#addTaskButton')||e.target.closest('#addTaskFromListButton')||e.target.closest('#focusAddTaskButton'))return openInputModal('task');
+    if(e.target.closest('#addHabitButton'))return openInputModal('habit'); if(e.target.closest('#newProjectButton'))return openInputModal('project');
+    if(e.target.closest('#regenerateStepsButton'))return fillSuggestedSteps(true);
+    if(e.target.closest('#reopenDayButton')){state.dayClosedDate=null;saveState();return renderToday();}
+    if(e.target.closest('#generateMenuButton'))return generateWeekMenu(); if(e.target.closest('#makeShoppingButton'))return makeShoppingList();
+    const recipeBtn=e.target.closest('[data-recipe]');if(recipeBtn)return openRecipe(recipeBtn.dataset.recipe);const replaceBtn=e.target.closest('[data-replace-day]');if(replaceBtn)return replaceMeal(Number(replaceBtn.dataset.replaceDay));
+    const focus=e.target.closest('[data-focus-task]');if(focus)return selectFocusTask(focus.dataset.focusTask);
+    const dur=e.target.closest('[data-focus-duration]');if(dur){state.focus.durationSec=Number(dur.dataset.focusDuration)*60;state.focus.remainingSec=state.focus.durationSec;state.focus.running=false;saveState();return renderFocus();}
+    if(e.target.closest('#customFocusButton')){const m=Math.max(1,Math.min(180,Number(document.getElementById('customFocusMinutes').value)||0));if(!m)return showToast('Vul een aantal minuten in.');state.focus.durationSec=m*60;state.focus.remainingSec=m*60;state.focus.running=false;saveState();return renderFocus();}
+    if(e.target.closest('#focusStartButton')){state.focus.running=!state.focus.running;if(state.focus.remainingSec<=0)state.focus.remainingSec=state.focus.durationSec||300;saveState();return renderFocus();}
+    if(e.target.closest('#chooseFocusTaskButton')){setDailyTab('tasks');return showToast('Kies bij een taak op Focus.');}
+    const doneNow=e.target.closest('[data-task-done-now]');if(doneNow){const t=state.tasks.find(x=>x.id===doneNow.dataset.taskDoneNow);if(t)return markTask(t,true);}
+    const pause=e.target.closest('[data-toggle-pause]');if(pause){const t=state.tasks.find(x=>x.id===pause.dataset.togglePause);if(t){t.paused=!t.paused;if(t.paused)t.deferUntil='';refillTodayPlan(true);saveState();renderAllTasks();renderToday();renderShutdown();}return;}
+    const tomorrow=e.target.closest('[data-tomorrow]');if(tomorrow){const t=state.tasks.find(x=>x.id===tomorrow.dataset.tomorrow);if(t){t.deferUntil=addDaysKey(1);t.paused=false;state.todayPlan.taskIds=state.todayPlan.taskIds.filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderToday();renderAllTasks();renderShutdown();showToast('Taak staat voor morgen.');}return;}
+    if(e.target.closest('[data-keep-list]')){showToast('Taak blijft actief op je lijst.');return;}
+    if(e.target.closest('#wakeAllButton')){state.tasks.forEach(t=>t.paused=false);saveState();renderAllTasks();showToast('Alle taken zijn weer actief.');return;}
+    if(e.target.closest('#reviewDumpButton'))return setDailyTab('dump');
+    if(e.target.closest('#closeDayButton')){state.dayClosedDate=localDateKey();state.focus.running=false;saveState();setDailyTab('start');renderToday();return showToast('Dag afgesloten.');}
+    if(e.target.closest('#addDumpButton')){const inp=document.getElementById('dumpTextInput');addDump(inp.value);inp.value='';return;}
+    if(e.target.closest('#dumpMicButton')){if(!speechRecognition)return showToast('Inspreken werkt hier niet; typ je gedachte hieronder.');try{speechRecognition.start();}catch{}return;}
+    const dumpTask=e.target.closest('[data-dump-task]');if(dumpTask){const item=state.dump.find(x=>x.id===dumpTask.dataset.dumpTask);if(item){const task={id:uid('task'),name:item.text,done:false,elapsed:0,running:false,deadline:'',createdAt:Date.now(),completedAt:null,paused:false,deferUntil:'',subtasks:generateMicrosteps(item.text).map(name=>({id:uid('sub'),name,done:false}))};state.tasks.push(task);item.processed=true;refillTodayPlan(false);saveState();renderDump();renderToday();showToast('Omgezet naar taak.');}return;}
+    const dumpDel=e.target.closest('[data-dump-delete]');if(dumpDel){state.dump=state.dump.filter(x=>x.id!==dumpDel.dataset.dumpDelete);saveState();renderDump();return;}
+    const hist=e.target.closest('[data-habit-history]');if(hist)return openHabitHistory(hist.dataset.habitHistory);
+    if(e.target.closest('[data-close-modal]'))return closeInputModal();if(e.target.closest('[data-close-recipe]'))return closeRecipeModal();if(e.target.closest('[data-close-habit]'))return document.getElementById('habitModal').classList.remove('open');if(e.target.closest('#modalSaveButton'))return saveModalInput();
+    if(e.target.closest('#addProductButton')){const input=document.getElementById('manualProduct'),name=input.value.trim();if(!name)return showToast('Vul eerst een product in.');state.shopping.push({id:uid('shop'),name,amount:1,unit:'',cat:'Overig',done:false,manual:true});input.value='';saveState();return renderShopping();}
   });
 
-  document.addEventListener('change', e => {
-    if (e.target.matches('[data-task-check]')) {
-      const task = state.tasks.find(t => t.id === e.target.dataset.taskCheck);
-      if (task) { task.done = e.target.checked; if (task.done) task.running = false; saveState(); renderToday(); }
-    }
-    if (e.target.matches('[data-subtask-check]')) {
-      const [taskId, subtaskId] = e.target.dataset.subtaskCheck.split('|');
-      const task = state.tasks.find(t => t.id === taskId);
-      const subtask = task?.subtasks?.find(st => st.id === subtaskId);
-      if (subtask) { subtask.done = e.target.checked; saveState(); renderToday(); }
-    }
-    if (e.target.matches('[data-routine-check]')) {
-      const r = state.routines.find(x => x.id === e.target.dataset.routineCheck);
-      if (r) { r.done = e.target.checked; saveState(); renderToday(); }
-    }
-    if (e.target.matches('[data-shopping-check]')) {
-      const item = state.shopping.find(x => x.id === e.target.dataset.shoppingCheck);
-      if (item) { item.done = e.target.checked; saveState(); renderShopping(); }
-    }
+  document.addEventListener('change',e=>{
+    if(e.target.matches('[data-task-check]')){const t=state.tasks.find(x=>x.id===e.target.dataset.taskCheck);if(t)markTask(t,e.target.checked);}
+    if(e.target.matches('[data-subtask-check]')){const [tid,sid]=e.target.dataset.subtaskCheck.split('|'),t=state.tasks.find(x=>x.id===tid),s=t?.subtasks?.find(x=>x.id===sid);if(s){s.done=e.target.checked;saveState();renderToday();renderAllTasks();renderFocus();}}
+    if(e.target.matches('[data-habit-check]')){const h=state.habits.find(x=>x.id===e.target.dataset.habitCheck);if(h){h.history||={};if(e.target.checked)h.history[localDateKey()]=true;else delete h.history[localDateKey()];saveState();renderHabits();}}
+    if(e.target.matches('[data-shopping-check]')){const item=state.shopping.find(x=>x.id===e.target.dataset.shoppingCheck);if(item){item.done=e.target.checked;saveState();renderShopping();}}
   });
 
-  document.getElementById('modalInput').addEventListener('keydown', e => { if (e.key === 'Enter') saveModalInput(); });
-  document.getElementById('manualProduct').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('addProductButton').click(); });
-  document.getElementById('inputModal').addEventListener('click', e => { if (e.target.id === 'inputModal') closeInputModal(); });
-  document.getElementById('recipeModal').addEventListener('click', e => { if (e.target.id === 'recipeModal') closeRecipeModal(); });
+  document.getElementById('modalInput').addEventListener('blur',()=>{if(inputMode==='task')fillSuggestedSteps(false);});
+  document.getElementById('modalInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&inputMode!=='habit')saveModalInput();});
+  document.getElementById('dumpTextInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('addDumpButton').click();});
+  document.getElementById('manualProduct').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('addProductButton').click();});
+  document.getElementById('inputModal').addEventListener('click',e=>{if(e.target.id==='inputModal')closeInputModal();});document.getElementById('recipeModal').addEventListener('click',e=>{if(e.target.id==='recipeModal')closeRecipeModal();});document.getElementById('habitModal').addEventListener('click',e=>{if(e.target.id==='habitModal')e.target.classList.remove('open');});
 
-  let deferredInstallPrompt = null;
-  const installCard = document.getElementById('installCard');
-  const installButton = document.getElementById('installAppButton');
+  let deferredInstallPrompt=null; const installCard=document.getElementById('installCard'),installButton=document.getElementById('installAppButton');window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;installCard?.classList.add('show');});installButton?.addEventListener('click',async()=>{if(!deferredInstallPrompt)return showToast('Deze app staat al op je telefoon of installeren is hier niet beschikbaar.');deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installCard?.classList.remove('show');});window.addEventListener('appinstalled',()=>installCard?.classList.remove('show'));
+  if('serviceWorker'in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
 
-  window.addEventListener('beforeinstallprompt', event => {
-    event.preventDefault();
-    deferredInstallPrompt = event;
-    installCard?.classList.add('show');
-  });
-
-  installButton?.addEventListener('click', async () => {
-    if (!deferredInstallPrompt) {
-      showToast('Installeren wordt beschikbaar zodra deze versie via een vast webadres is geopend.');
-      return;
-    }
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-    installCard?.classList.remove('show');
-  });
-
-  window.addEventListener('appinstalled', () => {
-    deferredInstallPrompt = null;
-    installCard?.classList.remove('show');
-    showToast('App toegevoegd aan je telefoon.');
-  });
-
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js').catch(() => {});
-    });
-  }
-
-  const dateFmt = new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
-  const dateText = dateFmt.format(new Date());
-  document.getElementById('todayLabel').textContent = dateText.charAt(0).toUpperCase() + dateText.slice(1);
-
-  ensureDailyState();
-  renderToday();
-  renderMenu();
-  renderShopping();
-  renderProjects();
+  const dateFmt=new Intl.DateTimeFormat('nl-NL',{weekday:'long',day:'numeric',month:'long'}),dateText=dateFmt.format(new Date());document.getElementById('todayLabel').textContent=dateText.charAt(0).toUpperCase()+dateText.slice(1);
+  setupSpeech(); ensureDailyState(); renderToday(); renderDump(); renderAllTasks(); renderFocus(); renderShutdown(); renderMenu(); renderShopping(); renderProjects();
 })();
 </script>
 </body>
