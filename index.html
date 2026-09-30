@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#45624d" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Mijn app" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <title>Mijn Dag</title>
+  <style>
+    :root {
+      --bg: #f5f5ef;
+      --surface: #ffffff;
+      --surface-soft: #ecece3;
+      --text: #20251f;
+      --muted: #6b7168;
+      --line: #dfe1d8;
+      --accent: #45624d;
+      --accent-soft: #dce8de;
+      --accent-strong: #334a39;
+      --warm: #efe4d3;
+      --danger: #8b4c43;
+      --shadow: 0 8px 24px rgba(34, 42, 34, 0.08);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .app-shell {
+      width: min(100%, 520px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: max(18px, env(safe-area-inset-top)) 16px max(26px, env(safe-area-inset-bottom));
+    }
+
+    .view { display: none; animation: fadeIn .18s ease; }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: .5; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+    .home-header { padding: 14px 4px 18px; }
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: clamp(31px, 9vw, 40px); line-height: 1.02; margin-bottom: 10px; letter-spacing: -.035em; }
+    h2 { font-size: 28px; letter-spacing: -.03em; margin-bottom: 8px; }
+    h3 { font-size: 18px; margin-bottom: 8px; }
+    .subtitle { color: var(--muted); margin-bottom: 0; font-size: 16px; line-height: 1.45; }
+
+    .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .home-card {
+      min-height: 156px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      text-align: left;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .home-card:active { transform: scale(.985); }
+    .home-card .icon-wrap {
+      width: 46px; height: 46px; border-radius: 15px;
+      display: grid; place-items: center;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+    }
+    .home-card:nth-child(2) .icon-wrap { background: var(--warm); color: #6d5538; }
+    .home-card:nth-child(3) .icon-wrap { background: #e3e7ef; color: #4b596d; }
+    .home-card:nth-child(4) .icon-wrap { background: #e8e1ef; color: #604b70; }
+    .home-card strong { display: block; font-size: 20px; margin-bottom: 4px; }
+    .home-card span { color: var(--muted); font-size: 13px; line-height: 1.35; }
+
+    .screen-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 4px 0 20px;
+    }
+    .back-button {
+      flex: 0 0 48px;
+      height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .screen-title-wrap h2 { margin: 0; }
+    .screen-title-wrap p { margin: 3px 0 0; color: var(--muted); font-size: 14px; }
+
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      padding: 18px;
+      box-shadow: 0 5px 18px rgba(34,42,34,.05);
+      margin-bottom: 14px;
+    }
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .section-heading h3 { margin: 0; }
+    .small-muted { color: var(--muted); font-size: 13px; }
+
+    .energy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+    .energy-btn {
+      min-height: 76px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface-soft);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 21px;
+    }
+    .energy-btn small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 3px; }
+    .energy-btn.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .energy-btn.selected small { color: rgba(255,255,255,.82); }
+
+    .task-list, .routine-list, .shopping-list, .project-list { display: grid; gap: 9px; }
+    .task-item, .routine-item, .shopping-item, .project-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: #fff;
+      padding: 12px;
+    }
+    .task-row, .routine-row, .shopping-row, .project-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .check {
+      appearance: none;
+      width: 26px; height: 26px;
+      border: 2px solid #aeb5aa;
+      border-radius: 9px;
+      display: grid;
+      place-content: center;
+      flex: 0 0 auto;
+      cursor: pointer;
+    }
+    .check::before {
+      content: "";
+      width: 12px; height: 7px;
+      border-left: 3px solid white;
+      border-bottom: 3px solid white;
+      transform: rotate(-45deg) scale(0);
+      transition: transform .1s ease;
+      margin-top: -2px;
+    }
+    .check:checked { background: var(--accent); border-color: var(--accent); }
+    .check:checked::before { transform: rotate(-45deg) scale(1); }
+    .task-name, .shopping-name, .routine-name { flex: 1; min-width: 0; font-weight: 700; }
+    .done .task-name, .done .shopping-name, .done .routine-name { text-decoration: line-through; color: var(--muted); font-weight: 600; }
+
+    .timer-button {
+      border: 0;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      border-radius: 12px;
+      min-width: 70px;
+      min-height: 42px;
+      padding: 8px 10px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .timer-button.running { background: var(--accent); color: #fff; }
+    .timer-readout { margin: 8px 0 0 36px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+    .primary-button, .secondary-button, .soft-button {
+      width: 100%;
+      min-height: 54px;
+      border-radius: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      border: 0;
+      padding: 13px 16px;
+    }
+    .primary-button { background: var(--accent); color: #fff; box-shadow: 0 6px 16px rgba(69,98,77,.2); }
+    .secondary-button { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
+    .soft-button { background: var(--accent-soft); color: var(--accent-strong); }
+    .primary-button:disabled { background: #b5b9b3; box-shadow: none; cursor: not-allowed; }
+    .button-stack { display: grid; gap: 9px; margin-top: 12px; }
+
+    .empty-state {
+      padding: 16px 10px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .limit-note { margin-top: 10px; color: var(--muted); font-size: 13px; text-align: center; }
+
+    .task-main { flex: 1; min-width: 0; }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+    .task-badge {
+      display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px;
+      border-radius: 999px; background: var(--surface-soft); color: var(--muted);
+      font-size: 11px; font-weight: 800;
+    }
+    .task-badge.urgent { background: #f6e2dd; color: var(--danger); }
+    .task-badge.today { background: var(--warm); color: #6d5538; }
+    .subtask-list {
+      margin: 12px 0 2px 36px; padding-left: 16px;
+      border-left: 2px solid var(--line); display: grid; gap: 8px;
+    }
+    .subtask-row { display: flex; align-items: center; gap: 9px; min-height: 34px; }
+    .subtask-row .check { width: 22px; height: 22px; border-radius: 50%; }
+    .subtask-name { flex: 1; color: var(--muted); font-size: 14px; font-weight: 650; }
+    .subtask-row.done .subtask-name { text-decoration: line-through; color: #9a9f98; }
+    .later-list { display: grid; gap: 8px; }
+    .later-task {
+      border: 1px solid var(--line); border-radius: 16px; background: var(--surface-soft);
+      padding: 11px 12px;
+    }
+    .later-task-name { font-weight: 750; line-height: 1.3; }
+    .later-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 8px 0 2px; }
+    .textarea-input { min-height: 112px; resize: vertical; line-height: 1.45; }
+    .field-help { color: var(--muted); font-size: 12px; margin: 6px 2px 0; line-height: 1.4; }
+
+    .menu-day {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--surface);
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+    .menu-day-top { display: flex; align-items: flex-start; gap: 12px; }
+    .day-badge {
+      width: 42px; height: 42px;
+      flex: 0 0 42px;
+      border-radius: 14px;
+      display: grid; place-items: center;
+      background: var(--warm);
+      color: #634d35;
+      font-weight: 900;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+    .meal-title { font-size: 17px; font-weight: 850; line-height: 1.25; margin: 1px 0 4px; }
+    .meal-meta { color: var(--muted); font-size: 13px; }
+    .meal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .meal-action {
+      min-height: 44px;
+      border: 0;
+      border-radius: 13px;
+      background: var(--surface-soft);
+      color: var(--text);
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .meal-action.replace { background: var(--accent-soft); color: var(--accent-strong); }
+
+    .shopping-category { margin: 18px 2px 8px; font-size: 13px; color: var(--muted); font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+    .shopping-item { padding: 11px 12px; }
+    .shopping-qty { color: var(--muted); font-size: 13px; white-space: nowrap; }
+
+    .project-item { min-height: 58px; display: flex; align-items: center; }
+    .project-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); flex: 0 0 11px; }
+    .project-name { font-weight: 800; flex: 1; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(24, 29, 24, .42);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 16px 12px max(12px, env(safe-area-inset-bottom));
+      z-index: 100;
+    }
+    .modal-backdrop.open { display: flex; }
+    .sheet {
+      width: min(100%, 520px);
+      max-height: 86vh;
+      overflow: auto;
+      background: var(--surface);
+      border-radius: 26px;
+      padding: 20px;
+      box-shadow: 0 24px 70px rgba(20, 25, 20, .24);
+      animation: slideUp .18s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(18px); opacity: .75; } to { transform: none; opacity: 1; } }
+    .sheet-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .sheet-head h3 { font-size: 23px; margin: 0; }
+    .close-button { width: 42px; height: 42px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-soft); cursor: pointer; font-size: 22px; }
+    .field-label { display: block; font-size: 13px; font-weight: 900; margin: 0 0 7px 2px; }
+    .text-input {
+      width: 100%; min-height: 52px;
+      border: 1.5px solid var(--line);
+      border-radius: 15px;
+      padding: 12px 14px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+    }
+    .text-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .recipe-section { padding: 14px 0; border-top: 1px solid var(--line); }
+    .recipe-section:first-of-type { border-top: 0; padding-top: 0; }
+    .recipe-list { margin: 8px 0 0; padding-left: 20px; color: var(--text); line-height: 1.5; }
+    .recipe-list li { margin-bottom: 6px; }
+    .toast {
+      position: fixed;
+      left: 50%; bottom: max(20px, env(safe-area-inset-bottom));
+      transform: translate(-50%, 18px);
+      background: #283129;
+      color: #fff;
+      border-radius: 14px;
+      padding: 11px 15px;
+      font-size: 14px;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: .18s ease;
+      z-index: 200;
+      width: max-content;
+      max-width: calc(100% - 32px);
+      text-align: center;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .spacer-8 { height: 8px; }
+    .spacer-14 { height: 14px; }
+
+    .install-card {
+      display: none;
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--accent-soft);
+    }
+    .install-card.show { display: block; }
+    .install-card strong { display:block; margin-bottom:4px; }
+    .install-card p { color: var(--muted); font-size:14px; line-height:1.4; margin-bottom:12px; }
+
+    @media (min-width: 700px) {
+      .app-shell { padding-top: 32px; }
+      .home-card { min-height: 170px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell" id="app">
+    <section class="view active" data-view="home">
+      <header class="home-header">
+        <p class="eyebrow" id="todayLabel">Vandaag</p>
+        <h1>Mijn dag</h1>
+        <p class="subtitle">Alles wat je vandaag nodig hebt, zonder omwegen.</p>
+      </header>
+
+      <div class="home-grid">
+        <button class="home-card" data-open="today" aria-label="Open Vandaag">
+          <div class="icon-wrap" aria-hidden="true">
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M8 3v3M16 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          </div>
+          <div><strong>Vandaag</strong><span>Energie, taken en routines</span></div>
+        </button>
+        <button class="home-card" data-open="menu" aria-label="Open Weekmenu">
+          <div class="icon-wrap" aria-hidden="true">
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M7 3v8M4.5 3v5A2.5 2.5 0 0 0 7 10.5M9.5 3v5A2.5 2.5 0 0 1 7 10.5V21M16 3c2.2 0 4 2.5 4 5.5S18.2 14 16 14V3Zm0 0v18" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div><strong>Weekmenu</strong><span>7 makkelijke avondmaaltijden</span></div>
+        </button>
+        <button class="home-card" data-open="shopping" aria-label="Open Boodschappen">
+          <div class="icon-wrap" aria-hidden="true">
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7M10 20h.01M17 20h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div><strong>Boodschappen</strong><span>Lijst uit je weekmenu</span></div>
+        </button>
+        <button class="home-card" data-open="projects" aria-label="Open Projecten">
+          <div class="icon-wrap" aria-hidden="true">
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="M4 7.5h6l1.5 2H20v8.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7.5Zm0 0v-1A2.5 2.5 0 0 1 6.5 4H10l1.5 2H18A2 2 0 0 1 20 8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div><strong>Projecten</strong><span>Eenvoudig overzicht</span></div>
+        </button>
+      </div>
+
+      <div class="install-card" id="installCard">
+        <strong>Zet deze app op je beginscherm</strong>
+        <p>Daarna opent hij bijna als een gewone app, zonder steeds via ChatGPT te gaan.</p>
+        <button class="primary-button" id="installAppButton">Installeer app</button>
+      </div>
+    </section>
+
+    <section class="view" data-view="today">
+      <header class="screen-header">
+        <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
+        <div class="screen-title-wrap"><h2>Vandaag</h2><p>Maak je dag passend bij je energie.</p></div>
+      </header>
+
+      <div class="section-card">
+        <div class="section-heading"><h3>Hoeveel energie heb je?</h3></div>
+        <div class="energy-grid" id="energyGrid">
+          <button class="energy-btn" data-energy="1">1<small>rustig</small></button>
+          <button class="energy-btn" data-energy="2">2<small>normaal</small></button>
+          <button class="energy-btn" data-energy="3">3<small>veel</small></button>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-heading">
+          <div><h3 style="margin-bottom:3px;">Routines & gewoontes</h3><span class="small-muted">Deze komen elke dag terug.</span></div>
+        </div>
+        <div class="routine-list" id="routineList"></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-heading">
+          <div><h3 style="margin-bottom:3px;">Belangrijk vandaag</h3><span class="small-muted">Gekozen op energie en deadline.</span></div>
+          <span class="small-muted" id="taskCounter">0 / 2</span>
+        </div>
+        <div class="task-list" id="taskList"></div>
+        <button class="primary-button" id="addTaskButton">+ Taak toevoegen</button>
+        <div class="limit-note" id="taskLimitNote"></div>
+      </div>
+
+      <div class="section-card" id="laterCard">
+        <div class="section-heading">
+          <div><h3 style="margin-bottom:3px;">Later</h3><span class="small-muted">Taken die vandaag niet in je energiebudget passen.</span></div>
+          <span class="small-muted" id="laterCounter">0</span>
+        </div>
+        <div class="later-list" id="laterTaskList"></div>
+      </div>
+    </section>
+
+    <section class="view" data-view="menu">
+      <header class="screen-header">
+        <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
+        <div class="screen-title-wrap"><h2>Weekmenu</h2><p>7 avondmaaltijden voor 2 personen.</p></div>
+      </header>
+
+      <button class="primary-button" id="generateMenuButton">Maak mijn weekmenu</button>
+      <div class="spacer-14"></div>
+      <div id="weekMenu"></div>
+      <div id="menuShoppingActions" style="display:none;" class="button-stack">
+        <button class="soft-button" id="makeShoppingButton">Maak boodschappenlijst</button>
+      </div>
+    </section>
+
+    <section class="view" data-view="shopping">
+      <header class="screen-header">
+        <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
+        <div class="screen-title-wrap"><h2>Boodschappen</h2><p>Alles bij elkaar op één lijst.</p></div>
+      </header>
+
+      <div id="shoppingContent"></div>
+      <div class="section-card">
+        <label class="field-label" for="manualProduct">Zelf product toevoegen</label>
+        <div style="display:grid; grid-template-columns:1fr auto; gap:8px;">
+          <input class="text-input" id="manualProduct" placeholder="Bijv. koffie" autocomplete="off" />
+          <button class="soft-button" id="addProductButton" style="width:auto; min-width:84px;">Toevoegen</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="projects">
+      <header class="screen-header">
+        <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
+        <div class="screen-title-wrap"><h2>Projecten</h2><p>Eenvoudig overzicht voor versie 1.</p></div>
+      </header>
+
+      <div class="section-card">
+        <div class="project-list" id="projectList"></div>
+        <div class="spacer-8"></div>
+        <button class="primary-button" id="newProjectButton">+ Nieuw project</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="inputModal" role="dialog" aria-modal="true" aria-labelledby="inputModalTitle">
+    <div class="sheet">
+      <div class="sheet-head">
+        <div><h3 id="inputModalTitle">Toevoegen</h3><p class="small-muted" id="inputModalHint" style="margin:5px 0 0;"></p></div>
+        <button class="close-button" data-close-modal aria-label="Sluiten">×</button>
+      </div>
+      <label class="field-label" id="inputLabel" for="modalInput">Naam</label>
+      <input class="text-input" id="modalInput" autocomplete="off" />
+      <div id="taskOptions" style="display:none;">
+        <div class="spacer-14"></div>
+        <label class="field-label" for="taskDeadline">Deadline <span style="font-weight:600;color:var(--muted);">(optioneel)</span></label>
+        <input class="text-input" type="date" id="taskDeadline" />
+        <div class="spacer-14"></div>
+        <label class="field-label" for="taskSubtasks">Subtaken <span style="font-weight:600;color:var(--muted);">(optioneel)</span></label>
+        <textarea class="text-input textarea-input" id="taskSubtasks" placeholder="Bijv.&#10;Koelkast bekijken&#10;Maaltijden kiezen&#10;Boodschappenlijst maken"></textarea>
+        <p class="field-help">Zet elke kleine stap op een nieuwe regel. Ze tellen samen als één hoofdtaak.</p>
+      </div>
+      <div class="spacer-14"></div>
+      <button class="primary-button" id="modalSaveButton">Opslaan</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="recipeModal" role="dialog" aria-modal="true" aria-labelledby="recipeTitle">
+    <div class="sheet">
+      <div class="sheet-head">
+        <div><h3 id="recipeTitle">Recept</h3><p class="small-muted" id="recipeMeta" style="margin:5px 0 0;"></p></div>
+        <button class="close-button" data-close-recipe aria-label="Sluiten">×</button>
+      </div>
+      <div class="recipe-section"><strong>Ingrediënten</strong><ul class="recipe-list" id="recipeIngredients"></ul></div>
+      <div class="recipe-section"><strong>Bereiding</strong><ol class="recipe-list" id="recipeSteps"></ol></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const DAYS = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"];
+  const STORAGE_KEY = "mijnPersoonlijkeAppV1";
+
+  const recipes = [
+    {
+      id: "pasta-pesto-kip", name: "Pasta pesto met kip en courgette", time: "25 min", category: "Pasta",
+      ingredients: [
+        ["Pasta", 180, "g", "Pasta & rijst"], ["Kipfilet", 250, "g", "Vlees & vis"], ["Courgette", 1, "st", "Groente & fruit"],
+        ["Groene pesto", 90, "g", "Potjes & sauzen"], ["Cherrytomaten", 250, "g", "Groente & fruit"], ["Parmezaanse kaas", 40, "g", "Zuivel & eieren"]
+      ],
+      steps: ["Kook de pasta volgens de verpakking.", "Snijd kip en courgette en bak ze gaar in een koekenpan.", "Halveer de tomaten en bak ze 2 minuten mee.", "Meng de pasta met pesto, kip en groente. Serveer met Parmezaanse kaas."]
+    },
+    {
+      id: "aardappel-zalm-broccoli", name: "Aardappeltjes met zalm en broccoli", time: "30 min", category: "Vis",
+      ingredients: [
+        ["Krieltjes", 500, "g", "Groente & fruit"], ["Zalmfilet", 2, "st", "Vlees & vis"], ["Broccoli", 1, "st", "Groente & fruit"],
+        ["Citroen", 1, "st", "Groente & fruit"], ["Dille", 10, "g", "Kruiden & smaakmakers"]
+      ],
+      steps: ["Bak de krieltjes goudbruin in een ruime pan.", "Kook of stoom de broccoli beetgaar.", "Bak de zalm 3–4 minuten per kant.", "Breng op smaak met citroen en dille en serveer samen."]
+    },
+    {
+      id: "wraps-gehakt", name: "Wraps met gekruid gehakt en paprika", time: "25 min", category: "Tex-Mex",
+      ingredients: [
+        ["Tortillawraps", 4, "st", "Brood & wraps"], ["Rundergehakt", 250, "g", "Vlees & vis"], ["Paprika", 2, "st", "Groente & fruit"],
+        ["Mais", 150, "g", "Blik & pot"], ["Kidneybonen", 200, "g", "Blik & pot"], ["Geraspte kaas", 75, "g", "Zuivel & eieren"], ["Tacokruiden", 1, "zakje", "Kruiden & smaakmakers"]
+      ],
+      steps: ["Bak het gehakt rul met de tacokruiden.", "Snijd de paprika en bak 5 minuten mee.", "Voeg mais en kidneybonen toe en warm door.", "Vul de wraps en strooi de kaas erover."]
+    },
+    {
+      id: "curry-kikkererwt", name: "Milde kikkererwtencurry met rijst", time: "30 min", category: "Vegetarisch",
+      ingredients: [
+        ["Basmatirijst", 160, "g", "Pasta & rijst"], ["Kikkererwten", 240, "g", "Blik & pot"], ["Kokosmelk", 400, "ml", "Blik & pot"],
+        ["Spinazie", 200, "g", "Groente & fruit"], ["Paprika", 1, "st", "Groente & fruit"], ["Milde currypasta", 50, "g", "Potjes & sauzen"]
+      ],
+      steps: ["Kook de rijst volgens de verpakking.", "Bak de paprika 4 minuten en voeg de currypasta toe.", "Voeg kikkererwten en kokosmelk toe en laat 10 minuten zacht koken.", "Roer de spinazie erdoor tot die slinkt en serveer met rijst."]
+    },
+    {
+      id: "gnocchi-tomaat-mozzarella", name: "Gnocchi met tomaat, spinazie en mozzarella", time: "20 min", category: "Vegetarisch",
+      ingredients: [
+        ["Gnocchi", 400, "g", "Pasta & rijst"], ["Passata", 350, "ml", "Potjes & sauzen"], ["Spinazie", 200, "g", "Groente & fruit"],
+        ["Mozzarella", 125, "g", "Zuivel & eieren"], ["Italiaanse kruiden", 1, "tl", "Kruiden & smaakmakers"]
+      ],
+      steps: ["Bak de gnocchi in een beetje olie tot ze licht kleuren.", "Voeg passata en Italiaanse kruiden toe.", "Roer de spinazie erdoor en laat slinken.", "Scheur de mozzarella erover en laat kort smelten."]
+    },
+    {
+      id: "kip-teriyaki", name: "Kip teriyaki met rijst en sperziebonen", time: "30 min", category: "Aziatisch",
+      ingredients: [
+        ["Jasmijnrijst", 160, "g", "Pasta & rijst"], ["Kipfilet", 250, "g", "Vlees & vis"], ["Sperziebonen", 300, "g", "Groente & fruit"],
+        ["Teriyakisaus", 120, "ml", "Potjes & sauzen"], ["Bosui", 2, "st", "Groente & fruit"]
+      ],
+      steps: ["Kook de rijst en sperziebonen apart gaar.", "Snijd de kip en bak goudbruin.", "Voeg teriyakisaus toe en laat 3 minuten inkoken.", "Serveer met rijst, bonen en fijngesneden bosui."]
+    },
+    {
+      id: "stamppot-spinazie", name: "Spinaziestamppot met ei", time: "30 min", category: "Hollands",
+      ingredients: [
+        ["Kruimige aardappelen", 600, "g", "Groente & fruit"], ["Spinazie", 300, "g", "Groente & fruit"], ["Eieren", 2, "st", "Zuivel & eieren"],
+        ["Melk", 100, "ml", "Zuivel & eieren"], ["Geraspte kaas", 60, "g", "Zuivel & eieren"]
+      ],
+      steps: ["Kook de aardappelen gaar en kook de eieren 8 minuten.", "Giet de aardappelen af en stamp met melk.", "Roer de spinazie hand voor hand door de hete puree.", "Meng de kaas erdoor en serveer met het gekookte ei."]
+    },
+    {
+      id: "couscous-feta", name: "Couscous met geroosterde groente en feta", time: "25 min", category: "Vegetarisch",
+      ingredients: [
+        ["Couscous", 160, "g", "Pasta & rijst"], ["Courgette", 1, "st", "Groente & fruit"], ["Paprika", 1, "st", "Groente & fruit"],
+        ["Rode ui", 1, "st", "Groente & fruit"], ["Feta", 100, "g", "Zuivel & eieren"], ["Citroen", 1, "st", "Groente & fruit"]
+      ],
+      steps: ["Bereid de couscous volgens de verpakking.", "Snijd courgette, paprika en rode ui en bak of rooster ze gaar.", "Meng de groente met de couscous.", "Verkruimel feta erover en breng op smaak met citroen."]
+    },
+    {
+      id: "burger-ovenfriet", name: "Burger met ovenfriet en salade", time: "35 min", category: "Makkelijk",
+      ingredients: [
+        ["Hamburgers", 2, "st", "Vlees & vis"], ["Hamburgerbroodjes", 2, "st", "Brood & wraps"], ["Ovenfriet", 450, "g", "Diepvries"],
+        ["Sla", 100, "g", "Groente & fruit"], ["Tomaat", 2, "st", "Groente & fruit"], ["Komkommer", 0.5, "st", "Groente & fruit"]
+      ],
+      steps: ["Bak de ovenfriet volgens de verpakking.", "Bak de hamburgers gaar.", "Snijd tomaat en komkommer en meng met de sla.", "Bouw de burgers op en serveer met friet en salade."]
+    },
+    {
+      id: "noedels-roerbak", name: "Roerbaknoedels met kip en wokgroente", time: "20 min", category: "Aziatisch",
+      ingredients: [
+        ["Noedels", 180, "g", "Pasta & rijst"], ["Kipfilet", 250, "g", "Vlees & vis"], ["Wokgroente", 400, "g", "Groente & fruit"],
+        ["Sojasaus", 50, "ml", "Potjes & sauzen"], ["Zoete chilisaus", 40, "ml", "Potjes & sauzen"]
+      ],
+      steps: ["Bereid de noedels volgens de verpakking.", "Bak de kip in reepjes gaar.", "Voeg de wokgroente toe en bak 5 minuten mee.", "Schep noedels, soja- en chilisaus erdoor en warm kort door."]
+    },
+    {
+      id: "shakshuka", name: "Makkelijke shakshuka met brood", time: "30 min", category: "Vegetarisch",
+      ingredients: [
+        ["Eieren", 4, "st", "Zuivel & eieren"], ["Tomatenblokjes", 400, "g", "Blik & pot"], ["Paprika", 1, "st", "Groente & fruit"],
+        ["Ui", 1, "st", "Groente & fruit"], ["Komijn", 1, "tl", "Kruiden & smaakmakers"], ["Platbrood", 2, "st", "Brood & wraps"]
+      ],
+      steps: ["Fruit de ui en paprika 5 minuten.", "Voeg tomatenblokjes en komijn toe en laat 10 minuten pruttelen.", "Maak vier kuiltjes en breek de eieren erin.", "Laat met deksel garen tot het eiwit gestold is en serveer met brood."]
+    },
+    {
+      id: "tortellini-room", name: "Tortellini met champignons en roomsaus", time: "20 min", category: "Pasta",
+      ingredients: [
+        ["Verse tortellini", 400, "g", "Pasta & rijst"], ["Champignons", 250, "g", "Groente & fruit"], ["Kookroom", 200, "ml", "Zuivel & eieren"],
+        ["Spinazie", 150, "g", "Groente & fruit"], ["Parmezaanse kaas", 30, "g", "Zuivel & eieren"]
+      ],
+      steps: ["Kook de tortellini volgens de verpakking.", "Bak de champignons goudbruin.", "Voeg kookroom en spinazie toe en laat kort indikken.", "Schep de tortellini erdoor en serveer met Parmezaanse kaas."]
+    },
+    {
+      id: "worst-groente-traybake", name: "Traybake met worst, aardappel en groente", time: "40 min", category: "Oven",
+      ingredients: [
+        ["Krieltjes", 500, "g", "Groente & fruit"], ["Braadworst", 2, "st", "Vlees & vis"], ["Paprika", 1, "st", "Groente & fruit"],
+        ["Courgette", 1, "st", "Groente & fruit"], ["Rode ui", 1, "st", "Groente & fruit"], ["Paprikapoeder", 1, "tl", "Kruiden & smaakmakers"]
+      ],
+      steps: ["Verwarm de oven voor op 210 °C.", "Snijd groente en worst in grove stukken.", "Meng alles met krieltjes, een beetje olie en paprikapoeder.", "Rooster 30–35 minuten en schep halverwege om."]
+    },
+    {
+      id: "tomatensoep-tosti", name: "Tomatensoep met kaas-tosti", time: "25 min", category: "Makkelijk",
+      ingredients: [
+        ["Tomatenblokjes", 800, "g", "Blik & pot"], ["Ui", 1, "st", "Groente & fruit"], ["Groentebouillon", 500, "ml", "Kruiden & smaakmakers"],
+        ["Brood", 4, "sneetjes", "Brood & wraps"], ["Jonge kaas", 4, "plakken", "Zuivel & eieren"], ["Kookroom", 100, "ml", "Zuivel & eieren"]
+      ],
+      steps: ["Fruit de ui in een soeppan.", "Voeg tomatenblokjes en bouillon toe en laat 15 minuten koken.", "Pureer de soep en roer de room erdoor.", "Maak ondertussen twee kaas-tosti's en serveer erbij."]
+    }
+  ].map(r => ({...r, ingredients: r.ingredients.map(([name, amount, unit, cat]) => ({name, amount, unit, cat}))}));
+
+  const defaultState = {
+    energy: 2,
+    tasks: [],
+    routines: [
+      { id: "routine-morning", name: "Ochtendroutine", done: false },
+      { id: "routine-move", name: "Even bewegen", done: false },
+      { id: "routine-evening", name: "Avondroutine", done: false }
+    ],
+    routineDate: null,
+    todayPlan: { date: null, taskIds: [] },
+    weekMenu: [],
+    shopping: [],
+    projects: []
+  };
+
+  let state = loadState();
+  let inputMode = null;
+  let toastTimer = null;
+
+  function localDateKey(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function normalizeTask(task) {
+    return {
+      id: task.id || uid('task'),
+      name: task.name || 'Taak',
+      done: Boolean(task.done),
+      elapsed: Number(task.elapsed || 0),
+      running: false,
+      deadline: task.deadline || '',
+      createdAt: task.createdAt || Date.now(),
+      subtasks: Array.isArray(task.subtasks)
+        ? task.subtasks.map(st => typeof st === 'string'
+          ? { id: uid('sub'), name: st, done: false }
+          : { id: st.id || uid('sub'), name: st.name || 'Stap', done: Boolean(st.done) })
+        : []
+    };
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return structuredClone(defaultState);
+      const saved = JSON.parse(raw);
+      const loaded = {
+        ...structuredClone(defaultState),
+        ...saved,
+        tasks: Array.isArray(saved.tasks) ? saved.tasks.map(normalizeTask) : [],
+        routines: Array.isArray(saved.routines) ? saved.routines : structuredClone(defaultState.routines),
+        weekMenu: Array.isArray(saved.weekMenu) ? saved.weekMenu : [],
+        shopping: Array.isArray(saved.shopping) ? saved.shopping : [],
+        projects: Array.isArray(saved.projects) ? saved.projects : []
+      };
+      if (!loaded.todayPlan || !Array.isArray(loaded.todayPlan.taskIds)) {
+        loaded.todayPlan = { date: null, taskIds: [] };
+      }
+      return loaded;
+    } catch {
+      return structuredClone(defaultState);
+    }
+  }
+
+  function saveState() {
+    const serializable = structuredClone(state);
+    serializable.tasks = serializable.tasks.map(t => ({...t, running: false}));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+  }
+
+  function uid(prefix) { return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`; }
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  }
+
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === name));
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    if (name === 'today') renderToday();
+    if (name === 'menu') renderMenu();
+    if (name === 'shopping') renderShopping();
+    if (name === 'projects') renderProjects();
+  }
+
+  function showToast(message) {
+    const el = document.getElementById('toast');
+    el.textContent = message;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2100);
+  }
+
+  function energyLimit() { return Number(state.energy) || 1; }
+
+  function deadlinePriority(task) {
+    if (!task.deadline) return [3, Number.MAX_SAFE_INTEGER, task.createdAt || 0];
+    const today = localDateKey();
+    const target = new Date(`${task.deadline}T12:00:00`);
+    const base = new Date(`${today}T12:00:00`);
+    const days = Math.round((target - base) / 86400000);
+    if (days < 0) return [0, days, task.createdAt || 0];
+    if (days === 0) return [1, 0, task.createdAt || 0];
+    return [2, days, task.createdAt || 0];
+  }
+
+  function compareTaskPriority(a, b) {
+    const pa = deadlinePriority(a), pb = deadlinePriority(b);
+    for (let i = 0; i < pa.length; i++) {
+      if (pa[i] !== pb[i]) return pa[i] - pb[i];
+    }
+    return 0;
+  }
+
+  function refillTodayPlan(rebalance = false) {
+    const limit = energyLimit();
+    const today = localDateKey();
+    const currentIds = state.todayPlan?.date === today ? state.todayPlan.taskIds : [];
+    const completedSelected = currentIds
+      .map(id => state.tasks.find(t => t.id === id))
+      .filter(t => t && t.done)
+      .slice(0, limit);
+
+    let selected = [...completedSelected];
+    const remainingSlots = () => Math.max(0, limit - selected.length);
+
+    if (!rebalance && remainingSlots() > 0) {
+      currentIds
+        .map(id => state.tasks.find(t => t.id === id))
+        .filter(t => t && !t.done && !selected.some(x => x.id === t.id))
+        .slice(0, remainingSlots())
+        .forEach(t => selected.push(t));
+    }
+
+    if (remainingSlots() > 0) {
+      state.tasks
+        .filter(t => !t.done && !selected.some(x => x.id === t.id))
+        .sort(compareTaskPriority)
+        .slice(0, remainingSlots())
+        .forEach(t => selected.push(t));
+    }
+
+    state.todayPlan = { date: today, taskIds: selected.map(t => t.id) };
+  }
+
+  function ensureDailyState() {
+    const today = localDateKey();
+    let changed = false;
+    if (state.routineDate !== today) {
+      state.routines = state.routines.map(r => ({...r, done: false}));
+      state.routineDate = today;
+      changed = true;
+    }
+    if (!state.todayPlan || state.todayPlan.date !== today) {
+      state.todayPlan = { date: today, taskIds: [] };
+      refillTodayPlan(true);
+      changed = true;
+    }
+    if (changed) saveState();
+  }
+
+  function deadlineDisplay(task) {
+    if (!task.deadline) return null;
+    const today = localDateKey();
+    const tomorrowDate = new Date();
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrow = localDateKey(tomorrowDate);
+    if (task.deadline < today) return { text: 'Te laat', cls: 'urgent' };
+    if (task.deadline === today) return { text: 'Vandaag', cls: 'today' };
+    if (task.deadline === tomorrow) return { text: 'Morgen', cls: 'today' };
+    const dt = new Date(`${task.deadline}T12:00:00`);
+    const text = new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' }).format(dt);
+    return { text, cls: '' };
+  }
+
+  function subtaskProgress(task) {
+    if (!task.subtasks?.length) return null;
+    const done = task.subtasks.filter(s => s.done).length;
+    return `${done}/${task.subtasks.length} stappen`;
+  }
+
+  function renderTaskCard(task) {
+    const deadline = deadlineDisplay(task);
+    const progress = subtaskProgress(task);
+    return `
+      <div class="task-item ${task.done ? 'done' : ''}" data-task-id="${task.id}">
+        <div class="task-row">
+          <input class="check" type="checkbox" ${task.done ? 'checked' : ''} data-task-check="${task.id}" aria-label="Taak afvinken" />
+          <div class="task-main">
+            <div class="task-name">${escapeHtml(task.name)}</div>
+            ${(deadline || progress) ? `<div class="task-meta">
+              ${deadline ? `<span class="task-badge ${deadline.cls}">${escapeHtml(deadline.text)}</span>` : ''}
+              ${progress ? `<span class="task-badge">${escapeHtml(progress)}</span>` : ''}
+            </div>` : ''}
+          </div>
+          <button class="timer-button ${task.running ? 'running' : ''}" data-timer="${task.id}">${task.running ? 'Pauze' : 'Start'}</button>
+        </div>
+        ${task.subtasks?.length ? `<div class="subtask-list">
+          ${task.subtasks.map(st => `<label class="subtask-row ${st.done ? 'done' : ''}">
+            <input class="check" type="checkbox" ${st.done ? 'checked' : ''} data-subtask-check="${task.id}|${st.id}" aria-label="Subtaak afvinken" />
+            <span class="subtask-name">${escapeHtml(st.name)}</span>
+          </label>`).join('')}
+        </div>` : ''}
+        <div class="timer-readout" data-timer-readout="${task.id}">${formatTime(task.elapsed || 0)}</div>
+      </div>`;
+  }
+
+  function renderToday() {
+    ensureDailyState();
+    document.querySelectorAll('.energy-btn').forEach(btn => btn.classList.toggle('selected', Number(btn.dataset.energy) === Number(state.energy)));
+    const limit = energyLimit();
+    const planned = state.todayPlan.taskIds.map(id => state.tasks.find(t => t.id === id)).filter(Boolean);
+    const plannedIds = new Set(planned.map(t => t.id));
+    const later = state.tasks.filter(t => !t.done && !plannedIds.has(t.id)).sort(compareTaskPriority);
+
+    document.getElementById('taskCounter').textContent = `${planned.length} / ${limit}`;
+    document.getElementById('taskLimitNote').textContent = planned.length >= limit
+      ? `Je dag zit op maximaal ${limit} belangrijke ${limit === 1 ? 'taak' : 'taken'}. Nieuwe taken blijven onder Later.`
+      : `Er ${limit - planned.length === 1 ? 'is' : 'zijn'} nog ${limit - planned.length} ${limit - planned.length === 1 ? 'plek' : 'plekken'} voor een belangrijke taak.`;
+
+    const taskList = document.getElementById('taskList');
+    taskList.innerHTML = planned.length
+      ? planned.map(renderTaskCard).join('')
+      : `<div class="empty-state">Nog geen belangrijke taak voor vandaag.</div>`;
+
+    const routineList = document.getElementById('routineList');
+    routineList.innerHTML = state.routines.map(r => `
+      <div class="routine-item ${r.done ? 'done' : ''}">
+        <div class="routine-row">
+          <input class="check" type="checkbox" ${r.done ? 'checked' : ''} data-routine-check="${r.id}" aria-label="Routine afvinken" />
+          <div class="routine-name">${escapeHtml(r.name)}</div>
+        </div>
+      </div>`).join('');
+
+    document.getElementById('laterCounter').textContent = String(later.length);
+    document.getElementById('laterTaskList').innerHTML = later.length
+      ? later.map(task => {
+          const deadline = deadlineDisplay(task);
+          const progress = subtaskProgress(task);
+          return `<div class="later-task">
+            <div class="later-task-name">${escapeHtml(task.name)}</div>
+            ${(deadline || progress) ? `<div class="task-meta">
+              ${deadline ? `<span class="task-badge ${deadline.cls}">${escapeHtml(deadline.text)}</span>` : ''}
+              ${progress ? `<span class="task-badge">${escapeHtml(progress)}</span>` : ''}
+            </div>` : ''}
+          </div>`;
+        }).join('')
+      : `<div class="later-empty">Geen extra taken.</div>`;
+  }
+
+  function formatTime(totalSeconds) {
+    const s = Math.max(0, Math.floor(totalSeconds || 0));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return h > 0
+      ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+      : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  setInterval(() => {
+    let changed = false;
+    state.tasks.forEach(task => {
+      if (task.running) {
+        task.elapsed = (task.elapsed || 0) + 1;
+        const readout = document.querySelector(`[data-timer-readout="${task.id}"]`);
+        if (readout) readout.textContent = formatTime(task.elapsed);
+        changed = true;
+      }
+    });
+    if (changed && (Math.max(...state.tasks.map(t => t.elapsed || 0), 0) % 10 === 0)) saveState();
+  }, 1000);
+
+  function generateWeekMenu() {
+    const shuffled = [...recipes].sort(() => Math.random() - 0.5);
+    state.weekMenu = shuffled.slice(0, 7).map(r => r.id);
+    state.shopping = [];
+    saveState();
+    renderMenu();
+    showToast('Je weekmenu is klaar.');
+  }
+
+  function recipeById(id) { return recipes.find(r => r.id === id); }
+
+  function renderMenu() {
+    const wrap = document.getElementById('weekMenu');
+    const actions = document.getElementById('menuShoppingActions');
+    if (!state.weekMenu.length) {
+      wrap.innerHTML = `<div class="section-card"><div class="empty-state">Druk op “Maak mijn weekmenu” voor 7 avondmaaltijden.</div></div>`;
+      actions.style.display = 'none';
+      return;
+    }
+    wrap.innerHTML = state.weekMenu.map((id, index) => {
+      const r = recipeById(id);
+      if (!r) return '';
+      return `<article class="menu-day">
+        <div class="menu-day-top">
+          <div class="day-badge">${DAYS[index].slice(0,2)}</div>
+          <div><div class="meal-title">${escapeHtml(r.name)}</div><div class="meal-meta">${r.time} · ${r.category} · 2 personen</div></div>
+        </div>
+        <div class="meal-actions">
+          <button class="meal-action" data-recipe="${r.id}">Bekijk recept</button>
+          <button class="meal-action replace" data-replace-day="${index}">Vervang gerecht</button>
+        </div>
+      </article>`;
+    }).join('');
+    actions.style.display = 'grid';
+  }
+
+  function replaceMeal(index) {
+    const current = new Set(state.weekMenu);
+    const candidates = recipes.filter(r => !current.has(r.id));
+    if (!candidates.length) return;
+    const replacement = candidates[Math.floor(Math.random() * candidates.length)];
+    state.weekMenu[index] = replacement.id;
+    state.shopping = [];
+    saveState();
+    renderMenu();
+    showToast(`${DAYS[index]} is vervangen.`);
+  }
+
+  function openRecipe(id) {
+    const r = recipeById(id);
+    if (!r) return;
+    document.getElementById('recipeTitle').textContent = r.name;
+    document.getElementById('recipeMeta').textContent = `${r.time} · 2 personen`;
+    document.getElementById('recipeIngredients').innerHTML = r.ingredients.map(i => `<li>${formatAmount(i.amount)} ${escapeHtml(i.unit)} ${escapeHtml(i.name)}</li>`).join('');
+    document.getElementById('recipeSteps').innerHTML = r.steps.map(s => `<li>${escapeHtml(s)}</li>`).join('');
+    document.getElementById('recipeModal').classList.add('open');
+  }
+
+  function formatAmount(amount) {
+    if (Number.isInteger(amount)) return String(amount);
+    return String(amount).replace('.', ',');
+  }
+
+  function makeShoppingList() {
+    if (state.weekMenu.length !== 7) {
+      showToast('Maak eerst een volledig weekmenu.');
+      return;
+    }
+    const aggregate = new Map();
+    state.weekMenu.forEach(id => {
+      const r = recipeById(id);
+      if (!r) return;
+      r.ingredients.forEach(i => {
+        const key = `${i.name.toLowerCase()}|${i.unit}|${i.cat}`;
+        if (!aggregate.has(key)) aggregate.set(key, { id: uid('shop'), name: i.name, amount: 0, unit: i.unit, cat: i.cat, done: false, manual: false });
+        aggregate.get(key).amount += i.amount;
+      });
+    });
+    state.shopping = [...aggregate.values()].sort((a,b) => a.cat.localeCompare(b.cat, 'nl') || a.name.localeCompare(b.name, 'nl'));
+    saveState();
+    renderShopping();
+    showView('shopping');
+    showToast('Boodschappenlijst gemaakt.');
+  }
+
+  function renderShopping() {
+    const wrap = document.getElementById('shoppingContent');
+    if (!state.shopping.length) {
+      wrap.innerHTML = `<div class="section-card"><div class="empty-state">Nog geen boodschappenlijst. Maak er één vanuit je weekmenu, of voeg hieronder zelf iets toe.</div></div>`;
+      return;
+    }
+    const groups = {};
+    state.shopping.forEach(item => {
+      const cat = item.cat || 'Overig';
+      (groups[cat] ||= []).push(item);
+    });
+    wrap.innerHTML = `<div class="section-card">${Object.entries(groups).map(([cat, items]) => `
+      <div class="shopping-category">${escapeHtml(cat)}</div>
+      <div class="shopping-list">
+        ${items.map(item => `
+          <div class="shopping-item ${item.done ? 'done' : ''}">
+            <div class="shopping-row">
+              <input class="check" type="checkbox" ${item.done ? 'checked' : ''} data-shopping-check="${item.id}" aria-label="Product afvinken" />
+              <div class="shopping-name">${escapeHtml(item.name)}</div>
+              <div class="shopping-qty">${item.manual ? '' : `${formatAmount(item.amount)} ${escapeHtml(item.unit)}`}</div>
+            </div>
+          </div>`).join('')}
+      </div>`).join('')}</div>`;
+  }
+
+  function renderProjects() {
+    const wrap = document.getElementById('projectList');
+    wrap.innerHTML = state.projects.length
+      ? state.projects.map(p => `<div class="project-item"><div class="project-row" style="width:100%;"><div class="project-dot"></div><div class="project-name">${escapeHtml(p.name)}</div></div></div>`).join('')
+      : `<div class="empty-state">Nog geen projecten. Voeg alleen een naam toe; verdere projectfuncties komen later.</div>`;
+  }
+
+  function openInputModal(mode) {
+    inputMode = mode;
+    const title = document.getElementById('inputModalTitle');
+    const hint = document.getElementById('inputModalHint');
+    const label = document.getElementById('inputLabel');
+    const input = document.getElementById('modalInput');
+    const save = document.getElementById('modalSaveButton');
+    const taskOptions = document.getElementById('taskOptions');
+    input.value = '';
+    document.getElementById('taskDeadline').value = '';
+    document.getElementById('taskSubtasks').value = '';
+    if (mode === 'task') {
+      title.textContent = 'Nieuwe taak';
+      hint.textContent = 'Een deadline helpt bepalen wat vandaag belangrijk is.';
+      label.textContent = 'Wat wil je doen?';
+      input.placeholder = 'Bijv. weekmenu + boodschappenlijst maken';
+      save.textContent = 'Taak toevoegen';
+      taskOptions.style.display = 'block';
+    } else {
+      title.textContent = 'Nieuw project';
+      hint.textContent = 'Voor nu alleen een eenvoudige projectnaam.';
+      label.textContent = 'Projectnaam';
+      input.placeholder = 'Bijv. Schuur opruimen';
+      save.textContent = 'Project toevoegen';
+      taskOptions.style.display = 'none';
+    }
+    document.getElementById('inputModal').classList.add('open');
+    setTimeout(() => input.focus(), 100);
+  }
+
+  function closeInputModal() { document.getElementById('inputModal').classList.remove('open'); inputMode = null; }
+  function closeRecipeModal() { document.getElementById('recipeModal').classList.remove('open'); }
+
+  function saveModalInput() {
+    const input = document.getElementById('modalInput');
+    const value = input.value.trim();
+    if (!value) { showToast('Vul eerst een naam in.'); return; }
+    if (inputMode === 'task') {
+      ensureDailyState();
+      const deadline = document.getElementById('taskDeadline').value || '';
+      const subtasks = document.getElementById('taskSubtasks').value
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(name => ({ id: uid('sub'), name, done: false }));
+      const task = { id: uid('task'), name: value, done: false, elapsed: 0, running: false, deadline, subtasks, createdAt: Date.now() };
+      state.tasks.push(task);
+      const hadRoom = state.todayPlan.taskIds.length < energyLimit();
+      refillTodayPlan(Boolean(deadline));
+      saveState(); closeInputModal(); renderToday();
+      const planned = state.todayPlan.taskIds.includes(task.id);
+      showToast(planned ? 'Taak staat bij Vandaag.' : (hadRoom ? 'Taak toegevoegd.' : 'Taak staat onder Later.'));
+    } else if (inputMode === 'project') {
+      state.projects.push({ id: uid('project'), name: value });
+      saveState(); closeInputModal(); renderProjects();
+    }
+  }
+
+  document.addEventListener('click', e => {
+    const open = e.target.closest('[data-open]');
+    if (open) return showView(open.dataset.open);
+    if (e.target.closest('[data-back]')) return showView('home');
+
+    const energy = e.target.closest('[data-energy]');
+    if (energy) {
+      state.energy = Number(energy.dataset.energy);
+      ensureDailyState();
+      refillTodayPlan(false);
+      saveState(); renderToday(); return;
+    }
+
+    if (e.target.closest('#addTaskButton')) return openInputModal('task');
+    if (e.target.closest('#newProjectButton')) return openInputModal('project');
+    if (e.target.closest('#generateMenuButton')) return generateWeekMenu();
+    if (e.target.closest('#makeShoppingButton')) return makeShoppingList();
+
+    const recipeBtn = e.target.closest('[data-recipe]');
+    if (recipeBtn) return openRecipe(recipeBtn.dataset.recipe);
+    const replaceBtn = e.target.closest('[data-replace-day]');
+    if (replaceBtn) return replaceMeal(Number(replaceBtn.dataset.replaceDay));
+
+    const timerBtn = e.target.closest('[data-timer]');
+    if (timerBtn) {
+      const task = state.tasks.find(t => t.id === timerBtn.dataset.timer);
+      if (!task) return;
+      task.running = !task.running;
+      saveState(); renderToday(); return;
+    }
+
+    if (e.target.closest('[data-close-modal]')) return closeInputModal();
+    if (e.target.closest('[data-close-recipe]')) return closeRecipeModal();
+    if (e.target.closest('#modalSaveButton')) return saveModalInput();
+
+    if (e.target.closest('#addProductButton')) {
+      const input = document.getElementById('manualProduct');
+      const name = input.value.trim();
+      if (!name) return showToast('Vul eerst een product in.');
+      state.shopping.push({ id: uid('shop'), name, amount: 1, unit: '', cat: 'Overig', done: false, manual: true });
+      input.value = '';
+      saveState(); renderShopping(); return;
+    }
+  });
+
+  document.addEventListener('change', e => {
+    if (e.target.matches('[data-task-check]')) {
+      const task = state.tasks.find(t => t.id === e.target.dataset.taskCheck);
+      if (task) { task.done = e.target.checked; if (task.done) task.running = false; saveState(); renderToday(); }
+    }
+    if (e.target.matches('[data-subtask-check]')) {
+      const [taskId, subtaskId] = e.target.dataset.subtaskCheck.split('|');
+      const task = state.tasks.find(t => t.id === taskId);
+      const subtask = task?.subtasks?.find(st => st.id === subtaskId);
+      if (subtask) { subtask.done = e.target.checked; saveState(); renderToday(); }
+    }
+    if (e.target.matches('[data-routine-check]')) {
+      const r = state.routines.find(x => x.id === e.target.dataset.routineCheck);
+      if (r) { r.done = e.target.checked; saveState(); renderToday(); }
+    }
+    if (e.target.matches('[data-shopping-check]')) {
+      const item = state.shopping.find(x => x.id === e.target.dataset.shoppingCheck);
+      if (item) { item.done = e.target.checked; saveState(); renderShopping(); }
+    }
+  });
+
+  document.getElementById('modalInput').addEventListener('keydown', e => { if (e.key === 'Enter') saveModalInput(); });
+  document.getElementById('manualProduct').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('addProductButton').click(); });
+  document.getElementById('inputModal').addEventListener('click', e => { if (e.target.id === 'inputModal') closeInputModal(); });
+  document.getElementById('recipeModal').addEventListener('click', e => { if (e.target.id === 'recipeModal') closeRecipeModal(); });
+
+  let deferredInstallPrompt = null;
+  const installCard = document.getElementById('installCard');
+  const installButton = document.getElementById('installAppButton');
+
+  window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    installCard?.classList.add('show');
+  });
+
+  installButton?.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) {
+      showToast('Installeren wordt beschikbaar zodra deze versie via een vast webadres is geopend.');
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    installCard?.classList.remove('show');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    installCard?.classList.remove('show');
+    showToast('App toegevoegd aan je telefoon.');
+  });
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+    });
+  }
+
+  const dateFmt = new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+  const dateText = dateFmt.format(new Date());
+  document.getElementById('todayLabel').textContent = dateText.charAt(0).toUpperCase() + dateText.slice(1);
+
+  ensureDailyState();
+  renderToday();
+  renderMenu();
+  renderShopping();
+  renderProjects();
+})();
+</script>
+</body>
+</html>
