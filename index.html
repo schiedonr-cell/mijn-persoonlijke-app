@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
-  <!-- Mijn persoonlijke app v1.6.1 -->
+  <!-- Mijn persoonlijke app v1.6.2 -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -977,6 +977,13 @@
       3:{minimum:"Langere ontspanning",detail:"Neem bewust meer tijd of doe iets leuks buitenshuis."}
     },history:{}},
     {id:"habit-evening",name:"Avondroutine / avondreset",description:"Keukenaanrecht leeg en netjes • vaatwasser wat nodig is • korte opruimronde woonkamer • honden uit • kort naar morgen kijken",energyAdaptive:false,levels:{},history:{}}
+  ];
+
+  const DEFAULT_HOUSEHOLD_TASKS = [
+    {id:"house-robot",name:"Robotstofzuiger aanzetten",description:"Zelf starten wanneer het uitkomt; dit telt als een lichte huishoudtaak.",effort:1,frequency:1,history:{},paused:false,deferUntil:""},
+    {id:"house-kitchen",name:"Keuken kort bijhouden",description:"Werkblad, vaat en losse spullen kort bijwerken.",effort:1,frequency:1,history:{},paused:false,deferUntil:""},
+    {id:"house-living",name:"Woonkamer kort opruimen",description:"Losse spullen terugleggen en de ruimte kort netjes maken.",effort:1,frequency:2,history:{},paused:false,deferUntil:""},
+    {id:"house-bath",name:"Badkamer snelle ronde",description:"Wastafel en toilet kort nalopen; geen grote schoonmaak.",effort:2,frequency:7,history:{},paused:false,deferUntil:""}
   ];
 
   const defaultState = {
