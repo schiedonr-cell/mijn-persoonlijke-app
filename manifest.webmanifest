@@ -1,7 +1,7 @@
 {
   "name": "Mijn persoonlijke app",
   "short_name": "Mijn app",
-  "description": "Persoonlijke dagplanning met gewoontes, huishouden, taken, focus, reflectie, recepten, voorraad, weekmenu en boodschappen.",
+  "description": "Persoonlijke dagplanning met vier dagelijkse ankers, huishouden, taken, focus, recepten, voorraad, weekmenu en boodschappen.",
   "lang": "nl-NL",
   "start_url": "./",
   "scope": "./",
@@ -9,7 +9,17 @@
   "background_color": "#f5f5ef",
   "theme_color": "#45624d",
   "icons": [
-    {"src":"./icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
-    {"src":"./icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }
