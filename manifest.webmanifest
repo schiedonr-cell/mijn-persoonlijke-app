@@ -1,7 +1,7 @@
 {
   "name": "Mijn persoonlijke app",
   "short_name": "Mijn app",
-  "description": "Persoonlijke dagplanning, gewoontes, focus, weekmenu, recepten, voorraad en boodschappen.",
+  "description": "Persoonlijke dagplanning met dagelijkse basis, gewoontes, focus, reflectie, weekmenu, recepten, voorraad en boodschappen.",
   "lang": "nl-NL",
   "start_url": "./",
   "scope": "./",

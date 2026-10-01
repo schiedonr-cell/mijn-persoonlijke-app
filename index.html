@@ -11,6 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
+  <!-- Mijn persoonlijke app v1.4 -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -419,6 +420,26 @@
     .focus-signal-toggle span { display:block; color:var(--muted); font-size:12px; margin-top:2px; line-height:1.35; }
     .switch-check { width:24px; height:24px; flex:0 0 auto; accent-color:var(--accent); }
     .habit-list { display:grid; gap:9px; }
+
+    .basis-card { background:linear-gradient(180deg,#fff,#f7faf6); }
+    .basis-progress { color:var(--accent-strong); font-size:13px; font-weight:850; }
+    .basis-list { display:grid; gap:9px; }
+    .basis-item { display:flex; align-items:flex-start; gap:11px; border:1px solid var(--line); border-radius:17px; background:#fff; padding:12px; }
+    .basis-item.done { background:#f5faf5; }
+    .basis-copy { flex:1; min-width:0; }
+    .basis-name { font-weight:850; line-height:1.25; }
+    .basis-minimum { color:var(--accent-strong); font-size:13px; font-weight:800; margin-top:3px; }
+    .basis-detail { color:var(--muted); font-size:12px; line-height:1.4; margin-top:3px; }
+    .basis-note { margin:12px 2px 0; color:var(--muted); font-size:12px; line-height:1.45; }
+
+    .reflection-grid { display:grid; gap:13px; }
+    .reflection-field label { display:block; font-weight:800; font-size:14px; line-height:1.35; margin-bottom:7px; }
+    .reflection-field textarea { min-height:88px; resize:vertical; line-height:1.45; }
+    .day-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px; }
+    .day-stat { border:1px solid var(--line); border-radius:15px; background:#fff; padding:11px 9px; text-align:center; }
+    .day-stat strong { display:block; font-size:20px; color:var(--accent-strong); }
+    .day-stat span { display:block; margin-top:3px; color:var(--muted); font-size:11px; line-height:1.25; }
+
     .history-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:7px; margin-top:12px; }
     .history-day { aspect-ratio:1; border-radius:10px; display:grid; place-items:center; background:var(--surface-soft); color:var(--muted); font-size:11px; font-weight:800; }
     .history-day.done { background:var(--accent); color:#fff; }
@@ -625,9 +646,18 @@
               </div>
             </div>
 
+            <div class="section-card basis-card">
+              <div class="section-heading">
+                <div><h3 style="margin-bottom:3px;">Dagelijkse basis</h3><span class="small-muted">De minimumversie past zich aan je energie aan.</span></div>
+                <span class="basis-progress" id="basisProgress">0 / 4</span>
+              </div>
+              <div class="basis-list" id="dailyBasisList"></div>
+              <p class="basis-note">Iets doen is beter dan niets. Als je de kleine versie doet, telt dit onderdeel gewoon als gehaald.</p>
+            </div>
+
             <div class="section-card">
               <div class="section-heading">
-                <div><h3 style="margin-bottom:3px;">Gewoontes</h3><span class="small-muted">Dagelijkse structuur, los van je belangrijke taken.</span></div>
+                <div><h3 style="margin-bottom:3px;">Eigen gewoontes</h3><span class="small-muted">Je persoonlijke routines, los van de dagelijkse basis en gewone taken.</span></div>
                 <button class="mini-button accent" id="addHabitButton">+ Nieuw</button>
               </div>
               <div class="habit-list" id="habitList"></div>
@@ -857,9 +887,10 @@
     tasks: [],
     habits: [
       { id: "habit-morning", name: "Ochtendroutine", description: "Opstaan • medicijn • wassen • aankleden • honden uit", history: {} },
-      { id: "habit-move", name: "Even bewegen", description: "Een kort beweegmoment dat past bij de dag.", history: {} },
       { id: "habit-evening", name: "Avondroutine", description: "Rustig afronden en klaarzetten voor morgen.", history: {} }
     ],
+    dailyBasisHistory: {},
+    reflections: {},
     todayPlan: { date: null, taskIds: [] },
     dump: [],
     dayClosedDate: null,
@@ -913,6 +944,8 @@
         ...structuredClone(defaultState), ...saved,
         tasks: Array.isArray(saved.tasks) ? saved.tasks.map(normalizeTask) : [],
         habits: habits || structuredClone(defaultState.habits),
+        dailyBasisHistory: saved.dailyBasisHistory && typeof saved.dailyBasisHistory==='object' ? saved.dailyBasisHistory : {},
+        reflections: saved.reflections && typeof saved.reflections==='object' ? saved.reflections : {},
         dump: Array.isArray(saved.dump) ? saved.dump : [],
         todayPlan: saved.todayPlan && Array.isArray(saved.todayPlan.taskIds) ? saved.todayPlan : {date:null,taskIds:[]},
         focus: {...structuredClone(defaultState.focus), ...(saved.focus||{}), running:false},
@@ -948,7 +981,30 @@
     if(need()>0) state.tasks.filter(t=>isEligibleToday(t)&&!selected.some(x=>x.id===t.id)).sort(compareTaskPriority).slice(0,need()).forEach(t=>selected.push(t));
     state.todayPlan={date:today,taskIds:selected.map(t=>t.id)};
   }
-  function ensureDailyState(){ const today=localDateKey(); if(!state.todayPlan||state.todayPlan.date!==today){ state.todayPlan={date:today,taskIds:[]}; refillTodayPlan(true); saveState(); } }
+  const DAILY_BASIS = [
+    {key:'move',name:'Bewegen',levels:{1:{minimum:'5–10 min',detail:'Rustig wandelen of even bewegen.'},2:{minimum:'15–30 min',detail:'Wandeling, fietsen of een ander beweegmoment.'},3:{minimum:'Workout of langere wandeling',detail:'Kies iets actiefs dat past bij je dag.'}}},
+    {key:'stretch',name:'Stretchen / mobiliteit',levels:{1:{minimum:'5 min',detail:'Een paar rustige stretches is genoeg.'},2:{minimum:'10–15 min',detail:'Een korte mobiliteits- of stretchsessie.'},3:{minimum:'20–30 min',detail:'Een uitgebreidere mobiliteits- of stretchsessie.'}}},
+    {key:'relax',name:'Bewust ontspannen',levels:{1:{minimum:'5–10 min',detail:'Rustig zitten, ademhaling of muziek.'},2:{minimum:'15–30 min',detail:'Kleuren, podcast of creatief bezig zijn.'},3:{minimum:'Langere ontspanning',detail:'Wandeling of iets leuks buitenshuis.'}}},
+    {key:'useful',name:'Nuttig blok',levels:{1:{minimum:'5–10 min',detail:'Eén klein nuttig ding is genoeg.'},2:{minimum:'20–30 min',detail:'Een rustig blok voor iets praktisch of nuttigs.'},3:{minimum:'45–60 min',detail:'Een langer blok voor iets dat aandacht mag krijgen.'}}}
+  ];
+  function energyLabel(value=state.energy){ return ({1:'Lage energie',2:'Normale energie',3:'Hoge energie'})[Number(value)]||'Normale energie'; }
+  function ensureTodayBasis(){
+    const today=localDateKey();
+    state.dailyBasisHistory ||= {};
+    const existing=state.dailyBasisHistory[today];
+    if(!existing||typeof existing!=='object') state.dailyBasisHistory[today]={energy:Number(state.energy)||2,items:{}};
+    state.dailyBasisHistory[today].energy=Number(state.dailyBasisHistory[today].energy||state.energy||2);
+    state.dailyBasisHistory[today].items=state.dailyBasisHistory[today].items&&typeof state.dailyBasisHistory[today].items==='object'?state.dailyBasisHistory[today].items:{};
+    return state.dailyBasisHistory[today];
+  }
+  function renderDailyBasis(){
+    const rec=ensureTodayBasis(), energy=Number(state.energy)||2; rec.energy=energy;
+    const done=DAILY_BASIS.filter(item=>Boolean(rec.items[item.key])).length;
+    const progress=document.getElementById('basisProgress'); if(progress)progress.textContent=`${done} / ${DAILY_BASIS.length}`;
+    const list=document.getElementById('dailyBasisList'); if(!list)return;
+    list.innerHTML=DAILY_BASIS.map(item=>{const level=item.levels[energy]||item.levels[2],checked=Boolean(rec.items[item.key]);return `<label class="basis-item ${checked?'done':''}"><input class="check" type="checkbox" ${checked?'checked':''} data-basis-check="${item.key}"/><div class="basis-copy"><div class="basis-name">${escapeHtml(item.name)}</div><div class="basis-minimum">${escapeHtml(level.minimum)}</div><div class="basis-detail">${escapeHtml(level.detail)}</div></div></label>`;}).join('');
+  }
+  function ensureDailyState(){ const today=localDateKey(); let changed=false; if(!state.todayPlan||state.todayPlan.date!==today){ state.todayPlan={date:today,taskIds:[]}; refillTodayPlan(true); changed=true; } const rec=ensureTodayBasis(); if(!rec.energy){rec.energy=Number(state.energy)||2;changed=true;} if(changed)saveState(); }
 
   function deadlineDisplay(task){ if(task.deferUntil && task.deferUntil>localDateKey()) return {text:`Vanaf ${formatDateShort(task.deferUntil)}`,cls:''}; if(!task.deadline)return null; const today=localDateKey(),tomorrow=addDaysKey(1); if(task.deadline<today)return{text:'Te laat',cls:'urgent'}; if(task.deadline===today)return{text:'Vandaag',cls:'today'}; if(task.deadline===tomorrow)return{text:'Morgen',cls:'today'}; return{text:formatDateShort(task.deadline),cls:''}; }
   function formatDateShort(key){ return new Intl.DateTimeFormat('nl-NL',{day:'numeric',month:'short'}).format(new Date(key+'T12:00:00')); }
@@ -973,6 +1029,7 @@
     const closed=state.dayClosedDate===localDateKey();
     document.getElementById('dayClosedArea').innerHTML=closed?`<div class="section-card closed-card"><p class="eyebrow">VANDAAG</p><h3>Vandaag is rond.</h3><p class="small-muted">Morgen begint opnieuw bij je energie.</p><button class="secondary-button" id="reopenDayButton">Toch nog iets doen</button></div>`:'';
     document.getElementById('dayOpenArea').style.display=closed?'none':'block';
+    renderDailyBasis();
     renderHabits();
     refillTodayPlan(false);
     const limit=energyLimit(),planned=state.todayPlan.taskIds.map(id=>state.tasks.find(t=>t.id===id)).filter(Boolean);
@@ -1024,7 +1081,12 @@
   function selectFocusTask(id){ state.focus.taskId=id; state.focus.remainingSec=state.focus.durationSec||300; state.focus.running=false; saveState(); setDailyTab('focus'); }
   function renderFocus(){ const task=focusTask(); if(task && state.focus.taskId!==task.id){state.focus.taskId=task.id;state.focus.running=false;if(!state.focus.remainingSec)state.focus.remainingSec=state.focus.durationSec||300;} const wrap=document.getElementById('focusCard'); if(!task){wrap.innerHTML=`<div class="empty-state">Geen open taak om op te focussen. Voeg eerst een taak toe.</div><button class="primary-button" id="focusAddTaskButton">+ Taak toevoegen</button>`;return;} const dur=Math.round((state.focus.durationSec||300)/60); wrap.innerHTML=`<div class="focus-hero"><p class="eyebrow">NU AAN DE BEURT</p><div class="focus-task-name">${escapeHtml(task.name)}</div><div class="focus-step">${escapeHtml(nextOpenSubtask(task)||'Eén ding tegelijk.')}</div><div class="focus-clock"><div><span class="small-muted">${state.focus.running?'nog':'ongeveer'}</span><br><strong id="focusClockText">${formatTime(state.focus.remainingSec||state.focus.durationSec||300)}</strong></div></div><div class="focus-duration-grid">${[5,15,25].map(m=>`<button class="duration-button ${dur===m?'selected':''}" data-focus-duration="${m}">${m} min</button>`).join('')}</div><div class="dump-input-row"><input class="text-input" type="number" min="1" max="180" id="customFocusMinutes" placeholder="Zelf minuten"/><button class="secondary-button" id="customFocusButton" style="width:auto;">Kies</button></div><label class="focus-signal-toggle"><div><strong>Geluid & trillen</strong><span>Signaal wanneer je focusblok klaar is.</span></div><input class="switch-check" id="focusSoundToggle" type="checkbox" ${state.focus.soundEnabled!==false?'checked':''}/></label><div class="focus-controls"><button class="primary-button" id="focusStartButton">${state.focus.running?'Pauze':'Start focus'}</button><button class="secondary-button" data-task-done-now="${task.id}">Taak klaar</button><button class="secondary-button" id="chooseFocusTaskButton">Andere taak kiezen</button></div></div>`; }
 
-  function renderShutdown(){ const today=localDateKey(), completed=state.tasks.filter(t=>t.done&&t.completedAt&&localDateKey(new Date(t.completedAt))===today).sort((a,b)=>a.completedAt-b.completedAt), open=state.todayPlan.taskIds.map(id=>state.tasks.find(t=>t.id===id)).filter(t=>t&&!t.done), dumps=state.dump.filter(d=>!d.processed).length; document.getElementById('shutdownContent').innerHTML=`<div class="shutdown-summary"><p class="eyebrow">DAGAFSLUITING</p><h2 style="font-family:Georgia,'Times New Roman',serif;font-size:34px;">Dit is gelukt vandaag.</h2>${completed.length?completed.map(t=>`<div class="completed-line"><div class="completed-check">✓</div><div class="completed-name">${escapeHtml(t.name)}</div><div class="completed-time">${formatClock(t.completedAt)}</div></div>`).join(''):`<div class="empty-state" style="text-align:left;padding-left:0;">Vandaag hoefde niet vol te zijn.</div>`}</div><div class="section-card"><div class="section-heading"><div><h3 style="margin-bottom:3px;">Wat blijft liggen?</h3><span class="small-muted">Geef open taken een bestemming.</span></div></div>${open.length?open.map(t=>`<div class="shutdown-open"><strong>${escapeHtml(t.name)}</strong><div class="shutdown-actions"><button data-tomorrow="${t.id}">Morgen</button><button data-toggle-pause="${t.id}">Rust</button><button data-keep-list="${t.id}">Op lijst</button></div></div>`).join(''):`<div class="empty-state">Geen open belangrijke taken.</div>`}${dumps?`<button class="secondary-button" id="reviewDumpButton">Bekijk ${dumps} ${dumps===1?'dump-item':'dump-items'}</button>`:''}<div class="spacer-8"></div><button class="primary-button" id="closeDayButton">Dag afronden</button></div>`; }
+  function reflectionForToday(){ const today=localDateKey(); state.reflections||={}; if(!state.reflections[today]||typeof state.reflections[today]!=='object')state.reflections[today]={good:'',tension:'',relax:'',updatedAt:null}; return state.reflections[today]; }
+  function saveReflectionFromForm(silent=true){ const r=reflectionForToday(), good=document.getElementById('reflectionGood'), tension=document.getElementById('reflectionTension'), relax=document.getElementById('reflectionRelax'); if(!good||!tension||!relax)return; r.good=good.value.trim();r.tension=tension.value.trim();r.relax=relax.value.trim();r.updatedAt=Date.now();saveState();if(!silent)showToast('Reflectie bewaard.'); }
+  function renderShutdown(){
+    const today=localDateKey(), completed=state.tasks.filter(t=>t.done&&t.completedAt&&localDateKey(new Date(t.completedAt))===today).sort((a,b)=>a.completedAt-b.completedAt), open=state.todayPlan.taskIds.map(id=>state.tasks.find(t=>t.id===id)).filter(t=>t&&!t.done), dumps=state.dump.filter(d=>!d.processed).length, basis=ensureTodayBasis(), basisDone=DAILY_BASIS.filter(item=>Boolean(basis.items[item.key])).length, reflection=reflectionForToday();
+    document.getElementById('shutdownContent').innerHTML=`<div class="shutdown-summary"><p class="eyebrow">DAGAFSLUITING</p><h2 style="font-family:Georgia,'Times New Roman',serif;font-size:34px;">Even terugkijken.</h2><div class="day-stats"><div class="day-stat"><strong>${Number(basis.energy||state.energy)}</strong><span>${escapeHtml(energyLabel(basis.energy||state.energy))}</span></div><div class="day-stat"><strong>${basisDone}/4</strong><span>dagelijkse basis</span></div><div class="day-stat"><strong>${completed.length}</strong><span>taken afgerond</span></div></div>${completed.length?`<div style="margin-top:16px;">${completed.map(t=>`<div class="completed-line"><div class="completed-check">✓</div><div class="completed-name">${escapeHtml(t.name)}</div><div class="completed-time">${formatClock(t.completedAt)}</div></div>`).join('')}</div>`:`<div class="empty-state" style="text-align:left;padding-left:0;margin-top:12px;">Vandaag hoefde niet vol te zijn.</div>`}</div><div class="section-card"><div class="section-heading"><div><h3 style="margin-bottom:3px;">Kort aan het einde van de dag</h3><span class="small-muted">Niets is verplicht. Eén zin is al genoeg.</span></div></div><div class="reflection-grid"><div class="reflection-field"><label for="reflectionGood">Wat ging goed vandaag?</label><textarea class="text-input" id="reflectionGood" placeholder="Bijv. ik ben toch even naar buiten gegaan.">${escapeHtml(reflection.good||'')}</textarea></div><div class="reflection-field"><label for="reflectionTension">Hoe waren mijn hoofd en spanning vandaag?</label><textarea class="text-input" id="reflectionTension" placeholder="Kort beschrijven is genoeg.">${escapeHtml(reflection.tension||'')}</textarea></div><div class="reflection-field"><label for="reflectionRelax">Kon ik vandaag goed ontspannen? Wat hielp wel of niet?</label><textarea class="text-input" id="reflectionRelax" placeholder="Wat werkte vandaag voor je?">${escapeHtml(reflection.relax||'')}</textarea></div></div><div class="spacer-8"></div><button class="secondary-button" id="saveReflectionButton">Reflectie bewaren</button></div><div class="section-card"><div class="section-heading"><div><h3 style="margin-bottom:3px;">Wat blijft liggen?</h3><span class="small-muted">Geef open taken een bestemming.</span></div></div>${open.length?open.map(t=>`<div class="shutdown-open"><strong>${escapeHtml(t.name)}</strong><div class="shutdown-actions"><button data-tomorrow="${t.id}">Morgen</button><button data-toggle-pause="${t.id}">Rust</button><button data-keep-list="${t.id}">Op lijst</button></div></div>`).join(''):`<div class="empty-state">Geen open belangrijke taken.</div>`}${dumps?`<button class="secondary-button" id="reviewDumpButton">Bekijk ${dumps} ${dumps===1?'dump-item':'dump-items'}</button>`:''}<div class="spacer-8"></div><button class="primary-button" id="closeDayButton">Dag afronden</button></div>`;
+  }
 
   function generateMicrosteps(name){ const s=name.toLowerCase(); const t=(a,b,c)=>[a,b,c]; if(/weekmenu|maaltijd/.test(s))return t('Bekijk wat er nog in huis is','Kies de maaltijden','Maak de boodschappenlijst'); if(/boodschap/.test(s))return t('Bekijk voorraad','Maak of controleer de lijst','Haal de boodschappen'); if(/bel|bellen/.test(s))return t('Zoek nummer of gegevens erbij','Doe het telefoontje','Noteer wat er nog moet gebeuren'); if(/opruim|schoonmaak|kamer|kast/.test(s))return t('Kies één klein beginpunt','Sorteer wat weg / blijft / elders hoort','Ruim het gekozen deel af'); if(/mail|e-mail|bericht/.test(s))return t('Verzamel de nodige informatie','Schrijf een korte versie','Controleer en verstuur'); if(/afspraak|regelen/.test(s))return t('Bepaal wat je precies nodig hebt','Neem contact op of regel het','Controleer of het bevestigd is'); if(/wandeling|wandelen|workout|sport/.test(s))return t('Kies duur en startpunt','Begin rustig','Rond af en noteer dat het gedaan is'); return t(`Bepaal de eerste kleine stap voor “${name}”`,`Werk het belangrijkste deel van “${name}” af`,`Controleer wat nog nodig is en rond af`); }
   function fillSuggestedSteps(force=false){ const name=document.getElementById('modalInput').value.trim(), ta=document.getElementById('taskSubtasks'); if(!name)return; if(!force && ta.value.trim())return; ta.value=generateMicrosteps(name).join('\n'); }
@@ -1100,7 +1162,7 @@
   document.addEventListener('click',e=>{
     const open=e.target.closest('[data-open]');if(open)return showView(open.dataset.open); if(e.target.closest('[data-back]'))return showView('home');
     const tab=e.target.closest('[data-daily-tab]');if(tab)return setDailyTab(tab.dataset.dailyTab); const foodNav=e.target.closest('[data-food-tab]');if(foodNav)return setFoodTab(foodNav.dataset.foodTab); const foodJump=e.target.closest('[data-food-tab-jump]');if(foodJump)return setFoodTab(foodJump.dataset.foodTabJump);
-    const energy=e.target.closest('[data-energy]');if(energy){state.energy=Number(energy.dataset.energy);refillTodayPlan(false);saveState();return renderToday();}
+    const energy=e.target.closest('[data-energy]');if(energy){state.energy=Number(energy.dataset.energy);const basis=ensureTodayBasis();basis.energy=state.energy;refillTodayPlan(false);saveState();return renderToday();}
     if(e.target.closest('#addTaskButton')||e.target.closest('#addTaskFromListButton')||e.target.closest('#focusAddTaskButton'))return openInputModal('task');
     if(e.target.closest('#addHabitButton'))return openInputModal('habit'); if(e.target.closest('#newProjectButton'))return openInputModal('project');
     if(e.target.closest('#regenerateStepsButton'))return fillSuggestedSteps(true);
@@ -1133,7 +1195,8 @@
     if(e.target.closest('[data-keep-list]')){showToast('Taak blijft actief op je lijst.');return;}
     if(e.target.closest('#wakeAllButton')){state.tasks.forEach(t=>t.paused=false);saveState();renderAllTasks();showToast('Alle taken zijn weer actief.');return;}
     if(e.target.closest('#reviewDumpButton'))return setDailyTab('dump');
-    if(e.target.closest('#closeDayButton')){state.dayClosedDate=localDateKey();state.focus.running=false;saveState();setDailyTab('start');renderToday();return showToast('Dag afgesloten.');}
+    if(e.target.closest('#saveReflectionButton'))return saveReflectionFromForm(false);
+    if(e.target.closest('#closeDayButton')){saveReflectionFromForm(true);state.dayClosedDate=localDateKey();state.focus.running=false;saveState();setDailyTab('start');renderToday();return showToast('Dag afgesloten.');}
     if(e.target.closest('#addDumpButton')){const inp=document.getElementById('dumpTextInput');addDump(inp.value);inp.value='';return;}
     if(e.target.closest('#dumpMicButton')){if(!speechRecognition)return showToast('Inspreken werkt hier niet; typ je gedachte hieronder.');try{speechRecognition.start();}catch{}return;}
     const dumpTask=e.target.closest('[data-dump-task]');if(dumpTask){const item=state.dump.find(x=>x.id===dumpTask.dataset.dumpTask);if(item){const task={id:uid('task'),name:item.text,done:false,elapsed:0,running:false,deadline:'',createdAt:Date.now(),completedAt:null,paused:false,deferUntil:'',subtasks:generateMicrosteps(item.text).map(name=>({id:uid('sub'),name,done:false}))};state.tasks.push(task);item.processed=true;refillTodayPlan(false);saveState();renderDump();renderToday();showToast('Omgezet naar taak.');}return;}
@@ -1149,10 +1212,13 @@
     if(e.target.matches('[data-task-check]')){const t=state.tasks.find(x=>x.id===e.target.dataset.taskCheck);if(t)markTask(t,e.target.checked);}
     if(e.target.matches('[data-subtask-check]')){const [tid,sid]=e.target.dataset.subtaskCheck.split('|'),t=state.tasks.find(x=>x.id===tid),s=t?.subtasks?.find(x=>x.id===sid);if(s){s.done=e.target.checked;saveState();renderToday();renderAllTasks();renderFocus();}}
     if(e.target.matches('[data-habit-check]')){const h=state.habits.find(x=>x.id===e.target.dataset.habitCheck);if(h){h.history||={};if(e.target.checked)h.history[localDateKey()]=true;else delete h.history[localDateKey()];saveState();renderHabits();}}
+    if(e.target.matches('[data-basis-check]')){const rec=ensureTodayBasis();rec.energy=Number(state.energy)||2;rec.items[e.target.dataset.basisCheck]=e.target.checked;saveState();renderDailyBasis();}
     if(e.target.matches('[data-shopping-check]')){const item=state.shopping.find(x=>x.id===e.target.dataset.shoppingCheck);if(item){item.done=e.target.checked;saveState();renderShopping();}}
     if(e.target.matches('#focusSoundToggle')){state.focus.soundEnabled=e.target.checked;if(e.target.checked)ensureFocusAudio();saveState();showToast(e.target.checked?'Focussignaal aan.':'Focussignaal uit.');}
     if(e.target.matches('[data-pantry-check]')){const item=state.pantry.find(x=>x.id===e.target.dataset.pantryCheck);if(item){item.active=e.target.checked;saveState();renderPantry();}}
   });
+
+  document.addEventListener('input',e=>{ if(e.target.matches('#reflectionGood,#reflectionTension,#reflectionRelax')) saveReflectionFromForm(true); });
 
   document.getElementById('modalInput').addEventListener('blur',()=>{if(inputMode==='task')fillSuggestedSteps(false);});
   document.getElementById('modalInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&inputMode!=='habit')saveModalInput();});
