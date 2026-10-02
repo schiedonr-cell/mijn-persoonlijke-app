@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
-  <!-- Mijn persoonlijke app v1.6.5 -->
+  <!-- Mijn persoonlijke app v1.6.6 -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -787,6 +787,7 @@
 
         <div class="food-panel active" data-food-panel="menu">
           <div class="food-summary" id="foodSettingsSummary"></div>
+          <div id="smartMenuPanel"></div>
           <div id="weekMenu"></div>
         </div>
 
@@ -965,6 +966,7 @@
     <div class="sheet">
       <div class="sheet-head"><div><h3 id="replaceMealTitle">Gerecht vervangen</h3><p class="small-muted" style="margin:5px 0 0;">Alleen deze dag verandert.</p></div><button class="close-button" data-close-replace aria-label="Sluiten">×</button></div>
       <div class="replace-grid">
+        <button class="replace-option" data-replace-mode="ai"><span>✨</span>Slim passend</button>
         <button class="replace-option" data-replace-mode="surprise"><span>🎲</span>Verras me</button>
         <button class="replace-option" data-replace-mode="fast"><span>⚡</span>Snel</button>
         <button class="replace-option" data-replace-mode="simple"><span>👌</span>Simpel</button>
@@ -973,7 +975,7 @@
         <button class="replace-option" data-replace-mode="favorite"><span>★</span>Favoriet</button>
         <button class="replace-option" data-replace-mode="pantry"><span>🏠</span>Met voorraad</button>
       </div>
-      <p class="food-inline-note">De app houdt rekening met je voedingswijze, allergieën en ongewenste ingrediënten. “Met voorraad” gebruikt eerst een passende complete maaltijd; anders kiest de app een recept dat zoveel mogelijk aansluit bij je ingrediënten.</p>
+      <p class="food-inline-note">“Slim passend” gebruikt je vrije wens én je menu-instellingen. De andere knoppen blijven snelle keuzes zonder AI. Allergieën en ongewenste ingrediënten blijven altijd als harde filters gelden.</p>
     </div>
   </div>
 
@@ -1037,7 +1039,7 @@
     dayClosedDate: null,
     focus: { taskId: null, durationSec: 300, remainingSec: 300, running: false, soundEnabled: true },
     weekMenu: [], shopping: [], projects: [],
-    foodPrefs: { people:2, selectedDays:[], mealType:"diner", usePantryMeals:true, diet:"alleseter", allergies:[], unwanted:[], preferences:["snel","simpel"], appliances:["kookplaat","oven","magnetron","airfryer"] },
+    foodPrefs: { people:2, selectedDays:[], mealType:"diner", usePantryMeals:true, diet:"alleseter", allergies:[], unwanted:[], preferences:["snel","simpel"], appliances:["kookplaat","oven","magnetron","airfryer"], aiWish:"" },
     weekPlan: [], pantry: [], favorites: [], recipeHistory: [], shoppingSkippedCount: 0
   };
 
@@ -1404,14 +1406,124 @@
   function dayLabel(key){ const d=dateFromKey(key); return new Intl.DateTimeFormat('nl-NL',{weekday:'short'}).format(d).replace('.',''); }
   function dateLabel(key){ const d=dateFromKey(key); return new Intl.DateTimeFormat('nl-NL',{day:'numeric',month:'short'}).format(d).replace('.',''); }
   function fullDayLabel(key){ const d=dateFromKey(key); const x=new Intl.DateTimeFormat('nl-NL',{weekday:'long',day:'numeric',month:'long'}).format(d); return x.charAt(0).toUpperCase()+x.slice(1); }
-  function ensureFoodPrefs(){ if(!Array.isArray(state.foodPrefs.selectedDays)||!state.foodPrefs.selectedDays.length) state.foodPrefs.selectedDays=upcomingDays().map(x=>x.key); state.foodPrefs.people=Math.min(8,Math.max(1,Number(state.foodPrefs.people||2))); state.foodPrefs.mealType=['ontbijt','lunch','diner'].includes(state.foodPrefs.mealType)?state.foodPrefs.mealType:'diner'; state.foodPrefs.usePantryMeals=state.foodPrefs.usePantryMeals!==false; state.foodPrefs.allergies=Array.isArray(state.foodPrefs.allergies)?state.foodPrefs.allergies:[]; state.foodPrefs.unwanted=Array.isArray(state.foodPrefs.unwanted)?state.foodPrefs.unwanted:[]; state.foodPrefs.preferences=Array.isArray(state.foodPrefs.preferences)?state.foodPrefs.preferences:[]; state.foodPrefs.appliances=Array.isArray(state.foodPrefs.appliances)?state.foodPrefs.appliances:[]; migrateOldWeekMenu(); }
+  function ensureFoodPrefs(){ if(!Array.isArray(state.foodPrefs.selectedDays)||!state.foodPrefs.selectedDays.length) state.foodPrefs.selectedDays=upcomingDays().map(x=>x.key); state.foodPrefs.people=Math.min(8,Math.max(1,Number(state.foodPrefs.people||2))); state.foodPrefs.mealType=['ontbijt','lunch','diner'].includes(state.foodPrefs.mealType)?state.foodPrefs.mealType:'diner'; state.foodPrefs.usePantryMeals=state.foodPrefs.usePantryMeals!==false; state.foodPrefs.allergies=Array.isArray(state.foodPrefs.allergies)?state.foodPrefs.allergies:[]; state.foodPrefs.unwanted=Array.isArray(state.foodPrefs.unwanted)?state.foodPrefs.unwanted:[]; state.foodPrefs.preferences=Array.isArray(state.foodPrefs.preferences)?state.foodPrefs.preferences:[]; state.foodPrefs.appliances=Array.isArray(state.foodPrefs.appliances)?state.foodPrefs.appliances:[]; state.foodPrefs.aiWish=typeof state.foodPrefs.aiWish==='string'?state.foodPrefs.aiWish:''; migrateOldWeekMenu(); }
   function migrateOldWeekMenu(){ if(state.weekPlan.length||!Array.isArray(state.weekMenu)||!state.weekMenu.length)return; const aliases={'aardappel-zalm-broccoli':'zalm-broccoli-krieltjes','curry-kikkererwt':'kikkererwt-curry','gnocchi-tomaat-mozzarella':'gnocchi-tomaat','burger-ovenfriet':'burger-friet','noedels-roerbak':'noedels-kip','worst-groente-traybake':'worst-traybake'}; const days=upcomingDays(); state.weekPlan=state.weekMenu.slice(0,days.length).map((id,i)=>({date:days[i].key,recipeId:aliases[id]||id})).filter(x=>recipeById(x.recipeId)); state.foodPrefs.selectedDays=state.weekPlan.map(x=>x.date); }
-  function setFoodTab(tab){ foodTab=tab; document.querySelectorAll('[data-food-panel]').forEach(p=>p.classList.toggle('active',p.dataset.foodPanel===tab)); document.querySelectorAll('[data-food-tab]').forEach(b=>b.classList.toggle('active',b.dataset.foodTab===tab)); const titles={menu:'Je weekmenu op jouw manier.',shopping:'Alles wat je nog nodig hebt.',recipes:'Veel keuze, zonder steeds hetzelfde.',pantry:'Koelkast, vriezer en voorraadkast.'}; const el=document.getElementById('foodSubTitle'); if(el)el.textContent=titles[tab]||''; if(tab==='menu')renderMenu(); if(tab==='shopping')renderShopping(); if(tab==='recipes')renderRecipeLibrary(); if(tab==='pantry')renderPantry(); window.scrollTo({top:0,behavior:'instant'}); }
-  function renderFoodAll(){ ensureFoodPrefs(); renderFoodSettingsSummary(); renderMenu(); renderShopping(); renderRecipeLibrary(); renderPantry(); }
+  function setFoodTab(tab){ foodTab=tab; document.querySelectorAll('[data-food-panel]').forEach(p=>p.classList.toggle('active',p.dataset.foodPanel===tab)); document.querySelectorAll('[data-food-tab]').forEach(b=>b.classList.toggle('active',b.dataset.foodTab===tab)); const titles={menu:'Je weekmenu op jouw manier.',shopping:'Alles wat je nog nodig hebt.',recipes:'Veel keuze, zonder steeds hetzelfde.',pantry:'Koelkast, vriezer en voorraadkast.'}; const el=document.getElementById('foodSubTitle'); if(el)el.textContent=titles[tab]||''; if(tab==='menu'){renderSmartMenuPanel();renderMenu();} if(tab==='shopping')renderShopping(); if(tab==='recipes')renderRecipeLibrary(); if(tab==='pantry')renderPantry(); window.scrollTo({top:0,behavior:'instant'}); }
+  function renderFoodAll(){ ensureFoodPrefs(); renderFoodSettingsSummary(); renderSmartMenuPanel(); renderMenu(); renderShopping(); renderRecipeLibrary(); renderPantry(); }
 
   function prefsDietLabel(v){ return ({alleseter:'Alleseter',vegetarisch:'Vegetarisch',veganistisch:'Veganistisch',pescotarisch:'Pescotarisch'})[v]||'Alleseter'; }
   function mealTypeLabel(v){return ({ontbijt:'Ontbijt',lunch:'Lunch',diner:'Diner'})[v]||'Diner';}
   function renderFoodSettingsSummary(){ const el=document.getElementById('foodSettingsSummary'); if(!el)return; const p=state.foodPrefs; const dayCount=p.selectedDays.length; const prefText=p.preferences.length?p.preferences.slice(0,3).map(x=>({snel:'Snel',simpel:'Simpel',voordelig:'Voordelig',gezond:'Gezond',hollands:'Hollands',comfort:'Comfort',airfryer:'Airfryer',eiwitrijk:'Eiwitrijk'})[x]||x).join(' • '):'Geen extra voorkeur'; el.innerHTML=`<div class="food-summary-top"><div><p class="eyebrow">JOUW INSTELLINGEN</p><h3>${mealTypeLabel(p.mealType)} · ${dayCount} ${dayCount===1?'dag':'dagen'} · ${p.people} ${p.people===1?'persoon':'personen'}</h3><div class="food-summary-meta">${prefsDietLabel(p.diet)} · ${escapeHtml(prefText)}<br>${p.usePantryMeals?'Complete maaltijden uit voorraad mogen meedoen':'Voorraadmaaltijden niet automatisch in menu'} · ${p.allergies.length?`${p.allergies.length} allergie-keuzes`: 'geen allergieën'}</div></div><button class="icon-button" id="openFoodSettingsButton" aria-label="Weekmenu instellingen">⚙</button></div>`; }
+
+  function renderSmartMenuPanel(){
+    const wrap=document.getElementById('smartMenuPanel');if(!wrap)return;
+    const wish=state.foodPrefs.aiWish||'';
+    wrap.innerHTML=`<div class="section-card"><div class="section-heading"><div><h3 style="margin-bottom:3px;">✨ Slim menu</h3><span class="small-muted">Vertel kort waar je deze week zin in hebt.</span></div></div><textarea class="text-input textarea-input" id="smartMenuWish" placeholder="Bijv. goedkoop, twee keer kip, één pasta en gebruik wat ik in huis heb">${escapeHtml(wish)}</textarea><div class="food-inline-note">AI kiest uit je bestaande recepten. Daardoor blijven recepten, hoeveelheden en de boodschappenlijst betrouwbaar.</div><button class="primary-button" id="generateSmartMenuButton">✨ Slim menu maken</button></div>`;
+  }
+  function foodPreferenceLabels(){
+    const p=state.foodPrefs;
+    return [
+      `maaltijd: ${mealTypeLabel(p.mealType).toLowerCase()}`,
+      `voedingswijze: ${prefsDietLabel(p.diet).toLowerCase()}`,
+      p.preferences.length?`voorkeuren: ${p.preferences.join(', ')}`:'',
+      p.unwanted.length?`ongewenst: ${p.unwanted.join(', ')}`:'',
+      p.allergies.length?`allergieën: ${p.allergies.join(', ')}`:''
+    ].filter(Boolean).join(' · ');
+  }
+  function smartRecipePool(excludeIds=[]){
+    let list=recipes.filter(recipeAllowed).filter(r=>!excludeIds.includes(r.id));
+    if(!list.length)list=recipes.filter(r=>(r.mealType||'diner')===state.foodPrefs.mealType&&dietAllowed(r,state.foodPrefs.diet)&&!excludeIds.includes(r.id));
+    if(!list.length)list=recipes.filter(r=>(r.mealType||'diner')===state.foodPrefs.mealType&&!excludeIds.includes(r.id));
+    const recent=new Set(state.recipeHistory.slice(-18));
+    return list.map(r=>({r,score:preferenceScore(r)*4+pantryScore(r)*3+(state.favorites.includes(r.id)?6:0)-(recent.has(r.id)?2:0)})).sort((a,b)=>b.score-a.score||a.r.name.localeCompare(b.r.name,'nl')).map(x=>x.r);
+  }
+  function matchSmartRecipeChoice(line,candidates){
+    const raw=String(line||'').trim().toLowerCase();
+    if(!raw)return null;
+    let hit=candidates.find(r=>raw===r.id.toLowerCase());
+    if(hit)return hit.id;
+    hit=candidates.find(r=>raw.includes(r.id.toLowerCase()));
+    if(hit)return hit.id;
+    const cleaned=raw.replace(/^["'`\s*-]+|["'`,.;\s]+$/g,'');
+    hit=candidates.find(r=>cleaned===r.name.toLowerCase());
+    if(hit)return hit.id;
+    hit=candidates.find(r=>cleaned.includes(r.name.toLowerCase())||r.name.toLowerCase().includes(cleaned));
+    return hit?.id||null;
+  }
+  async function requestSmartRecipeIds(count,excludeIds=[],alreadyPicked=[]){
+    const picked=[],used=new Set([...excludeIds,...alreadyPicked]);
+    let tries=0;
+    while(picked.length<count&&tries<3){
+      tries++;
+      const candidates=smartRecipePool([...used,...picked]);
+      if(!candidates.length)break;
+      const need=count-picked.length;
+      const ask=Math.min(6,Math.max(3,need));
+      const pantry=state.pantry.filter(p=>(p.type||'ingredient')==='ingredient'&&p.active!==false).map(p=>p.name).slice(0,14);
+      const wish=(state.foodPrefs.aiWish||'').trim()||'Geen extra vrije wens; kies gevarieerd en passend bij de instellingen.';
+      const chosen=[...alreadyPicked,...picked].map(id=>recipeById(id)?.name).filter(Boolean);
+      const lines=candidates.map(r=>`${r.id} | ${r.name} | ${r.minutes} min | kostenklasse: ${r.cost} | tags: ${r.tags.join(', ')} | voorraad-match: ${pantryScore(r)}${state.favorites.includes(r.id)?' | favoriet':''}`).join('\n');
+      const taskText=`Dit is een receptselectie, geen stappenplan. Voor deze opdracht betekent iedere "stap" exact één gekozen recept-ID. Kies ${ask} verschillende recept-ID's uit de lijst hieronder. Antwoord per stap ALLEEN met de exacte ID, zonder uitleg of extra woorden. Wens: ${wish}. Instellingen: ${foodPreferenceLabels()}. ${pantry.length?`In huis: ${pantry.join(', ')}.`:''} ${chosen.length?`Al gekozen voor dit menu: ${chosen.join(', ')}. Kies aanvullingen die samen gevarieerd zijn.`:''}\nKandidaten:\n${lines}`;
+      const output=await requestSmartMicrosteps(taskText);
+      for(const line of output){
+        const id=matchSmartRecipeChoice(line,candidates);
+        if(id&&!used.has(id)&&!picked.includes(id)){picked.push(id);if(picked.length>=count)break;}
+      }
+    }
+    return picked.slice(0,count);
+  }
+  async function generateSmartWeekMenu(){
+    ensureFoodPrefs();
+    const wishEl=document.getElementById('smartMenuWish');
+    if(wishEl)state.foodPrefs.aiWish=wishEl.value.trim();
+    const dates=[...state.foodPrefs.selectedDays].filter(k=>upcomingDays().some(d=>d.key===k)).sort();
+    if(!dates.length)return showToast('Kies eerst minstens één dag.');
+    const button=document.getElementById('generateSmartMenuButton');
+    if(button){button.disabled=true;button.textContent='✨ AI maakt je menu…';}
+    const plan=[],used=[],usedMeals=[];
+    const meals=state.foodPrefs.usePantryMeals?activePantryMeals():[];
+    for(const date of dates){
+      if(meals.length){const meal=meals.shift();usedMeals.push(meal.id);plan.push({date,pantryMealId:meal.id});}
+      else plan.push({date,recipeId:null});
+    }
+    const need=plan.filter(x=>!x.pantryMealId).length;
+    let aiIds=[],aiWorked=false;
+    try{aiIds=need?await requestSmartRecipeIds(need):[];aiWorked=aiIds.length>0;}
+    catch(error){aiIds=[];}
+    const exclude=[...aiIds];
+    for(const item of plan){
+      if(item.pantryMealId)continue;
+      let id=aiIds.shift();
+      if(!id){const r=chooseRecipe('surprise',exclude);id=r.id;exclude.push(id);}
+      item.recipeId=id;used.push(id);
+    }
+    state.weekPlan=plan;
+    state.weekMenu=plan.map(x=>x.recipeId).filter(Boolean);
+    state.shopping=[];
+    state.recipeHistory=[...state.recipeHistory,...used].slice(-80);
+    activeFoodDayIndex=0;
+    saveState();
+    renderFoodAll();
+    if(aiWorked)showToast(`Slim menu gemaakt voor ${dates.length} ${dates.length===1?'dag':'dagen'}.`);
+    else showToast('AI lukte nu niet; menu is met de gewone regels gemaakt.');
+    if(button){button.disabled=false;button.textContent='✨ Slim menu maken';}
+  }
+  async function replaceMealWithAI(){
+    if(replacePlanIndex==null||!state.weekPlan[replacePlanIndex])return;
+    const current=state.weekPlan[replacePlanIndex],exclude=state.weekPlan.map(x=>x.recipeId).filter(Boolean);
+    showToast('AI zoekt een passend alternatief…');
+    let id=null,usedAi=false;
+    try{const ids=await requestSmartRecipeIds(1,exclude,exclude);id=ids[0]||null;usedAi=Boolean(id);}catch(error){}
+    if(!id)id=chooseRecipe('surprise',exclude).id;
+    state.weekPlan[replacePlanIndex]={date:current.date,recipeId:id};
+    state.weekMenu=state.weekPlan.map(x=>x.recipeId).filter(Boolean);
+    state.recipeHistory=[...state.recipeHistory,id].slice(-80);
+    state.shopping=[];
+    saveState();
+    document.getElementById('replaceMealModal').classList.remove('open');
+    renderMenu();
+    showToast(usedAi?'Slim alternatief gekozen.':'AI lukte nu niet; passend alternatief gekozen.');
+  }
 
 
   const ALLERGY_RULES={gluten:['pasta','macaroni','spaghetti','noedels','wrap','brood','couscous','tortellini','gnocchi'],lactose:['room','kaas','mozzarella','feta','melk','yoghurt','tzatziki','pesto'],noten:['pesto'],pindas:['pinda'],soja:['soja','teriyaki','tofu'],eieren:['ei','eieren','tortellini'],vis:['zalm','tonijn','kabeljauw'],sesam:['sesam']};
@@ -1431,7 +1543,8 @@
   function recipeById(id){return recipes.find(r=>r.id===id);} function formatAmount(amount){const n=Number(amount);return Number.isInteger(n)?String(n):String(Math.round(n*10)/10).replace('.',',');}
   function renderMenu(){ ensureFoodPrefs(); renderFoodSettingsSummary(); const wrap=document.getElementById('weekMenu'); if(!wrap)return; if(!state.weekPlan.length){wrap.innerHTML=`<div class="section-card empty-food"><div class="big">🍽️</div><h3>Nog geen menu</h3><p class="subtitle">Kies je dagen, maaltijdsoort en voorkeuren. Complete maaltijden uit je voorraad kunnen automatisch worden meegenomen.</p><div class="button-stack"><button class="primary-button" id="generateMenuButton">Maak mijn menu</button><button class="secondary-button" id="openFoodSettingsButton2">Dagen & voorkeuren aanpassen</button></div></div>`;return;} activeFoodDayIndex=Math.min(activeFoodDayIndex,state.weekPlan.length-1); const item=state.weekPlan[activeFoodDayIndex],r=item.recipeId?recipeById(item.recipeId):null,pm=item.pantryMealId?state.pantry.find(p=>p.id===item.pantryMealId):null; const content=pm?`<article class="meal-card"><div class="meal-visual"><div class="meal-emoji">${pm.location==='Vriezer'?'❄️':'🍱'}</div></div><div class="meal-card-body"><div class="meal-kicker">${escapeHtml(fullDayLabel(item.date))} · uit voorraad</div><h3>${escapeHtml(pm.name)}</h3><div class="meal-meta-row"><span class="meta-chip">🏠 ${escapeHtml(pm.location||'Voorraad')}</span><span class="meta-chip">👥 ${Number(pm.servings||2)} porties</span><span class="meta-chip">${mealTypeLabel(pm.mealType||'diner')}</span></div><div class="food-inline-note">Deze complete maaltijd ligt al in huis. Daarom komen er voor deze dag geen receptingrediënten op je boodschappenlijst.</div><div class="meal-card-actions"><button class="soft-button" data-replace-plan="${activeFoodDayIndex}">Vervang</button></div></div></article>`:(r?`<article class="meal-card"><div class="meal-visual"><div class="meal-emoji">${r.emoji}</div><button class="meal-fav" data-favorite-recipe="${r.id}" aria-label="Favoriet">${state.favorites.includes(r.id)?'★':'☆'}</button></div><div class="meal-card-body"><div class="meal-kicker">${escapeHtml(fullDayLabel(item.date))}</div><h3>${escapeHtml(r.name)}</h3><p class="small-muted">${escapeHtml(r.description||'')}</p><div class="meal-meta-row"><span class="meta-chip">⏱ ${r.minutes} min</span><span class="meta-chip">👥 ${state.foodPrefs.people}</span><span class="meta-chip">${mealTypeLabel(r.mealType)}</span></div><div class="meal-card-actions"><button class="secondary-button" data-recipe="${r.id}">Bekijk recept</button><button class="soft-button" data-replace-plan="${activeFoodDayIndex}">Vervang</button></div></div></article>`:`<div class="section-card empty-state">Dit onderdeel kon niet worden geladen. Maak het menu opnieuw.</div>`); wrap.innerHTML=`<div class="day-strip">${state.weekPlan.map((x,i)=>`<button class="day-pill ${i===activeFoodDayIndex?'active':''}" data-food-day-index="${i}">${escapeHtml(dayLabel(x.date))}<small>${escapeHtml(dateLabel(x.date))}</small></button>`).join('')}</div>${content}<div class="button-stack"><button class="secondary-button" id="openFoodSettingsButton2">Menu-instellingen</button><button class="primary-button" id="makeShoppingButton">Maak boodschappenlijst</button></div>`; }
 
-  function replaceMealSmart(mode){ if(replacePlanIndex==null||!state.weekPlan[replacePlanIndex])return; const current=state.weekPlan[replacePlanIndex]; if(mode==='pantry'){const used=state.weekPlan.map(x=>x.pantryMealId).filter(Boolean),meal=activePantryMeals(used)[0];if(meal){state.weekPlan[replacePlanIndex]={date:current.date,pantryMealId:meal.id};state.weekMenu=state.weekPlan.map(x=>x.recipeId).filter(Boolean);state.shopping=[];saveState();document.getElementById('replaceMealModal').classList.remove('open');renderMenu();return showToast('Deze dag gebruikt nu een complete maaltijd uit je voorraad.');}} const exclude=state.weekPlan.map(x=>x.recipeId).filter(Boolean); const r=chooseRecipe(mode,exclude); state.weekPlan[replacePlanIndex]={date:current.date,recipeId:r.id}; state.weekMenu=state.weekPlan.map(x=>x.recipeId).filter(Boolean); state.recipeHistory=[...state.recipeHistory,r.id].slice(-80); state.shopping=[]; saveState(); document.getElementById('replaceMealModal').classList.remove('open'); renderMenu(); showToast('Alleen dit gerecht is vervangen.'); }
+  function openReplace(index){const i=Number(index);if(!Number.isInteger(i)||!state.weekPlan[i])return;replacePlanIndex=i;document.getElementById('replaceMealModal').classList.add('open');}
+  async function replaceMealSmart(mode){ if(replacePlanIndex==null||!state.weekPlan[replacePlanIndex])return; if(mode==='ai')return replaceMealWithAI(); const current=state.weekPlan[replacePlanIndex]; if(mode==='pantry'){const used=state.weekPlan.map(x=>x.pantryMealId).filter(Boolean),meal=activePantryMeals(used)[0];if(meal){state.weekPlan[replacePlanIndex]={date:current.date,pantryMealId:meal.id};state.weekMenu=state.weekPlan.map(x=>x.recipeId).filter(Boolean);state.shopping=[];saveState();document.getElementById('replaceMealModal').classList.remove('open');renderMenu();return showToast('Deze dag gebruikt nu een complete maaltijd uit je voorraad.');}} const exclude=state.weekPlan.map(x=>x.recipeId).filter(Boolean); const r=chooseRecipe(mode,exclude); state.weekPlan[replacePlanIndex]={date:current.date,recipeId:r.id}; state.weekMenu=state.weekPlan.map(x=>x.recipeId).filter(Boolean); state.recipeHistory=[...state.recipeHistory,r.id].slice(-80); state.shopping=[]; saveState(); document.getElementById('replaceMealModal').classList.remove('open'); renderMenu(); showToast('Alleen dit gerecht is vervangen.'); }
 
   function scaleAmount(amount){ return Number(amount)*(state.foodPrefs.people/2); }
   function makeShoppingList(){ if(!state.weekPlan.length)return showToast('Maak eerst een weekmenu.'); const aggregate=new Map(); let skipped=0; state.weekPlan.forEach(item=>{if(item.pantryMealId)return;const r=recipeById(item.recipeId); if(!r)return; r.ingredients.forEach(i=>{if(pantryHas(i.name)){skipped++;return;} const key=`${i.name.toLowerCase()}|${i.unit}|${i.cat}`; if(!aggregate.has(key))aggregate.set(key,{id:uid('shop'),name:i.name,amount:0,unit:i.unit,cat:i.cat,done:false,manual:false}); aggregate.get(key).amount+=scaleAmount(i.amount);});}); state.shopping=[...aggregate.values()].sort((a,b)=>a.cat.localeCompare(b.cat,'nl')||a.name.localeCompare(b.name,'nl')); state.shoppingSkippedCount=skipped; saveState(); setFoodTab('shopping'); renderShopping(); showToast(skipped?`${skipped} ingrediënten uit je voorraad overgeslagen.`:'Boodschappenlijst gemaakt.'); }
@@ -1485,7 +1598,7 @@
     const removeTaskStepButton=e.target.closest('[data-remove-task-step]');if(removeTaskStepButton)return removeTaskStep(Number(removeTaskStepButton.dataset.removeTaskStep));
     if(e.target.closest('#regenerateStepsButton'))return makeSmartStepsInModal(true);
     if(e.target.closest('#reopenDayButton')){state.dayClosedDate=null;saveState();return renderToday();}
-    if(e.target.closest('#generateMenuButton'))return generateWeekMenu(); if(e.target.closest('#makeShoppingButton'))return makeShoppingList();
+    if(e.target.closest('#generateSmartMenuButton'))return generateSmartWeekMenu(); if(e.target.closest('#generateMenuButton'))return generateWeekMenu(); if(e.target.closest('#makeShoppingButton'))return makeShoppingList();
     if(e.target.closest('#openFoodSettingsButton')||e.target.closest('#openFoodSettingsButton2'))return openFoodSettings();
     if(e.target.closest('[data-close-food-settings]')){foodDraft=null;document.getElementById('foodSettingsModal').classList.remove('open');return;}
     if(e.target.closest('#saveFoodSettingsButton'))return saveFoodSettings();
@@ -1545,6 +1658,7 @@
     if(e.target.matches('#habitEnergyAdaptive'))updateHabitOptionVisibility();
     if(e.target.matches('#householdFrequency'))updateHouseholdFrequencyVisibility();
     if(e.target.matches('#foodUsePantryMeals')&&foodDraft){foodDraft.usePantryMeals=e.target.checked;}
+    if(e.target.matches('#smartMenuWish')){state.foodPrefs.aiWish=e.target.value.trim();saveState();}
     if(e.target.matches('[data-pantry-check]')){const item=state.pantry.find(x=>x.id===e.target.dataset.pantryCheck);if(item){item.active=e.target.checked;saveState();renderPantry();}}
   });
 
