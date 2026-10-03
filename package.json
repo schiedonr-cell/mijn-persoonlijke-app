@@ -1,0 +1,15 @@
+{
+  "name": "mijn-persoonlijke-app-reminders",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "wrangler": "^4.45.0"
+  }
+}

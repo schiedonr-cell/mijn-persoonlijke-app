@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "mijn-persoonlijke-app-reminders",
+  "main": "reminder-worker.js",
+  "compatibility_date": "2026-10-03",
+  "workers_dev": true,
+  "kv_namespaces": [
+    { "binding": "REMINDERS" }
+  ],
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  "observability": {
+    "enabled": true
+  }
+}
