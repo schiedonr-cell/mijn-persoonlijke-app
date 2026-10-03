@@ -6,9 +6,8 @@ const VAPID_KEY = "config:vapid";
 const DEVICE_PREFIX = "device:";
 const DEFAULT_MOVE_TIME = "16:30";
 const DEFAULT_RELAX_TIME = "21:00";
+const DEFAULT_CLOSE_TIME = "22:30";
 const MAX_DEVICE_AGE_MS = 1000 * 60 * 60 * 24 * 120;
-
-const encoder = new TextEncoder();
 
 function json(data, status = 200, origin = "") {
   return new Response(JSON.stringify(data), {
@@ -171,6 +170,7 @@ async function subscribe(request, env, origin) {
     timezone: validTimezone(body?.timezone),
     moveTime: validTime(body?.moveTime, existing?.moveTime || DEFAULT_MOVE_TIME),
     relaxTime: validTime(body?.relaxTime, existing?.relaxTime || DEFAULT_RELAX_TIME),
+    closeTime: validTime(body?.closeTime, existing?.closeTime || DEFAULT_CLOSE_TIME),
     days: existing?.days && typeof existing.days === "object" ? existing.days : {},
     lastSeenAt: Date.now(),
   };
@@ -189,6 +189,7 @@ async function updateSettings(request, env, origin) {
   record.timezone = validTimezone(body?.timezone || record.timezone);
   record.moveTime = validTime(body?.moveTime, record.moveTime || DEFAULT_MOVE_TIME);
   record.relaxTime = validTime(body?.relaxTime, record.relaxTime || DEFAULT_RELAX_TIME);
+  record.closeTime = validTime(body?.closeTime, record.closeTime || DEFAULT_CLOSE_TIME);
   record.lastSeenAt = Date.now();
   await writeDevice(env, record);
   return json({ ok: true }, 200, origin);
@@ -213,12 +214,20 @@ async function updateState(request, env, origin) {
       level: [1, 2, 3].includes(Number(body.move.level)) ? Number(body.move.level) : null,
     };
   }
+
   if (body?.relax && typeof body.relax === "object") {
     today.relax = {
       done: Boolean(body.relax.done),
       level: [1, 2, 3].includes(Number(body.relax.level)) ? Number(body.relax.level) : null,
     };
   }
+
+  if (body?.close && typeof body.close === "object") {
+    today.close = {
+      done: Boolean(body.close.done),
+    };
+  }
+
   if ([1, 2, 3].includes(Number(body?.energy))) today.energy = Number(body.energy);
 
   record.days[dateKey] = today;
@@ -322,6 +331,29 @@ async function processDevice(env, keyName, nowDate) {
     }
   }
 
+  if (
+    record.enabled &&
+    isValidSubscription(record.subscription) &&
+    timeReached(hhmm, validTime(record.closeTime, DEFAULT_CLOSE_TIME)) &&
+    !today.close?.done &&
+    today.closeReminderSent !== true
+  ) {
+    const result = await sendPush(env, record.subscription, {
+      title: "Dag afsluiten staat nog open",
+      body: "Kleine afsluiting is genoeg: korte opruimronde, honden en rustig afronden.",
+      tag: `dag-afsluiten-${dateKey}`,
+      url: APP_URL,
+    });
+    if (result.gone) {
+      record.subscription = null;
+      record.enabled = false;
+      changed = true;
+    } else if (result.ok) {
+      today.closeReminderSent = true;
+      changed = true;
+    }
+  }
+
   if (changed) {
     record.days[dateKey] = today;
     await writeDevice(env, record);
@@ -363,7 +395,7 @@ export default {
     }
 
     if (request.method === "GET" && url.pathname === "/") {
-      return json({ ok: true, service: "mijn-persoonlijke-app-reminders", version: 1 });
+      return json({ ok: true, service: "mijn-persoonlijke-app-reminders", version: 2 });
     }
 
     if (request.method === "GET" && url.pathname === "/vapid-public-key") {
