@@ -1,5 +1,5 @@
-const CACHE_NAME='mijn-persoonlijke-app-v1-7-10-focus-alarm';
-const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js'];
+const CACHE_NAME='mijn-persoonlijke-app-v1-7-11-more-recipes';
+const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js','./recipes-extra-1.js','./recipes-extra-2.js','./recipes-extra-3.js','./recipes-extra-4.js'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)));
@@ -17,7 +17,7 @@ self.addEventListener('activate',event=>{
 });
 
 function applyDailyFixes(html){
-  html=html.replace('<!-- Mijn persoonlijke app v1.7.1 -->','<!-- Mijn persoonlijke app v1.7.10 -->');
+  html=html.replace('<!-- Mijn persoonlijke app v1.7.1 -->','<!-- Mijn persoonlijke app v1.7.11 -->');
 
   html=html.replace(
     'focus: { taskId: null, targetType: null, targetId: null, durationSec: 300, remainingSec: 300, running: false, soundEnabled: true },',
@@ -146,6 +146,12 @@ function applyDailyFixes(html){
     "const htom=e.target.closest('[data-household-tomorrow]');if(htom){const t=state.householdTasks.find(x=>x.id===htom.dataset.householdTomorrow);if(t){t.deferUntil=addDaysKey(1);t.paused=false;saveState();renderHousehold();renderHouseholdManage();showToast('Huishoudklus staat voor morgen.');}return;}",
     "const htom=e.target.closest('[data-household-tomorrow]');if(htom){const t=state.householdTasks.find(x=>x.id===htom.dataset.householdTomorrow);if(t){t.deferUntil=addDaysKey(1);t.paused=false;saveState();renderHousehold();renderHouseholdManage();showToast('Huishoudklus staat voor morgen.');}return;} const hswap=e.target.closest('[data-household-swap]');if(hswap){const t=state.householdTasks.find(x=>x.id===hswap.dataset.householdSwap);if(t){t.deferUntil=addDaysKey(1);t.paused=false;saveState();renderHousehold();renderHouseholdManage();showToast('Andere huishoudtaak gekozen. Deze komt morgen terug.');}return;}"
   );
+
+  const extraRecipeScripts='<script src="./recipes-extra-1.js"></script>\n<script src="./recipes-extra-2.js"></script>\n<script src="./recipes-extra-3.js"></script>\n<script src="./recipes-extra-4.js"></script>\n';
+  if(!html.includes('recipes-extra-1.js')){
+    html=html.replace(/<script>\s*\(\(\) => \{/,extraRecipeScripts+'<script>\n(() => {');
+  }
+  html=html.replace('const recipes = [{','const recipes = [...(window.EXTRA_RECIPES||[]),{');
 
   return html;
 }
