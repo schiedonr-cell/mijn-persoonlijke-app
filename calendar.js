@@ -42,6 +42,19 @@ function gis(){if(window.google?.accounts?.oauth2)return Promise.resolve();retur
 async function client(){await gis();if(tokenClient)return tokenClient;tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPE,callback:r=>{if(r?.error){renderDisconnected('Koppelen is niet gelukt. Probeer opnieuw.');return;}saveToken(r.access_token,r.expires_in);renderConnected();load();},error_callback:()=>renderDisconnected('Google Agenda kon niet worden geopend. Probeer opnieuw.')});return tokenClient;}
 async function connect(){const b=document.getElementById('calendarConnectButton');if(b){b.disabled=true;b.textContent='Even wachten…';}try{const c=await client();let known=false;try{known=localStorage.getItem(CONSENT_KEY)==='1';}catch{}c.requestAccessToken({prompt:known?'':'consent'});}catch{renderDisconnected('Google Agenda kon niet worden gestart.');}}
 async function load(force=false){if(loading)return;if(!valid()){clearToken();renderDisconnected('Je agenda-koppeling moet worden vernieuwd.');return;}loading=true;const refresh=document.getElementById('calendarRefreshButton');if(refresh)refresh.disabled=true;try{const a=new Date();a.setHours(0,0,0,0);const b=new Date(a);b.setDate(b.getDate()+1);const q=new URLSearchParams({timeMin:a.toISOString(),timeMax:b.toISOString(),singleEvents:'true',orderBy:'startTime',maxResults:'25'});if(force)q.set('_',String(Date.now()));const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});if(r.status===401||r.status===403){clearToken();renderDisconnected('Je agenda-koppeling moet worden vernieuwd.');return;}if(!r.ok)throw new Error();const items=(await r.json()).items||[];saveEvents(items);show(items);}catch{const cached=readEvents();if(cached)show(cached.items);else{const list=document.getElementById('calendarEventList');if(list)list.innerHTML='<div class="calendar-message">Afspraken konden nu niet worden geladen.</div>';}}finally{loading=false;if(refresh)refresh.disabled=false;}}
-function boot(){style();readToken();ensure();if(valid()){renderConnected();load();}else renderDisconnected();}
+function ensureLatestServiceWorker(){
+  if(!('serviceWorker'in navigator))return;
+  navigator.serviceWorker.getRegistration().then(reg=>{
+    if(!reg)return;
+    let reloading=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(reloading)return;
+      reloading=true;
+      location.reload();
+    });
+    reg.update().catch(()=>{});
+  }).catch(()=>{});
+}
+function boot(){style();readToken();ensure();ensureLatestServiceWorker();if(valid()){renderConnected();load();}else renderDisconnected();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
