@@ -5,9 +5,20 @@ const SCOPE='https://www.googleapis.com/auth/calendar.events.readonly';
 let tokenClient=null,accessToken='',tokenExpiresAt=0,loading=false;
 const TOKEN_KEY='mijnPersoonlijkeAppCalendarTokenV1',CONSENT_KEY='mijnPersoonlijkeAppCalendarConsentV1';
 const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-function loadToken(){try{const s=JSON.parse(sessionStorage.getItem(TOKEN_KEY)||'{}');if(s.token&&Number(s.expiresAt||0)>Date.now()+60000){accessToken=s.token;tokenExpiresAt=Number(s.expiresAt)}}catch{}}
-function saveToken(t,sec){accessToken=t||'';tokenExpiresAt=Date.now()+(Math.max(0,Number(sec||3600)-60)*1000);try{sessionStorage.setItem(TOKEN_KEY,JSON.stringify({token:accessToken,expiresAt:tokenExpiresAt}));localStorage.setItem(CONSENT_KEY,'1')}catch{}}
-function clearToken(){accessToken='';tokenExpiresAt=0;try{sessionStorage.removeItem(TOKEN_KEY)}catch{}}
+function readSavedToken(){
+  try{
+    let raw=localStorage.getItem(TOKEN_KEY);
+    if(!raw){
+      raw=sessionStorage.getItem(TOKEN_KEY);
+      if(raw){localStorage.setItem(TOKEN_KEY,raw);sessionStorage.removeItem(TOKEN_KEY)}
+    }
+    const s=JSON.parse(raw||'{}');
+    if(s.token&&Number(s.expiresAt||0)>Date.now()+60000){accessToken=s.token;tokenExpiresAt=Number(s.expiresAt)}
+    else if(raw){localStorage.removeItem(TOKEN_KEY)}
+  }catch{}
+}
+function saveToken(t,sec){accessToken=t||'';tokenExpiresAt=Date.now()+(Math.max(0,Number(sec||3600)-60)*1000);try{localStorage.setItem(TOKEN_KEY,JSON.stringify({token:accessToken,expiresAt:tokenExpiresAt}));localStorage.setItem(CONSENT_KEY,'1')}catch{}}
+function clearToken(){accessToken='';tokenExpiresAt=0;try{localStorage.removeItem(TOKEN_KEY);sessionStorage.removeItem(TOKEN_KEY)}catch{}}
 const valid=()=>!!(accessToken&&tokenExpiresAt>Date.now()+30000);
 function styles(){if(document.getElementById('calendarIntegrationStyles'))return;const s=document.createElement('style');s.id='calendarIntegrationStyles';s.textContent=`
 .calendar-card{padding:16px 18px}.calendar-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}.calendar-title-wrap{display:flex;align-items:center;gap:10px;min-width:0}.calendar-icon{width:38px;height:38px;border-radius:13px;background:var(--accent-soft);color:var(--accent-strong);display:grid;place-items:center;flex:0 0 auto}.calendar-card h3{margin:0 0 2px;font-size:18px}.calendar-sub{margin:0;color:var(--muted);font-size:12px;line-height:1.35}.calendar-list{display:grid;gap:8px}.calendar-event{display:grid;grid-template-columns:74px 1fr;gap:10px;align-items:start;padding:10px 11px;border:1px solid var(--line);border-radius:15px;background:var(--surface-soft)}.calendar-time{font-weight:900;color:var(--accent-strong);font-size:13px;line-height:1.35}.calendar-event-title{font-weight:800;line-height:1.35}.calendar-event-location{color:var(--muted);font-size:12px;line-height:1.35;margin-top:2px}.calendar-empty,.calendar-message{color:var(--muted);font-size:13px;line-height:1.45;padding:4px 1px}.calendar-connect{width:auto;min-width:126px;min-height:42px;padding:9px 12px;border:0;border-radius:13px;background:var(--accent);color:#fff;font-weight:850;cursor:pointer;flex:0 0 auto}.calendar-refresh{width:40px;height:40px;border:0;border-radius:12px;background:var(--accent-soft);color:var(--accent-strong);display:grid;place-items:center;cursor:pointer;flex:0 0 auto;font-size:19px;font-weight:900}.calendar-connect:disabled,.calendar-refresh:disabled{opacity:.55;cursor:default}@media(max-width:390px){.calendar-event{grid-template-columns:64px 1fr}.calendar-connect{min-width:112px;font-size:12px}}
@@ -21,6 +32,6 @@ async function connect(){const b=document.getElementById('calendarConnectButton'
 function eventTime(e){const s=e?.start||{},en=e?.end||{};if(s.date&&!s.dateTime)return'Hele dag';if(!s.dateTime)return'';const a=new Date(s.dateTime),b=en.dateTime?new Date(en.dateTime):null,f=new Intl.DateTimeFormat('nl-NL',{hour:'2-digit',minute:'2-digit'});return b?`${f.format(a)}–${f.format(b)}`:f.format(a)}
 function renderEvents(items){const list=document.getElementById('calendarEventList');if(!list)return;const v=(items||[]).filter(e=>e.status!=='cancelled');if(!v.length){list.innerHTML='<div class="calendar-empty">Geen afspraken voor vandaag.</div>';return}list.innerHTML=v.map(e=>`<div class="calendar-event"><div class="calendar-time">${esc(eventTime(e))}</div><div><div class="calendar-event-title">${esc(e.summary||'Afspraak')}</div>${e.location?`<div class="calendar-event-location">${esc(e.location)}</div>`:''}</div></div>`).join('')}
 async function loadEvents(force=false){if(loading)return;if(!valid()){clearToken();renderCard();return}loading=true;const r=document.getElementById('calendarRefreshButton');if(r)r.disabled=true;try{const start=new Date();start.setHours(0,0,0,0);const end=new Date(start);end.setDate(end.getDate()+1);const p=new URLSearchParams({timeMin:start.toISOString(),timeMax:end.toISOString(),singleEvents:'true',orderBy:'startTime',maxResults:'25'});if(force)p.set('_',String(Date.now()));const resp=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${p}`,{headers:{Authorization:`Bearer ${accessToken}`}});if(resp.status===401||resp.status===403){clearToken();renderCard('Je agenda-koppeling moet opnieuw worden bevestigd.');return}if(!resp.ok)throw new Error();renderEvents((await resp.json()).items||[])}catch{const list=document.getElementById('calendarEventList');if(list)list.innerHTML='<div class="calendar-message">Afspraken konden nu niet worden geladen. Tik op ↻ om opnieuw te proberen.</div>'}finally{loading=false;if(r)r.disabled=false}}
-function boot(){styles();loadToken();ensureCard();if(valid())loadEvents()}
+function boot(){styles();readSavedToken();ensureCard();if(valid())loadEvents()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
