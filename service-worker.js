@@ -1,5 +1,5 @@
-const CACHE_NAME='mijn-persoonlijke-app-v1-7-6-widget-calendar-fix';
-const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js','./calendar-widget-bridge.js'];
+const CACHE_NAME='mijn-persoonlijke-app-v1-7-7-calendar-fix';
+const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)));
@@ -7,18 +7,23 @@ self.addEventListener('install',event=>{
 });
 
 self.addEventListener('activate',event=>{
-  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)))));
-  self.clients.claim();
+  event.waitUntil((async()=>{
+    const keys=await caches.keys();
+    await Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)));
+    await self.clients.claim();
+    const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+    await Promise.all(clients.map(client=>client.navigate(client.url).catch(()=>{})));
+  })());
 });
 
-async function addCalendarScripts(response){
+async function addCalendarScript(response){
   const type=response.headers.get('content-type')||'';
   if(!type.includes('text/html'))return response;
   let html=await response.text();
-  if(!html.includes('calendar-widget-bridge.js'))html=html.replace(/<\/body>/i,'  <script src="./calendar-widget-bridge.js"></script>\n</body>');
   if(!html.includes('calendar.js'))html=html.replace(/<\/body>/i,'  <script src="./calendar.js"></script>\n</body>');
   const headers=new Headers(response.headers);
   headers.delete('content-length');
+  headers.set('content-type','text/html; charset=utf-8');
   return new Response(html,{status:response.status,statusText:response.statusText,headers});
 }
 
@@ -28,10 +33,10 @@ self.addEventListener('fetch',event=>{
     event.respondWith((async()=>{
       try{
         const network=await fetch(event.request,{cache:'no-store'});
-        return addCalendarScripts(network);
+        return addCalendarScript(network);
       }catch{
         const cached=await caches.match(event.request)||await caches.match('./index.html');
-        return cached?addCalendarScripts(cached):new Response('Offline',{status:503});
+        return cached?addCalendarScript(cached):new Response('Offline',{status:503});
       }
     })());
     return;
