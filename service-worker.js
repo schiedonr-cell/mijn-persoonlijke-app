@@ -1,4 +1,4 @@
-const CACHE_NAME='mijn-persoonlijke-app-v1-7-9-focus-sound';
+const CACHE_NAME='mijn-persoonlijke-app-v1-7-10-focus-alarm';
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js'];
 
 self.addEventListener('install',event=>{
@@ -17,7 +17,7 @@ self.addEventListener('activate',event=>{
 });
 
 function applyDailyFixes(html){
-  html=html.replace('<!-- Mijn persoonlijke app v1.7.1 -->','<!-- Mijn persoonlijke app v1.7.9 -->');
+  html=html.replace('<!-- Mijn persoonlijke app v1.7.1 -->','<!-- Mijn persoonlijke app v1.7.10 -->');
 
   html=html.replace(
     'focus: { taskId: null, targetType: null, targetId: null, durationSec: 300, remainingSec: 300, running: false, soundEnabled: true },',
@@ -79,24 +79,51 @@ function applyDailyFixes(html){
     }
     if(navigator.vibrate){ try{ navigator.vibrate([180,100,180,100,320]); }catch{} }
   }`,
-`  function playFocusFinishedSignal(){
+`  let focusAlarmNodes=[];
+  let focusAlarmVibrateTimer=null;
+  function stopFocusAlarm(){
+    focusAlarmNodes.forEach(node=>{try{if(typeof node.stop==='function')node.stop();}catch{}try{if(typeof node.disconnect==='function')node.disconnect();}catch{}});
+    focusAlarmNodes=[];
+    if(focusAlarmVibrateTimer){clearInterval(focusAlarmVibrateTimer);focusAlarmVibrateTimer=null;}
+    if(navigator.vibrate){try{navigator.vibrate(0);}catch{}}
+    document.getElementById('focusAlarmOverlay')?.remove();
+    if('serviceWorker'in navigator){navigator.serviceWorker.ready.then(reg=>reg.getNotifications?reg.getNotifications({tag:'focus-finished'}):[]).then(list=>(list||[]).forEach(n=>n.close())).catch(()=>{});}
+  }
+  function focusAlarmVibrate(){if(navigator.vibrate){try{navigator.vibrate([420,180,420,180,420,180,650]);}catch{}}}
+  function showFocusAlarmOverlay(){
+    document.getElementById('focusAlarmOverlay')?.remove();
+    const overlay=document.createElement('div');
+    overlay.id='focusAlarmOverlay';
+    overlay.setAttribute('role','dialog');
+    overlay.setAttribute('aria-modal','true');
+    overlay.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(20,25,20,.74);display:grid;place-items:center;padding:24px;backdrop-filter:blur(6px)';
+    overlay.innerHTML='<div style="width:min(100%,420px);background:#fff;border-radius:26px;padding:28px 22px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.3)"><div style="font-size:32px;font-weight:900;margin-bottom:8px;color:#20251f">Focus klaar</div><div style="font-size:16px;line-height:1.45;color:#6b7168;margin-bottom:24px">Je focusblok is afgelopen.</div><button id="focusAlarmStopButton" type="button" style="width:100%;min-height:68px;border:0;border-radius:18px;background:#45624d;color:#fff;font-size:20px;font-weight:900;cursor:pointer">Stop alarm</button></div>';
+    document.body.appendChild(overlay);
+    document.getElementById('focusAlarmStopButton')?.addEventListener('click',stopFocusAlarm,{once:true});
+  }
+  function playFocusFinishedSignal(){
     if(!state.focus.soundEnabled) return;
+    stopFocusAlarm();
     const ctx=ensureFocusAudio();
     if(ctx){
       try{
-        const now=ctx.currentTime;
-        [[0,880],[0.42,1040],[0.84,880],[1.26,1040],[1.68,880],[2.10,1040],[2.52,880],[2.94,1180]].forEach(([delay,freq])=>{
-          const osc=ctx.createOscillator(),gain=ctx.createGain();
-          osc.type='sine'; osc.frequency.value=freq;
-          gain.gain.setValueAtTime(0.0001,now+delay);
-          gain.gain.exponentialRampToValueAtTime(0.32,now+delay+0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001,now+delay+0.28);
-          osc.connect(gain); gain.connect(ctx.destination);
-          osc.start(now+delay); osc.stop(now+delay+0.31);
-        });
+        if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+        const carrier=ctx.createOscillator(),gate=ctx.createGain(),pulse=ctx.createOscillator(),depth=ctx.createGain();
+        carrier.type='square';carrier.frequency.value=920;
+        gate.gain.value=0.32;
+        pulse.type='square';pulse.frequency.value=1.65;
+        depth.gain.value=0.32;
+        pulse.connect(depth);depth.connect(gate.gain);carrier.connect(gate);gate.connect(ctx.destination);
+        carrier.start();pulse.start();
+        focusAlarmNodes=[carrier,pulse,gate,depth];
       }catch{}
     }
-    if(navigator.vibrate){ try{ navigator.vibrate([220,180,220,180,220,180,220,180,220,180,220,180,220,180,350]); }catch{} }
+    showFocusAlarmOverlay();
+    focusAlarmVibrate();
+    focusAlarmVibrateTimer=setInterval(focusAlarmVibrate,4200);
+    if(document.hidden&&'serviceWorker'in navigator&&typeof Notification!=='undefined'&&Notification.permission==='granted'){
+      navigator.serviceWorker.ready.then(reg=>reg.showNotification('Focus klaar',{body:'Open de app om het alarm te stoppen.',tag:'focus-finished',icon:'./icon-192.png',badge:'./icon-192.png',requireInteraction:true,vibrate:[420,180,420,180,650],data:{url:'./'}})).catch(()=>{});
+    }
   }`
   );
 
