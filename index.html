@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
-  <!-- Mijn persoonlijke app v1.7.2 -->
+  <!-- Mijn persoonlijke app v1.7.1 -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -703,8 +703,8 @@
     .basis-head-actions { display:flex; flex:0 0 auto; flex-direction:column; align-items:flex-end; gap:6px; }
     .basis-item { position:relative; }
     .basis-options { border:0; background:var(--surface-soft); color:var(--accent-strong); border-radius:12px; min-width:42px; min-height:42px; cursor:pointer; font-weight:900; flex:0 0 auto; }
-    .focus-chip { margin-top:9px; min-height:36px; padding:7px 12px; border:0; border-radius:12px; background:var(--accent-soft); color:var(--accent-strong); font-size:12px; font-weight:900; cursor:pointer; }
-    .focus-chip:active { transform:scale(.98); }
+    .focus-mini-button { border:0; background:var(--accent-soft); color:var(--accent-strong); border-radius:12px; min-width:64px; min-height:42px; padding:8px 10px; cursor:pointer; font-size:12px; font-weight:900; flex:0 0 auto; }
+    .focus-mini-button:active { transform:scale(.97); }
     .energy-edit-box { border:1px solid var(--line); border-radius:15px; padding:11px; margin-top:9px; background:var(--surface-soft); }
     .energy-edit-box strong { display:block; font-size:13px; margin-bottom:7px; }
     .habit-energy-toggle { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; border:1px solid var(--line); border-radius:15px; padding:12px; background:var(--surface-soft); }
@@ -1174,7 +1174,7 @@
     todayPlan: { date: null, taskIds: [] },
     dump: [],
     dayClosedDate: null,
-    focus: { taskId: null, targetType: 'task', targetId: null, durationSec: 300, remainingSec: 300, running: false, soundEnabled: true },
+    focus: { targetType: null, targetId: null, taskId: null, durationSec: 300, remainingSec: 300, running: false, soundEnabled: true },
     weekMenu: [], shopping: [], projects: [],
     foodPrefs: { people:2, selectedDays:[], mealType:"diner", usePantryMeals:true, diet:"alleseter", allergies:[], unwanted:[], preferences:["snel","simpel"], appliances:["kookplaat","oven","magnetron","airfryer"], aiWish:"" },
     weekPlan: [], pantry: [], favorites: [], recipeHistory: [], shoppingSkippedCount: 0
@@ -1462,7 +1462,7 @@
     const today=localDateKey(),completed=state.habits.filter(h=>Boolean(h.history?.[today])),active=state.habits.filter(h=>!h.history?.[today]),done=completed.length;
     const progress=document.getElementById('basisProgress');if(progress)progress.textContent=`${done} / ${state.habits.length}`;
     const list=document.getElementById('habitList');if(!list)return;
-    list.innerHTML=active.length?active.map(h=>`<div class="basis-item"><input class="check" type="checkbox" data-habit-check="${h.id}" aria-label="${escapeHtml(h.name)} afvinken"/><div class="basis-copy">${h.anchor?`<div class="basis-anchor">${escapeHtml(h.anchor)}</div>`:''}<div class="basis-name">${escapeHtml(h.name)}</div>${h.energyAdaptive?renderHabitVersionChoices(h,today):`<div class="basis-detail">${escapeHtml(h.description||'Iedere dag dezelfde versie.')}</div>`}<button class="focus-chip" type="button" data-focus-target="habit|${h.id}">Focus</button></div><button class="basis-options" data-habit-history="${h.id}" aria-label="Historie en opties">•••</button></div>`).join(''):`<div class="empty-state">Alle dagankers zijn voor vandaag afgerond.</div>`;
+    list.innerHTML=active.length?active.map(h=>`<div class="basis-item"><input class="check" type="checkbox" data-habit-check="${h.id}" aria-label="${escapeHtml(h.name)} afvinken"/><div class="basis-copy">${h.anchor?`<div class="basis-anchor">${escapeHtml(h.anchor)}</div>`:''}<div class="basis-name">${escapeHtml(h.name)}</div>${h.energyAdaptive?renderHabitVersionChoices(h,today):`<div class="basis-detail">${escapeHtml(h.description||'Iedere dag dezelfde versie.')}</div>`}</div><button type="button" class="focus-mini-button" data-focus-habit="${h.id}">Focus</button><button class="basis-options" data-habit-history="${h.id}" aria-label="Historie en opties">•••</button></div>`).join(''):`<div class="empty-state">Alle dagankers zijn voor vandaag afgerond.</div>`;
     const completedWrap=document.getElementById('completedHabitsWrap');if(!completedWrap)return;
     completedWrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(h=>{const v=Number(h.versionHistory?.[today]||0),level=v?habitLevel(h,v):null,meta=[h.anchor,h.energyAdaptive&&v?habitVersionLabel(v):'',level?.minimum||''].filter(Boolean).join(' · ');return `<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(h.name)}</div>${meta?`<div class="completed-habit-meta">${escapeHtml(meta)}</div>`:''}</div><button class="habit-undo-button" data-habit-undo="${h.id}">Ongedaan</button></div>`;}).join('')}</div></details>`:'';
   }
@@ -1475,7 +1475,7 @@
   function householdIsDue(t){ const today=localDateKey(); if(t.paused)return false; if(t.deferUntil&&t.deferUntil>today)return false; if(householdDoneToday(t))return false; const last=householdLastDone(t); if(!last)return true; return dateDiffDays(today,last)>=Number(t.frequency||1); }
   function householdPriority(t){ const last=householdLastDone(t); if(!last)return 999; return dateDiffDays(localDateKey(),last)-Number(t.frequency||1); }
   function householdVisibleToday(){ const energy=Number(state.energy)||1,limit=householdLimit(); const fixed=state.householdTasks.filter(t=>t.fixedReminder&&(householdDoneToday(t)||householdIsDue(t))); const doneToday=state.householdTasks.filter(t=>!t.fixedReminder&&householdDoneToday(t)); const due=state.householdTasks.filter(t=>!t.fixedReminder&&householdIsDue(t)&&Number(t.effort||1)<=energy).sort((a,b)=>householdPriority(b)-householdPriority(a)||Number(a.effort)-Number(b.effort)); const openSlots=Math.max(0,limit-doneToday.length); return [...fixed,...doneToday,...due.slice(0,openSlots)]; }
-  function renderHousehold(){ const list=document.getElementById('householdList');if(!list)return; const shown=householdVisibleToday(),active=shown.filter(t=>!householdDoneToday(t)),completed=state.householdTasks.filter(householdDoneToday),limit=householdLimit(),regularShown=shown.filter(t=>!t.fixedReminder).length; const counter=document.getElementById('householdCounter');if(counter)counter.textContent=`${regularShown} / ${limit}`; const note=document.getElementById('householdNote');if(note)note.textContent=Number(state.energy)===1?'Lage energie: maximaal 1 licht klusje + vaste reminder(s).':Number(state.energy)===2?'Normale energie: maximaal 2 passende klusjes + vaste reminder(s).':'Hoge energie: maximaal 3 passende klusjes + vaste reminder(s).'; list.innerHTML=active.length?active.map(t=>`<div class="household-item"><input class="check" type="checkbox" data-household-check="${t.id}" aria-label="Huishoudtaak afvinken"/><div class="household-copy"><div class="household-name">${escapeHtml(t.name)}</div>${t.description?`<div class="household-detail">${escapeHtml(t.description)}</div>`:''}<div class="household-meta">${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span></div><button class="focus-chip" type="button" data-focus-target="household|${t.id}">Focus</button></div></div>`).join(''):`<div class="empty-state">${completed.length?'Alle huishoudklusjes voor vandaag zijn afgerond.':'Voor vandaag zijn er geen passende huishoudklusjes nodig.'}</div>`; const wrap=document.getElementById('completedHouseholdWrap');if(wrap)wrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div><div class="completed-habit-meta">${escapeHtml(t.fixedReminder?'Vaste reminder':householdEffortLabel(t.effort))} · ${escapeHtml(householdFrequencyLabel(t.frequency))}</div></div><button class="habit-undo-button" data-household-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''; }
+  function renderHousehold(){ const list=document.getElementById('householdList');if(!list)return; const shown=householdVisibleToday(),active=shown.filter(t=>!householdDoneToday(t)),completed=state.householdTasks.filter(householdDoneToday),limit=householdLimit(),regularShown=shown.filter(t=>!t.fixedReminder).length; const counter=document.getElementById('householdCounter');if(counter)counter.textContent=`${regularShown} / ${limit}`; const note=document.getElementById('householdNote');if(note)note.textContent=Number(state.energy)===1?'Lage energie: maximaal 1 licht klusje + vaste reminder(s).':Number(state.energy)===2?'Normale energie: maximaal 2 passende klusjes + vaste reminder(s).':'Hoge energie: maximaal 3 passende klusjes + vaste reminder(s).'; list.innerHTML=active.length?active.map(t=>`<div class="household-item"><input class="check" type="checkbox" data-household-check="${t.id}" aria-label="Huishoudtaak afvinken"/><div class="household-copy"><div class="household-name">${escapeHtml(t.name)}</div>${t.description?`<div class="household-detail">${escapeHtml(t.description)}</div>`:''}<div class="household-meta">${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span></div></div><button type="button" class="focus-mini-button" data-focus-household="${t.id}">Focus</button></div>`).join(''):`<div class="empty-state">${completed.length?'Alle huishoudklusjes voor vandaag zijn afgerond.':'Voor vandaag zijn er geen passende huishoudklusjes nodig.'}</div>`; const wrap=document.getElementById('completedHouseholdWrap');if(wrap)wrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div><div class="completed-habit-meta">${escapeHtml(t.fixedReminder?'Vaste reminder':householdEffortLabel(t.effort))} · ${escapeHtml(householdFrequencyLabel(t.frequency))}</div></div><button class="habit-undo-button" data-household-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''; }
   function renderHouseholdManage(){ const wrap=document.getElementById('householdManageList');if(!wrap)return; const today=localDateKey();wrap.innerHTML=state.householdTasks.length?state.householdTasks.map(t=>`<div class="household-manage-item ${t.paused?'paused':''}"><div class="household-manage-top"><div class="household-manage-name">${escapeHtml(t.name)}<div class="household-meta">${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span>${t.paused?'<span class="household-badge">Gepauzeerd</span>':''}${t.deferUntil&&t.deferUntil>today?`<span class="household-badge">Tot ${escapeHtml(formatDateShort(t.deferUntil))}</span>`:''}</div></div></div><div class="household-manage-actions"><button class="accent" data-household-edit="${t.id}">Bewerken</button><button data-household-tomorrow="${t.id}">Morgen</button><button data-household-pause="${t.id}">${t.paused?'Activeren':'Pauzeren'}</button><button class="danger" data-household-delete="${t.id}">Verwijderen</button></div></div>`).join(''):`<div class="empty-state">Nog geen huishoudklusjes.</div>`; }
   function openHouseholdManage(){ renderHouseholdManage();document.getElementById('householdModal').classList.add('open'); }
 
@@ -1533,24 +1533,49 @@
   function renderAllTasks(){ const active=state.tasks.filter(t=>!t.done&&!t.paused).sort(compareTaskPriority), paused=state.tasks.filter(t=>!t.done&&t.paused).sort(compareTaskPriority), today=localDateKey(),doneToday=state.tasks.filter(t=>t.done&&t.completedAt&&localDateKey(new Date(t.completedAt))===today).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0)); const completedBlock=doneToday.length?`<details class="completed-habits" style="margin-top:12px;"><summary>Vandaag afgerond (${doneToday.length})<span>Bekijken</span></summary><div class="completed-habits-list">${doneToday.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div>${t.completedAt?`<div class="completed-habit-meta">Afgerond om ${escapeHtml(formatClock(t.completedAt))}</div>`:''}</div><button class="habit-undo-button" data-task-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''; document.getElementById('allTasksList').innerHTML=`${active.length?active.map(t=>renderTaskCard(t,{actions:true})).join(''):`<div class="empty-state">Geen actieve taken.</div>`}${paused.length?`<div class="paused-label">Rust even</div>${paused.map(t=>renderTaskCard(t,{actions:true})).join('')}`:''}${completedBlock}`; }
 
   function nextOpenSubtask(task){ return task?.subtasks?.find(s=>!s.done)?.name||''; }
+  function focusSelection(){ return {type:state.focus.targetType||'task',id:state.focus.targetId||state.focus.taskId||null}; }
+  function focusMatches(type,id){ const selected=focusSelection();return selected.type===type&&selected.id===id; }
+  function clearFocusSelection(){ state.focus.targetType=null;state.focus.targetId=null;state.focus.taskId=null;state.focus.running=false; }
   function focusTarget(){
-    const type=state.focus.targetType||'task', id=state.focus.targetId||(type==='task'?state.focus.taskId:null), today=localDateKey();
-    if(type==='habit'&&id){const h=state.habits.find(x=>x.id===id);if(h&&!h.history?.[today])return {type:'habit',id:h.id,name:h.name,detail:habitDescriptionForToday(h),item:h};}
-    if(type==='household'&&id){const h=state.householdTasks.find(x=>x.id===id);if(h&&!householdDoneToday(h)&&householdIsDue(h))return {type:'household',id:h.id,name:h.name,detail:h.description||`${householdEffortLabel(h.effort)} · ${householdFrequencyLabel(h.frequency)}`,item:h};}
-    const chosenTask=(type==='task'&&id)?state.tasks.find(t=>t.id===id&&!t.done):null;
-    const task=chosenTask || state.tasks.find(t=>t.id===state.focus.taskId&&!t.done) || state.todayPlan.taskIds.map(taskId=>state.tasks.find(t=>t.id===taskId)).find(t=>t&&!t.done) || state.tasks.filter(isEligibleToday).sort(compareTaskPriority)[0] || null;
-    return task?{type:'task',id:task.id,name:task.name,detail:nextOpenSubtask(task)||'Eén ding tegelijk.',item:task}:null;
+    const today=localDateKey(),selected=focusSelection();
+    if(selected.id){
+      if(selected.type==='habit'){
+        const h=state.habits.find(x=>x.id===selected.id&&!x.history?.[today]);if(h)return {type:'habit',id:h.id,item:h};
+      }else if(selected.type==='household'){
+        const h=state.householdTasks.find(x=>x.id===selected.id&&householdIsDue(x));if(h)return {type:'household',id:h.id,item:h};
+      }else{
+        const t=state.tasks.find(x=>x.id===selected.id&&!x.done);if(t)return {type:'task',id:t.id,item:t};
+      }
+    }
+    const task=state.todayPlan.taskIds.map(id=>state.tasks.find(t=>t.id===id)).find(t=>t&&!t.done) || state.tasks.filter(isEligibleToday).sort(compareTaskPriority)[0];
+    if(task)return {type:'task',id:task.id,item:task};
+    const habit=state.habits.find(h=>!h.history?.[today]);if(habit)return {type:'habit',id:habit.id,item:habit};
+    const household=householdVisibleToday().find(h=>!householdDoneToday(h));if(household)return {type:'household',id:household.id,item:household};
+    return null;
   }
-  function focusTypeLabel(type){return type==='habit'?'Daganker':type==='household'?'Huishouden':'Taak';}
-  function focusDoneLabel(type){return type==='habit'?'Daganker klaar':type==='household'?'Huishoudtaak klaar':'Taak klaar';}
-  function focusMatches(type,id){return (state.focus.targetType===type&&state.focus.targetId===id)||(type==='task'&&state.focus.taskId===id&&(!state.focus.targetId||state.focus.targetType==='task'));}
-  function selectFocusTarget(type,id){state.focus.targetType=type;state.focus.targetId=id;state.focus.taskId=type==='task'?id:null;state.focus.remainingSec=state.focus.durationSec||300;state.focus.running=false;saveState();setDailyTab('focus');}
-  function selectFocusTask(id){return selectFocusTarget('task',id);}
-  function completeFocusTarget(type,id){
-    if(type==='task'){const t=state.tasks.find(x=>x.id===id);if(t)return markTask(t,true);return;}
-    const today=localDateKey();
-    if(type==='habit'){const h=state.habits.find(x=>x.id===id);if(!h)return;h.history||={};h.versionHistory||={};h.history[today]=true;if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}else delete h.versionHistory[today];if(focusMatches('habit',h.id))state.focus.running=false;saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderDailyBasis();renderFocus();renderShutdown();return showToast(`${h.name} afgerond.`);}
-    if(type==='household'){const h=state.householdTasks.find(x=>x.id===id);if(!h)return;h.history||={};h.history[today]=true;h.deferUntil='';if(focusMatches('household',h.id))state.focus.running=false;saveState();renderHousehold();renderFocus();return showToast(`${h.name} afgerond.`);}
+  function focusTargetDetail(target){
+    if(!target)return '';
+    if(target.type==='task')return nextOpenSubtask(target.item)||'Eén ding tegelijk.';
+    if(target.type==='habit'){
+      const h=target.item;if(h.energyAdaptive){const v=habitSelectedVersion(h,localDateKey()),level=habitLevel(h,v);return [habitVersionLabel(v),level.minimum,level.detail].filter(Boolean).join(' · ');}
+      return h.description||h.anchor||'Eén rustig onderdeel tegelijk.';
+    }
+    return target.item.description||`${householdEffortLabel(target.item.effort)} · ${householdFrequencyLabel(target.item.frequency)}`;
+  }
+  function selectFocusTarget(type,id){ state.focus.targetType=type;state.focus.targetId=id;state.focus.taskId=type==='task'?id:null;state.focus.remainingSec=state.focus.durationSec||300;state.focus.running=false;saveState();setDailyTab('focus'); }
+  function selectFocusTask(id){ selectFocusTarget('task',id); }
+  function selectFocusHabit(id){ selectFocusTarget('habit',id); }
+  function selectFocusHousehold(id){ selectFocusTarget('household',id); }
+  function completeFocusTarget(){
+    const target=focusTarget();if(!target)return;
+    if(target.type==='task')return markTask(target.item,true);
+    const today=localDateKey(),name=target.item.name;
+    if(target.type==='habit'){
+      const h=target.item;h.history||={};h.versionHistory||={};h.history[today]=true;
+      if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}else delete h.versionHistory[today];
+      clearFocusSelection();saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderToday();renderAllTasks();renderFocus();renderShutdown();showToast(`${name} afgerond.`);return;
+    }
+    const h=target.item;h.history||={};h.history[today]=true;h.deferUntil='';clearFocusSelection();saveState();renderToday();renderAllTasks();renderFocus();renderShutdown();showToast(`${name} afgerond.`);
   }
   function ensureFocusAudio(){
     if(!state.focus.soundEnabled) return null;
@@ -1581,7 +1606,13 @@
     }
     if(navigator.vibrate){ try{ navigator.vibrate([180,100,180,100,320]); }catch{} }
   }
-  function renderFocus(){ const target=focusTarget(),wrap=document.getElementById('focusCard'); if(!target){wrap.innerHTML=`<div class="empty-state">Geen open onderdeel om op te focussen. Kies bij een daganker, huishoudtaak of taak voor Focus.</div><button class="primary-button" id="focusChooseFromStartButton">Kies iets voor Focus</button>`;return;} if(!focusMatches(target.type,target.id)){state.focus.targetType=target.type;state.focus.targetId=target.id;state.focus.taskId=target.type==='task'?target.id:null;state.focus.running=false;if(!state.focus.remainingSec)state.focus.remainingSec=state.focus.durationSec||300;} const dur=Math.round((state.focus.durationSec||300)/60); wrap.innerHTML=`<div class="focus-hero"><p class="eyebrow">NU AAN DE BEURT · ${escapeHtml(focusTypeLabel(target.type).toUpperCase())}</p><div class="focus-task-name">${escapeHtml(target.name)}</div><div class="focus-step">${escapeHtml(target.detail||'Eén ding tegelijk.')}</div><div class="focus-clock"><div><span class="small-muted">${state.focus.running?'nog':'ongeveer'}</span><br><strong id="focusClockText">${formatTime(state.focus.remainingSec||state.focus.durationSec||300)}</strong></div></div><div class="focus-duration-grid">${[5,15,25].map(m=>`<button class="duration-button ${dur===m?'selected':''}" data-focus-duration="${m}">${m} min</button>`).join('')}</div><div class="dump-input-row"><input class="text-input" type="number" min="1" max="180" id="customFocusMinutes" placeholder="Zelf minuten"/><button class="secondary-button" id="customFocusButton" style="width:auto;">Kies</button></div><label class="focus-signal-toggle"><div><strong>Geluid & trillen</strong><span>Signaal wanneer je focusblok klaar is.</span></div><input class="switch-check" id="focusSoundToggle" type="checkbox" ${state.focus.soundEnabled!==false?'checked':''}/></label><div class="focus-controls"><button class="primary-button" id="focusStartButton">${state.focus.running?'Pauze':'Start focus'}</button><button class="secondary-button" data-focus-done="${target.type}|${target.id}">${escapeHtml(focusDoneLabel(target.type))}</button><button class="secondary-button" id="chooseFocusItemButton">Andere kiezen</button></div></div>`; }
+  function renderFocus(){
+    const target=focusTarget(),wrap=document.getElementById('focusCard');
+    if(!target){wrap.innerHTML=`<div class="empty-state">Geen open taak, daganker of huishoudtaak om op te focussen.</div><button class="primary-button" id="focusAddTaskButton">+ Taak toevoegen</button>`;return;}
+    if(!focusMatches(target.type,target.id)){state.focus.targetType=target.type;state.focus.targetId=target.id;state.focus.taskId=target.type==='task'?target.id:null;state.focus.running=false;if(!state.focus.remainingSec)state.focus.remainingSec=state.focus.durationSec||300;}
+    const dur=Math.round((state.focus.durationSec||300)/60),kind=target.type==='task'?'TAAK':target.type==='habit'?'DAGANKER':'HUISHOUDEN',doneLabel=target.type==='task'?'Taak klaar':target.type==='habit'?'Daganker klaar':'Huishoudtaak klaar';
+    wrap.innerHTML=`<div class="focus-hero"><p class="eyebrow">${kind} · NU AAN DE BEURT</p><div class="focus-task-name">${escapeHtml(target.item.name)}</div><div class="focus-step">${escapeHtml(focusTargetDetail(target))}</div><div class="focus-clock"><div><span class="small-muted">${state.focus.running?'nog':'ongeveer'}</span><br><strong id="focusClockText">${formatTime(state.focus.remainingSec||state.focus.durationSec||300)}</strong></div></div><div class="focus-duration-grid">${[5,15,25].map(m=>`<button class="duration-button ${dur===m?'selected':''}" data-focus-duration="${m}">${m} min</button>`).join('')}</div><div class="dump-input-row"><input class="text-input" type="number" min="1" max="180" id="customFocusMinutes" placeholder="Zelf minuten"/><button class="secondary-button" id="customFocusButton" style="width:auto;">Kies</button></div><label class="focus-signal-toggle"><div><strong>Geluid & trillen</strong><span>Signaal wanneer je focusblok klaar is.</span></div><input class="switch-check" id="focusSoundToggle" type="checkbox" ${state.focus.soundEnabled!==false?'checked':''}/></label><div class="focus-controls"><button class="primary-button" id="focusStartButton">${state.focus.running?'Pauze':'Start focus'}</button><button class="secondary-button" id="focusDoneButton">${doneLabel}</button><button class="secondary-button" id="chooseFocusItemButton">Iets anders kiezen</button></div></div>`;
+  }
 
   function reflectionForToday(){ const today=localDateKey(); state.reflections||={}; if(!state.reflections[today]||typeof state.reflections[today]!=='object')state.reflections[today]={good:'',tension:'',relax:'',updatedAt:null}; return state.reflections[today]; }
   function saveReflectionFromForm(silent=true){ const r=reflectionForToday(), good=document.getElementById('reflectionGood'), tension=document.getElementById('reflectionTension'), relax=document.getElementById('reflectionRelax'); if(!good||!tension||!relax)return; r.good=good.value.trim();r.tension=tension.value.trim();r.relax=relax.value.trim();r.updatedAt=Date.now();saveState();if(!silent)showToast('Reflectie bewaard.'); }
@@ -1725,7 +1756,7 @@
     else {state.projects.push({id:uid('project'),name:value});saveState();closeInputModal();renderProjects();}
   }
 
-  function markTask(task,done){ task.done=done; task.completedAt=done?Date.now():null; task.running=false; if(done&&focusMatches('task',task.id))state.focus.running=false; refillTodayPlan(false); saveState(); renderToday(); renderAllTasks(); renderFocus(); renderShutdown(); }
+  function markTask(task,done){ task.done=done; task.completedAt=done?Date.now():null; task.running=false; if(done&&focusMatches('task',task.id))clearFocusSelection(); refillTodayPlan(false); saveState(); renderToday(); renderAllTasks(); renderFocus(); renderShutdown(); }
 
   setInterval(()=>{ if(state.focus.running){ state.focus.remainingSec=Math.max(0,(state.focus.remainingSec||0)-1); const target=focusTarget(); if(target?.type==='task')target.item.elapsed=(target.item.elapsed||0)+1; const el=document.getElementById('focusClockText');if(el)el.textContent=formatTime(state.focus.remainingSec); if(state.focus.remainingSec<=0){state.focus.running=false;playFocusFinishedSignal();showToast('Focusblok klaar.');saveState();renderFocus();} if(state.focus.remainingSec%10===0)saveState(); } },1000);
 
@@ -1952,12 +1983,13 @@
     if(e.target.closest('#addPantryButton'))return addPantryItem();
     const pdel=e.target.closest('[data-pantry-delete]');if(pdel){state.pantry=state.pantry.filter(x=>x.id!==pdel.dataset.pantryDelete);saveState();renderPantry();return;}
     const focus=e.target.closest('[data-focus-task]');if(focus)return selectFocusTask(focus.dataset.focusTask);
-    const focusTargetButton=e.target.closest('[data-focus-target]');if(focusTargetButton){const [type,id]=focusTargetButton.dataset.focusTarget.split('|');return selectFocusTarget(type,id);}
+    const focusHabit=e.target.closest('[data-focus-habit]');if(focusHabit)return selectFocusHabit(focusHabit.dataset.focusHabit);
+    const focusHousehold=e.target.closest('[data-focus-household]');if(focusHousehold)return selectFocusHousehold(focusHousehold.dataset.focusHousehold);
     const dur=e.target.closest('[data-focus-duration]');if(dur){state.focus.durationSec=Number(dur.dataset.focusDuration)*60;state.focus.remainingSec=state.focus.durationSec;state.focus.running=false;saveState();return renderFocus();}
     if(e.target.closest('#customFocusButton')){const m=Math.max(1,Math.min(180,Number(document.getElementById('customFocusMinutes').value)||0));if(!m)return showToast('Vul een aantal minuten in.');state.focus.durationSec=m*60;state.focus.remainingSec=m*60;state.focus.running=false;saveState();return renderFocus();}
     if(e.target.closest('#focusStartButton')){if(!state.focus.running)ensureFocusAudio();state.focus.running=!state.focus.running;if(state.focus.remainingSec<=0)state.focus.remainingSec=state.focus.durationSec||300;saveState();return renderFocus();}
-    if(e.target.closest('#chooseFocusItemButton')||e.target.closest('#focusChooseFromStartButton')){setDailyTab('start');return showToast('Kies Focus bij een daganker, huishoudtaak of taak.');}
-    const focusDone=e.target.closest('[data-focus-done]');if(focusDone){const [type,id]=focusDone.dataset.focusDone.split('|');return completeFocusTarget(type,id);}
+    if(e.target.closest('#focusDoneButton'))return completeFocusTarget();
+    if(e.target.closest('#chooseFocusItemButton')){setDailyTab('start');return showToast('Kies Focus bij een taak, daganker of huishoudtaak.');}
     const doneNow=e.target.closest('[data-task-done-now]');if(doneNow){const t=state.tasks.find(x=>x.id===doneNow.dataset.taskDoneNow);if(t)return markTask(t,true);}
     const pause=e.target.closest('[data-toggle-pause]');if(pause){const t=state.tasks.find(x=>x.id===pause.dataset.togglePause);if(t){t.paused=!t.paused;if(t.paused)t.deferUntil='';refillTodayPlan(true);saveState();renderAllTasks();renderToday();renderShutdown();}return;}
     const tomorrow=e.target.closest('[data-tomorrow]');if(tomorrow){const t=state.tasks.find(x=>x.id===tomorrow.dataset.tomorrow);if(t){t.deferUntil=addDaysKey(1);t.paused=false;state.todayPlan.taskIds=state.todayPlan.taskIds.filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderToday();renderAllTasks();renderShutdown();showToast('Taak staat voor morgen.');}return;}
@@ -1994,8 +2026,8 @@
     if(e.target.matches('[data-task-check]')){const t=state.tasks.find(x=>x.id===e.target.dataset.taskCheck);if(t)markTask(t,e.target.checked);}
     if(e.target.matches('[data-subtask-check]')){const [tid,sid]=e.target.dataset.subtaskCheck.split('|'),t=state.tasks.find(x=>x.id===tid),s=t?.subtasks?.find(x=>x.id===sid);if(s){s.done=e.target.checked;saveState();renderToday();renderAllTasks();renderFocus();}}
     if(e.target.matches('[data-saved-step-check]')){const task=activeTaskForSteps(),st=task?.subtasks?.find(x=>x.id===e.target.dataset.savedStepCheck);if(st){st.done=e.target.checked;saveState();renderSavedTaskStepEditor();renderToday();renderAllTasks();renderFocus();}}
-    if(e.target.matches('[data-habit-check]')){const h=state.habits.find(x=>x.id===e.target.dataset.habitCheck);if(h){const today=localDateKey();h.history||={};h.versionHistory||={};if(e.target.checked){h.history[today]=true;if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}else delete h.versionHistory[today];if(focusMatches('habit',h.id))state.focus.running=false;}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderDailyBasis();renderFocus();}}
-    if(e.target.matches('[data-household-check]')){const h=state.householdTasks.find(x=>x.id===e.target.dataset.householdCheck);if(h){h.history||={};if(e.target.checked){h.history[localDateKey()]=true;h.deferUntil='';if(focusMatches('household',h.id))state.focus.running=false;}else delete h.history[localDateKey()];saveState();renderHousehold();renderFocus();}}
+    if(e.target.matches('[data-habit-check]')){const h=state.habits.find(x=>x.id===e.target.dataset.habitCheck);if(h){const today=localDateKey();h.history||={};h.versionHistory||={};if(e.target.checked){h.history[today]=true;if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}else delete h.versionHistory[today];if(focusMatches('habit',h.id))clearFocusSelection();}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderDailyBasis();renderFocus();}}
+    if(e.target.matches('[data-household-check]')){const h=state.householdTasks.find(x=>x.id===e.target.dataset.householdCheck);if(h){h.history||={};if(e.target.checked){h.history[localDateKey()]=true;h.deferUntil='';if(focusMatches('household',h.id))clearFocusSelection();}else delete h.history[localDateKey()];saveState();renderHousehold();renderFocus();}}
     if(e.target.matches('[data-shopping-check]')){const item=state.shopping.find(x=>x.id===e.target.dataset.shoppingCheck);if(item){item.done=e.target.checked;saveState();renderShopping();}}
     if(e.target.matches('#focusSoundToggle')){state.focus.soundEnabled=e.target.checked;if(e.target.checked)ensureFocusAudio();saveState();showToast(e.target.checked?'Focussignaal aan.':'Focussignaal uit.');}
     if(e.target.matches('#habitEnergyAdaptive'))updateHabitOptionVisibility();
@@ -2023,6 +2055,5 @@
   setupSpeech(); ensureDailyState(); ensureFoodPrefs(); renderToday(); renderDump(); renderAllTasks(); renderFocus(); renderShutdown(); renderFoodAll(); renderProjects();
 })();
 </script>
-  <script src="./calendar.js"></script>
 </body>
 </html>
