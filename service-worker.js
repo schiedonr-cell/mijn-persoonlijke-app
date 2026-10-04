@@ -1,4 +1,4 @@
-const CACHE_NAME='mijn-persoonlijke-app-v1-7-8-daily-fixes';
+const CACHE_NAME='mijn-persoonlijke-app-v1-7-9-focus-sound';
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js'];
 
 self.addEventListener('install',event=>{
@@ -17,7 +17,7 @@ self.addEventListener('activate',event=>{
 });
 
 function applyDailyFixes(html){
-  html=html.replace('<!-- Mijn persoonlijke app v1.7.1 -->','<!-- Mijn persoonlijke app v1.7.8 -->');
+  html=html.replace('<!-- Mijn persoonlijke app v1.7.1 -->','<!-- Mijn persoonlijke app v1.7.9 -->');
 
   html=html.replace(
     'focus: { taskId: null, targetType: null, targetId: null, durationSec: 300, remainingSec: 300, running: false, soundEnabled: true },',
@@ -57,6 +57,47 @@ function applyDailyFixes(html){
   html=html.replace(
     "setInterval(()=>{ if(state.focus.running){ state.focus.remainingSec=Math.max(0,(state.focus.remainingSec||0)-1); const task=state.tasks.find(t=>t.id===state.focus.taskId); if(task)task.elapsed=(task.elapsed||0)+1; const el=document.getElementById('focusClockText');if(el)el.textContent=formatTime(state.focus.remainingSec); if(state.focus.remainingSec<=0){state.focus.running=false;playFocusFinishedSignal();showToast('Focusblok klaar.');saveState();renderFocus();} if(state.focus.remainingSec%10===0)saveState(); } },1000);",
     "setInterval(()=>{ if(state.focus.running){ const before=Number(state.focus.remainingSec||0),now=Date.now(); if(!state.focus.endAt)state.focus.endAt=now+before*1000; state.focus.remainingSec=Math.max(0,Math.ceil((Number(state.focus.endAt)-now)/1000)); const elapsed=Math.max(0,before-state.focus.remainingSec),task=state.tasks.find(t=>t.id===state.focus.taskId); if(task&&elapsed)task.elapsed=(task.elapsed||0)+elapsed; const el=document.getElementById('focusClockText');if(el)el.textContent=formatTime(state.focus.remainingSec); if(state.focus.remainingSec<=0){state.focus.running=false;state.focus.endAt=null;playFocusFinishedSignal();showToast('Focusblok klaar.');saveState();renderFocus();} else if(state.focus.remainingSec%10===0)saveState(); } },1000);"
+  );
+
+  html=html.replace(
+`  function playFocusFinishedSignal(){
+    if(!state.focus.soundEnabled) return;
+    const ctx=ensureFocusAudio();
+    if(ctx){
+      try{
+        const now=ctx.currentTime;
+        [[0,660],[0.18,880],[0.36,1040]].forEach(([delay,freq])=>{
+          const osc=ctx.createOscillator(),gain=ctx.createGain();
+          osc.type='sine'; osc.frequency.value=freq;
+          gain.gain.setValueAtTime(0.0001,now+delay);
+          gain.gain.exponentialRampToValueAtTime(0.16,now+delay+0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0001,now+delay+0.15);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(now+delay); osc.stop(now+delay+0.17);
+        });
+      }catch{}
+    }
+    if(navigator.vibrate){ try{ navigator.vibrate([180,100,180,100,320]); }catch{} }
+  }`,
+`  function playFocusFinishedSignal(){
+    if(!state.focus.soundEnabled) return;
+    const ctx=ensureFocusAudio();
+    if(ctx){
+      try{
+        const now=ctx.currentTime;
+        [[0,880],[0.42,1040],[0.84,880],[1.26,1040],[1.68,880],[2.10,1040],[2.52,880],[2.94,1180]].forEach(([delay,freq])=>{
+          const osc=ctx.createOscillator(),gain=ctx.createGain();
+          osc.type='sine'; osc.frequency.value=freq;
+          gain.gain.setValueAtTime(0.0001,now+delay);
+          gain.gain.exponentialRampToValueAtTime(0.32,now+delay+0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001,now+delay+0.28);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(now+delay); osc.stop(now+delay+0.31);
+        });
+      }catch{}
+    }
+    if(navigator.vibrate){ try{ navigator.vibrate([220,180,220,180,220,180,220,180,220,180,220,180,220,180,350]); }catch{} }
+  }`
   );
 
   html=html.replace(
