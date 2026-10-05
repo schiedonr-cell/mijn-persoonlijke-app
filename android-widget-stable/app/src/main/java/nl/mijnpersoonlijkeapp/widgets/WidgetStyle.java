@@ -51,10 +51,6 @@ final class WidgetStyle {
             setBackground(v, id, buttonBg);
             setText(v, id, text);
         }
-
-        // Focus blijft bewust een actieknop en mag dus een groen accent houden.
-        setBackground(v, R.id.btn_focus, R.drawable.button_bg);
-        setText(v, R.id.btn_focus, Color.WHITE);
     }
 
     static void applyToday(RemoteViews v, Context context) {
