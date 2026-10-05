@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Weekmenu herstellen</title>
+  <style>body{font-family:system-ui,sans-serif;background:#f5f5ef;color:#20251f;margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}.card{max-width:420px;background:#fff;border:1px solid #dfe1d8;border-radius:24px;padding:24px;box-shadow:0 8px 24px rgba(34,42,34,.08)}h1{font-size:24px;margin:0 0 10px}p{color:#6b7168;line-height:1.5;margin:0}</style>
+</head>
+<body>
+  <div class="card"><h1 id="title">Weekmenu herstellen…</h1><p id="message">De oude widgetgegevens worden teruggezet in je gewone app.</p></div>
+<script>
+(()=>{
+  const STATE_KEY='mijnPersoonlijkeAppV1';
+  const BACKUP_KEY='mijnPersoonlijkeAppFoodBeforeRecoveryV1';
+  const title=document.getElementById('title'),message=document.getElementById('message');
+  function decode(value){
+    let s=(value||'').replace(/-/g,'+').replace(/_/g,'/');
+    while(s.length%4)s+='=';
+    const bin=atob(s),bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
+  try{
+    const encoded=new URLSearchParams(location.search).get('data');
+    if(!encoded)throw new Error('Geen herstelgegevens ontvangen.');
+    const recovered=JSON.parse(decode(encoded));
+    const current=JSON.parse(localStorage.getItem(STATE_KEY)||'{}');
+    const foodKeys=['weekPlan','weekMenu','shopping','foodPrefs','pantry','favorites','recipeHistory','shoppingSkippedCount'];
+    const before={};
+    foodKeys.forEach(k=>{if(Object.prototype.hasOwnProperty.call(current,k))before[k]=current[k];});
+    localStorage.setItem(BACKUP_KEY,JSON.stringify({savedAt:Date.now(),food:before}));
+    foodKeys.forEach(k=>{if(Object.prototype.hasOwnProperty.call(recovered,k))current[k]=recovered[k];});
+    if(!Array.isArray(current.weekPlan)||!current.weekPlan.length)throw new Error('In de oude widgetgegevens stond geen weekmenu.');
+    localStorage.setItem(STATE_KEY,JSON.stringify(current));
+    title.textContent='Weekmenu hersteld';
+    message.textContent='Je recente weekmenu is teruggezet. De app wordt nu geopend.';
+    setTimeout(()=>location.replace('./?open=food&recovered=1'),650);
+  }catch(err){
+    title.textContent='Herstellen niet gelukt';
+    message.textContent=err&&err.message?err.message:'De oude gegevens konden niet worden teruggezet.';
+  }
+})();
+</script>
+</body>
+</html>
