@@ -59,7 +59,7 @@ public class TodayWidgetProvider extends AppWidgetProvider {
                 JSONObject row = rows.optJSONObject(i);
                 String kind = row == null ? "" : row.optString("kind", "");
                 String text = row == null ? "" : row.optString("text", "");
-                v.setTextViewText(ROW_IDS[i], prefix(kind) + text);
+                v.setTextViewText(ROW_IDS[i], pictogram(kind, text) + "  " + text);
                 v.setViewVisibility(ROW_IDS[i], View.VISIBLE);
             } else {
                 v.setViewVisibility(ROW_IDS[i], View.GONE);
@@ -82,12 +82,31 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         manager.updateAppWidget(id, v);
     }
 
-    private static String prefix(String kind) {
-        if ("Agenda".equals(kind)) return "▣  ";
-        if ("Routine".equals(kind)) return "○  ";
-        if ("Huis".equals(kind)) return "⌂  ";
-        if ("Taak".equals(kind)) return "☆  ";
-        return "•  ";
+    private static String pictogram(String kind, String text) {
+        String s = text == null ? "" : text.toLowerCase(new Locale("nl", "NL"));
+
+        // Persoonlijke pictogrammen waar mogelijk, zodat het overzicht meer lijkt op
+        // de eerdere visuele Vandaag-widget in plaats van technische tekens.
+        if (s.contains("ochtend")) return "☀️";
+        if (s.contains("wandelen") || s.contains("wandeling") || s.contains("lopen")) return "🚶";
+        if (s.contains("lunch") || s.contains("eten")) return "🍴";
+        if (s.contains("boodschap")) return "🛒";
+        if (s.contains("ontspan") || s.contains("rustmoment") || s.contains("rust")) return "🍃";
+        if (s.contains("avond") || s.contains("dag afsluiten")) return "🌙";
+        if (s.contains("medic")) return "💊";
+        if (s.contains("mail") || s.contains("e-mail")) return "✉️";
+        if (s.contains("robotstofzuiger") || s.contains("robot")) return "🤖";
+        if (s.contains("stofzuig") || s.contains("vloer")) return "🧹";
+        if (s.contains("was ") || s.contains("wasgoed") || s.contains("was opruimen")) return "🧺";
+        if (s.contains("toilet") || s.contains("badkamer") || s.contains("schoonmaak")) return "🧽";
+        if (s.contains("keuken")) return "🏠";
+        if (s.contains("financi") || s.contains("rekening") || s.contains("bank")) return "💳";
+
+        if ("Agenda".equals(kind)) return "📅";
+        if ("Routine".equals(kind)) return "🔄";
+        if ("Huis".equals(kind)) return "🏠";
+        if ("Taak".equals(kind)) return "⭐";
+        return "•";
     }
 
     private static String friendlyDate() {
