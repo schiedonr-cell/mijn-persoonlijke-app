@@ -56,39 +56,42 @@ final class WidgetStyle {
     static void applyToday(RemoteViews v, Context context) {
         String style = get(context);
         int rootBg = R.drawable.widget_bg;
-        int pillBg = R.drawable.widget_pill;
         int text = Color.rgb(32, 37, 31);
         int muted = Color.rgb(107, 113, 104);
+        int accent = Color.rgb(69, 98, 77);
         int divider = Color.rgb(215, 221, 214);
 
         if (DARK.equals(style)) {
             rootBg = R.drawable.widget_bg_dark;
-            pillBg = R.drawable.widget_pill_dark;
             text = Color.rgb(245, 247, 244);
             muted = Color.rgb(198, 203, 197);
+            accent = Color.rgb(177, 212, 187);
             divider = Color.rgb(84, 92, 85);
         } else if (TRANSPARENT.equals(style)) {
             rootBg = R.drawable.widget_bg_transparent;
-            pillBg = R.drawable.widget_pill_transparent;
             text = Color.rgb(32, 37, 31);
             muted = Color.rgb(84, 91, 83);
+            accent = Color.rgb(69, 98, 77);
             divider = Color.argb(110, 100, 110, 101);
         }
 
         setBackground(v, R.id.today_root, rootBg);
         setText(v, R.id.today_title, text);
         setText(v, R.id.today_subtitle, muted);
-        setBackground(v, R.id.today_energy, pillBg);
-        setText(v, R.id.today_energy, DARK.equals(style) ? Color.rgb(222, 235, 225) : Color.rgb(69, 98, 77));
         setBackgroundColor(v, R.id.today_divider, divider);
 
         int[] rows = new int[]{
                 R.id.today_row_1, R.id.today_row_2, R.id.today_row_3, R.id.today_row_4,
                 R.id.today_row_5, R.id.today_row_6, R.id.today_row_7
         };
+        int[] times = new int[]{
+                R.id.today_time_1, R.id.today_time_2, R.id.today_time_3, R.id.today_time_4,
+                R.id.today_time_5, R.id.today_time_6, R.id.today_time_7
+        };
         for (int id : rows) setText(v, id, text);
+        for (int id : times) setText(v, id, accent);
         setText(v, R.id.today_empty, muted);
-        setText(v, R.id.today_more, DARK.equals(style) ? Color.rgb(177, 212, 187) : Color.rgb(69, 98, 77));
+        setText(v, R.id.today_more, accent);
     }
 
     static void refreshAll(Context context) {
