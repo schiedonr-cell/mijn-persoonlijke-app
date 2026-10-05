@@ -2,5 +2,18 @@
 <resources>
     <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowNoTitle">true</item>
+        <item name="android:colorAccent">#45624D</item>
+        <item name="android:navigationBarColor">#F5F5EF</item>
+        <item name="android:statusBarColor">#45624D</item>
+    </style>
+    <style name="TodayRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">25dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/text</item>
     </style>
 </resources>

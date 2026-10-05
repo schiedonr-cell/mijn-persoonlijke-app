@@ -2,16 +2,82 @@ package nl.mijnpersoonlijkeapp.widgets;
 
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
+import android.content.ComponentName;
 import android.content.Context;
+import android.view.View;
 import android.widget.RemoteViews;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 public class TodayWidgetProvider extends AppWidgetProvider {
+    private static final int[] ROW_IDS = new int[]{
+            R.id.today_row_1, R.id.today_row_2, R.id.today_row_3, R.id.today_row_4,
+            R.id.today_row_5, R.id.today_row_6, R.id.today_row_7
+    };
+
     @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
-        for (int id : ids) {
-            RemoteViews v = new RemoteViews(context.getPackageName(), R.layout.widget_today);
-            v.setOnClickPendingIntent(R.id.today_root, WidgetLinks.open(context, "today", 201));
-            v.setOnClickPendingIntent(R.id.btn_today_open, WidgetLinks.open(context, "today", 202));
+        for (int id : ids) updateOne(context, manager, id);
+    }
+
+    static void refreshAll(Context context) {
+        AppWidgetManager manager = AppWidgetManager.getInstance(context);
+        ComponentName component = new ComponentName(context, TodayWidgetProvider.class);
+        int[] ids = manager.getAppWidgetIds(component);
+        for (int id : ids) updateOne(context, manager, id);
+    }
+
+    private static void updateOne(Context context, AppWidgetManager manager, int id) {
+        RemoteViews v = new RemoteViews(context.getPackageName(), R.layout.widget_today);
+        v.setOnClickPendingIntent(R.id.today_root, WidgetLinks.open(context, "today", 201));
+
+        JSONObject snapshot = SnapshotStore.read(context);
+        String date = snapshot.optString("date", "");
+        JSONArray rows = snapshot.optJSONArray("rows");
+        int energy = snapshot.optInt("energy", 2);
+
+        if (!SnapshotStore.todayKey().equals(date) || rows == null) {
+            v.setTextViewText(R.id.today_subtitle, "Open Mijn dag om vandaag te laden");
+            v.setViewVisibility(R.id.today_empty, View.VISIBLE);
+            v.setTextViewText(R.id.today_empty, "Nog geen actueel overzicht.");
+            v.setViewVisibility(R.id.today_more, View.GONE);
+            hideRows(v);
             manager.updateAppWidget(id, v);
+            return;
         }
+
+        int count = rows.length();
+        v.setTextViewText(R.id.today_subtitle, count == 0 ? "Alles afgerond" : count + " open · energie " + energy);
+        int visible = Math.min(count, ROW_IDS.length);
+        for (int i = 0; i < ROW_IDS.length; i++) {
+            if (i < visible) {
+                JSONObject row = rows.optJSONObject(i);
+                String kind = row == null ? "" : row.optString("kind", "");
+                String text = row == null ? "" : row.optString("text", "");
+                v.setTextViewText(ROW_IDS[i], kind.isEmpty() ? text : kind + " · " + text);
+                v.setViewVisibility(ROW_IDS[i], View.VISIBLE);
+            } else {
+                v.setViewVisibility(ROW_IDS[i], View.GONE);
+            }
+        }
+
+        if (count == 0) {
+            v.setViewVisibility(R.id.today_empty, View.VISIBLE);
+            v.setTextViewText(R.id.today_empty, "Alles klaar voor vandaag.");
+        } else {
+            v.setViewVisibility(R.id.today_empty, View.GONE);
+        }
+
+        if (count > ROW_IDS.length) {
+            v.setViewVisibility(R.id.today_more, View.VISIBLE);
+            v.setTextViewText(R.id.today_more, "+ " + (count - ROW_IDS.length) + " meer open");
+        } else {
+            v.setViewVisibility(R.id.today_more, View.GONE);
+        }
+        manager.updateAppWidget(id, v);
+    }
+
+    private static void hideRows(RemoteViews v) {
+        for (int row : ROW_IDS) v.setViewVisibility(row, View.GONE);
     }
 }
