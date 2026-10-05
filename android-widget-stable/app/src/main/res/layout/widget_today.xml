@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:padding="14dp"
     android:background="@drawable/widget_bg">
 
     <LinearLayout
@@ -20,49 +20,56 @@
             android:layout_weight="1"
             android:text="Vandaag"
             android:textStyle="bold"
-            android:textSize="24sp"
+            android:textSize="23sp"
             android:textColor="@color/text" />
 
         <TextView
-            android:id="@+id/today_energy"
+            android:id="@+id/today_subtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingLeft="10dp"
-            android:paddingRight="10dp"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp"
-            android:background="@drawable/widget_pill"
-            android:text="Energie 2"
-            android:textSize="11sp"
+            android:text="di 6 okt"
+            android:textSize="12sp"
             android:textStyle="bold"
-            android:textColor="#45624D" />
+            android:textColor="#6B7168" />
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/today_subtitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:layout_marginBottom="7dp"
-        android:text="Maandag 5 oktober"
-        android:textSize="13sp"
-        android:textColor="#6B7168" />
 
     <TextView
         android:id="@+id/today_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_marginBottom="7dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="6dp"
         android:background="#D7DDD6"
         android:text="" />
 
-    <TextView android:id="@+id/today_row_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
-    <TextView android:id="@+id/today_row_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
-    <TextView android:id="@+id/today_row_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
-    <TextView android:id="@+id/today_row_4" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
-    <TextView android:id="@+id/today_row_5" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
-    <TextView android:id="@+id/today_row_6" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
-    <TextView android:id="@+id/today_row_7" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
+    <LinearLayout android:id="@+id/today_row_box_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="32dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/today_time_1" android:layout_width="58dp" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="#45624D" android:maxLines="1" />
+        <TextView android:id="@+id/today_row_1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/today_row_box_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="32dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/today_time_2" android:layout_width="58dp" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="#45624D" android:maxLines="1" />
+        <TextView android:id="@+id/today_row_2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/today_row_box_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="32dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/today_time_3" android:layout_width="58dp" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="#45624D" android:maxLines="1" />
+        <TextView android:id="@+id/today_row_3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/today_row_box_4" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="32dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/today_time_4" android:layout_width="58dp" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="#45624D" android:maxLines="1" />
+        <TextView android:id="@+id/today_row_4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/today_row_box_5" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="32dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/today_time_5" android:layout_width="58dp" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="#45624D" android:maxLines="1" />
+        <TextView android:id="@+id/today_row_5" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/today_row_box_6" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="32dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/today_time_6" android:layout_width="58dp" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="#45624D" android:maxLines="1" />
+        <TextView android:id="@+id/today_row_6" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/today_row_box_7" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="32dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/today_time_7" android:layout_width="58dp" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="#45624D" android:maxLines="1" />
+        <TextView android:id="@+id/today_row_7" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/today_empty"
@@ -78,7 +85,7 @@
         android:id="@+id/today_more"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="5dp"
         android:text=""
         android:textSize="12sp"
         android:textStyle="bold"
