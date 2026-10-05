@@ -1,4 +1,4 @@
-const CACHE_NAME='mijn-persoonlijke-app-v1-7-11-more-recipes';
+const CACHE_NAME='mijn-persoonlijke-app-v1-7-12-widget-links';
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js','./recipes-extra-1.js','./recipes-extra-2.js','./recipes-extra-3.js','./recipes-extra-4.js'];
 
 self.addEventListener('install',event=>{
