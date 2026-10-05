@@ -26,6 +26,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true" />
+
         <receiver
             android:name=".SmallWidgetProvider"
             android:label="Mijn dag – klein"
