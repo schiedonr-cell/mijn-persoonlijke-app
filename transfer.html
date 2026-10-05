@@ -12,7 +12,7 @@
 <body>
   <main class="card">
     <h1>Gegevens overzetten</h1>
-    <p>Hiermee zet je je huidige taken, routines, weekmenu, voorraad en andere appgegevens één keer over naar de Android-app met widgets.</p>
+    <p>Hiermee zet je je huidige appgegevens één keer over naar Mijn dag.</p>
     <button class="button" id="share">Overzetten naar Mijn dag</button>
     <button class="button secondary" id="download" type="button">Alleen bestand downloaden</button>
     <div class="status" id="status"></div>
@@ -22,22 +22,24 @@
     const status=document.getElementById('status'),share=document.getElementById('share'),download=document.getElementById('download');
     function payload(){
       const entries={};
-      for(let i=0;i<localStorage.length;i++){
-        const key=localStorage.key(i);
-        if(key&&key.startsWith('mijnPersoonlijkeApp')) entries[key]=localStorage.getItem(key)||'';
+      const keep=['mijnPersoonlijkeAppV1','mijnPersoonlijkeAppRemindersV1','mijnPersoonlijkeAppCalendarEventsV1'];
+      for(const key of keep){
+        const value=localStorage.getItem(key);
+        if(value!=null) entries[key]=value;
       }
-      return {version:1,exportedAt:Date.now(),entries};
+      return {version:2,exportedAt:Date.now(),entries};
     }
-    function file(){return new File([JSON.stringify(payload())],'mijn-persoonlijke-app-overdracht.json',{type:'application/json'});}
+    function text(){return JSON.stringify(payload());}
+    function file(){return new File([text()],'mijn-persoonlijke-app-overdracht.json',{type:'application/json'});}
     function hasData(){try{return Boolean(localStorage.getItem('mijnPersoonlijkeAppV1'));}catch{return false;}}
-    function saveFile(){const f=file(),a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);status.textContent='Bestand gedownload. Ga terug naar Mijn dag en kies “Bestand kiezen”.';}
+    function saveFile(){const f=file(),a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);status.textContent='Bestand gedownload. Ga terug naar Mijn dag en kies “Overdrachtsbestand kiezen”.';}
     share.addEventListener('click',async()=>{
-      if(!hasData()){status.textContent='Ik zie hier geen bestaande appgegevens. Open deze pagina vanuit dezelfde browser waarin je gewone app staat.';return;}
-      const f=file();
+      if(!hasData()){status.textContent='Ik zie hier geen bestaande appgegevens.';return;}
+      const data=text();
       try{
-        if(navigator.canShare&&navigator.canShare({files:[f]})){
-          await navigator.share({files:[f],title:'Mijn app gegevens'});
-          status.innerHTML='<span class="ok">Kies “Mijn dag” in het deelmenu. Daarna gaat de overdracht vanzelf verder.</span>';
+        if(navigator.share){
+          await navigator.share({title:'Mijn app gegevens',text:data});
+          status.innerHTML='<span class="ok">Kies “Mijn dag” in het deelmenu.</span>';
           return;
         }
       }catch(e){if(e?.name==='AbortError')return;}
