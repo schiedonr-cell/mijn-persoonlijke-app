@@ -10,6 +10,10 @@ import android.widget.RemoteViews;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+
 public class TodayWidgetProvider extends AppWidgetProvider {
     private static final int[] ROW_IDS = new int[]{
             R.id.today_row_1, R.id.today_row_2, R.id.today_row_3, R.id.today_row_4,
@@ -36,10 +40,12 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         JSONArray rows = snapshot.optJSONArray("rows");
         int energy = snapshot.optInt("energy", 2);
 
+        v.setTextViewText(R.id.today_energy, "Energie " + energy);
+        v.setTextViewText(R.id.today_subtitle, friendlyDate());
+
         if (!SnapshotStore.todayKey().equals(date) || rows == null) {
-            v.setTextViewText(R.id.today_subtitle, "Open Mijn dag om vandaag te laden");
             v.setViewVisibility(R.id.today_empty, View.VISIBLE);
-            v.setTextViewText(R.id.today_empty, "Nog geen actueel overzicht.");
+            v.setTextViewText(R.id.today_empty, "Open Mijn dag om het overzicht te vernieuwen.");
             v.setViewVisibility(R.id.today_more, View.GONE);
             hideRows(v);
             manager.updateAppWidget(id, v);
@@ -47,14 +53,13 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         }
 
         int count = rows.length();
-        v.setTextViewText(R.id.today_subtitle, count == 0 ? "Alles afgerond" : count + " open · energie " + energy);
         int visible = Math.min(count, ROW_IDS.length);
         for (int i = 0; i < ROW_IDS.length; i++) {
             if (i < visible) {
                 JSONObject row = rows.optJSONObject(i);
                 String kind = row == null ? "" : row.optString("kind", "");
                 String text = row == null ? "" : row.optString("text", "");
-                v.setTextViewText(ROW_IDS[i], kind.isEmpty() ? text : kind + " · " + text);
+                v.setTextViewText(ROW_IDS[i], prefix(kind) + text);
                 v.setViewVisibility(ROW_IDS[i], View.VISIBLE);
             } else {
                 v.setViewVisibility(ROW_IDS[i], View.GONE);
@@ -75,6 +80,24 @@ public class TodayWidgetProvider extends AppWidgetProvider {
             v.setViewVisibility(R.id.today_more, View.GONE);
         }
         manager.updateAppWidget(id, v);
+    }
+
+    private static String prefix(String kind) {
+        if ("Agenda".equals(kind)) return "▣  ";
+        if ("Routine".equals(kind)) return "○  ";
+        if ("Huis".equals(kind)) return "⌂  ";
+        if ("Taak".equals(kind)) return "☆  ";
+        return "•  ";
+    }
+
+    private static String friendlyDate() {
+        try {
+            DateTimeFormatter f = DateTimeFormatter.ofPattern("EEEE d MMMM", new Locale("nl", "NL"));
+            String value = LocalDate.now().format(f);
+            return value.substring(0, 1).toUpperCase(new Locale("nl", "NL")) + value.substring(1);
+        } catch (Exception e) {
+            return LocalDate.now().toString();
+        }
     }
 
     private static void hideRows(RemoteViews v) {
