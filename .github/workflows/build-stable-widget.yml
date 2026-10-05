@@ -3,7 +3,7 @@ name: Build stable Android widget APK
 on:
   push:
     paths:
-      - 'android-widget-stable/project.zip'
+      - 'android-widget-stable/**'
       - '.github/workflows/build-stable-widget.yml'
   workflow_dispatch:
 
@@ -27,16 +27,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Unpack widget project
-        run: |
-          rm -rf /tmp/widget-build
-          mkdir -p /tmp/widget-build
-          unzip -q android-widget-stable/project.zip -d /tmp/widget-build
       - name: Build APK
-        working-directory: /tmp/widget-build
+        working-directory: android-widget-stable
         run: gradle :app:assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: mijn-widgets-apk
-          path: /tmp/widget-build/app/build/outputs/apk/debug/app-debug.apk
+          path: android-widget-stable/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

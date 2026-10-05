@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="panel">#E8ECE6</color>
+    <color name="button">#45624D</color>
+    <color name="button_secondary">#DDE6DE</color>
+    <color name="text">#20251F</color>
+    <color name="white">#FFFFFF</color>
+</resources>
