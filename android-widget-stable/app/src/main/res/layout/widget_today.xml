@@ -42,31 +42,31 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:layout_marginBottom="9dp"
-        android:text="maandag 5 oktober"
+        android:layout_marginBottom="7dp"
+        android:text="Maandag 5 oktober"
         android:textSize="13sp"
         android:textColor="#6B7168" />
 
-    <View
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginBottom="7dp"
-        android:background="#D7DDD6" />
+        android:background="#D7DDD6"
+        android:text="" />
 
-    <TextView android:id="@+id/today_row_1" style="@style/TodayRow" />
-    <TextView android:id="@+id/today_row_2" style="@style/TodayRow" />
-    <TextView android:id="@+id/today_row_3" style="@style/TodayRow" />
-    <TextView android:id="@+id/today_row_4" style="@style/TodayRow" />
-    <TextView android:id="@+id/today_row_5" style="@style/TodayRow" />
-    <TextView android:id="@+id/today_row_6" style="@style/TodayRow" />
-    <TextView android:id="@+id/today_row_7" style="@style/TodayRow" />
+    <TextView android:id="@+id/today_row_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
+    <TextView android:id="@+id/today_row_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
+    <TextView android:id="@+id/today_row_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
+    <TextView android:id="@+id/today_row_4" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
+    <TextView android:id="@+id/today_row_5" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
+    <TextView android:id="@+id/today_row_6" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
+    <TextView android:id="@+id/today_row_7" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="30dp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="1" android:textSize="14sp" android:textColor="@color/text" android:paddingTop="2dp" android:paddingBottom="2dp" />
 
     <TextView
         android:id="@+id/today_empty"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center_vertical"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
         android:text="Alles klaar voor vandaag."
         android:textSize="14sp"
         android:textColor="#6B7168"
