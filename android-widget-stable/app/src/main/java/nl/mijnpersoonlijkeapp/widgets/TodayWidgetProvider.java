@@ -33,6 +33,7 @@ public class TodayWidgetProvider extends AppWidgetProvider {
 
     private static void updateOne(Context context, AppWidgetManager manager, int id) {
         RemoteViews v = new RemoteViews(context.getPackageName(), R.layout.widget_today);
+        WidgetStyle.applyToday(v, context);
         v.setOnClickPendingIntent(R.id.today_root, WidgetLinks.open(context, "today", 201));
 
         JSONObject snapshot = SnapshotStore.read(context);
@@ -84,9 +85,6 @@ public class TodayWidgetProvider extends AppWidgetProvider {
 
     private static String pictogram(String kind, String text) {
         String s = text == null ? "" : text.toLowerCase(new Locale("nl", "NL"));
-
-        // Persoonlijke pictogrammen waar mogelijk, zodat het overzicht meer lijkt op
-        // de eerdere visuele Vandaag-widget in plaats van technische tekens.
         if (s.contains("ochtend")) return "☀️";
         if (s.contains("wandelen") || s.contains("wandeling") || s.contains("lopen")) return "🚶";
         if (s.contains("lunch") || s.contains("eten")) return "🍴";
@@ -101,7 +99,6 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         if (s.contains("toilet") || s.contains("badkamer") || s.contains("schoonmaak")) return "🧽";
         if (s.contains("keuken")) return "🏠";
         if (s.contains("financi") || s.contains("rekening") || s.contains("bank")) return "💳";
-
         if ("Agenda".equals(kind)) return "📅";
         if ("Routine".equals(kind)) return "🔄";
         if ("Huis".equals(kind)) return "🏠";
