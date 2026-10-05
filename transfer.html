@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#45624d">
+  <title>Gegevens overzetten</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f5f5ef;color:#20251f;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;display:grid;place-items:center;padding:24px}.card{width:min(100%,460px);background:#fff;border:1px solid #dfe1d8;border-radius:26px;padding:24px;box-shadow:0 10px 30px rgba(34,42,34,.08)}h1{font-size:28px;line-height:1.08;margin:0 0 12px}p{color:#6b7168;line-height:1.5;margin:0 0 20px}.status{font-size:13px;margin-top:14px;color:#6b7168}.button{width:100%;min-height:60px;border:0;border-radius:18px;background:#45624d;color:white;font-size:17px;font-weight:800}.button:disabled{opacity:.5}.secondary{margin-top:10px;background:#dce8de;color:#334a39}.ok{color:#45624d;font-weight:700}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Gegevens overzetten</h1>
+    <p>Hiermee zet je je huidige taken, routines, weekmenu, voorraad en andere appgegevens één keer over naar de Android-app met widgets.</p>
+    <button class="button" id="share">Overzetten naar Mijn dag</button>
+    <button class="button secondary" id="download" type="button">Alleen bestand downloaden</button>
+    <div class="status" id="status"></div>
+  </main>
+  <script>
+  (()=>{
+    const status=document.getElementById('status'),share=document.getElementById('share'),download=document.getElementById('download');
+    function payload(){
+      const entries={};
+      for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i);
+        if(key&&key.startsWith('mijnPersoonlijkeApp')) entries[key]=localStorage.getItem(key)||'';
+      }
+      return {version:1,exportedAt:Date.now(),entries};
+    }
+    function file(){return new File([JSON.stringify(payload())],'mijn-persoonlijke-app-overdracht.json',{type:'application/json'});}
+    function hasData(){try{return Boolean(localStorage.getItem('mijnPersoonlijkeAppV1'));}catch{return false;}}
+    function saveFile(){const f=file(),a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);status.textContent='Bestand gedownload. Ga terug naar Mijn dag en kies “Bestand kiezen”.';}
+    share.addEventListener('click',async()=>{
+      if(!hasData()){status.textContent='Ik zie hier geen bestaande appgegevens. Open deze pagina vanuit dezelfde browser waarin je gewone app staat.';return;}
+      const f=file();
+      try{
+        if(navigator.canShare&&navigator.canShare({files:[f]})){
+          await navigator.share({files:[f],title:'Mijn app gegevens'});
+          status.innerHTML='<span class="ok">Kies “Mijn dag” in het deelmenu. Daarna gaat de overdracht vanzelf verder.</span>';
+          return;
+        }
+      }catch(e){if(e?.name==='AbortError')return;}
+      saveFile();
+    });
+    download.addEventListener('click',saveFile);
+    if(hasData())status.textContent='Je bestaande appgegevens zijn gevonden.';else{status.textContent='Nog geen appgegevens gevonden op deze plek.';share.disabled=true;}
+  })();
+  </script>
+</body>
+</html>

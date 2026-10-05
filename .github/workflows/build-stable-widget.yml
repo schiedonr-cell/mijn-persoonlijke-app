@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'android-widget-stable/**'
+      - 'android-widget-v3-overlay.zip'
       - '.github/workflows/build-stable-widget.yml'
   workflow_dispatch:
 
@@ -19,6 +20,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Apply widget v3 overlay
+        run: unzip -o android-widget-v3-overlay.zip -d android-widget-stable
       - name: Prepare Android SDK
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -32,6 +35,6 @@ jobs:
         run: gradle :app:assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: mijn-widgets-apk
+          name: mijn-dag-widget-v3-apk
           path: android-widget-stable/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
