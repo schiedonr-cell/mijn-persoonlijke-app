@@ -76,11 +76,16 @@ final class SnapshotStore {
     }
 
     private static void addRow(JSONArray rows, String kind, String text) {
+        addRow(rows, kind, text, "");
+    }
+
+    private static void addRow(JSONArray rows, String kind, String text, String time) {
         if (text == null || text.trim().isEmpty()) return;
         JSONObject row = new JSONObject();
         try {
             row.put("kind", kind);
             row.put("text", text.trim());
+            row.put("time", time == null ? "" : time.trim());
             rows.put(row);
         } catch (Exception ignored) {}
     }
@@ -193,8 +198,7 @@ final class SnapshotStore {
             JSONObject e = events.optJSONObject(i);
             if (e == null || "cancelled".equals(e.optString("status", ""))) continue;
             String title = e.optString("summary", "Afspraak");
-            String when = eventTime(e);
-            addRow(rows, "Agenda", when.isEmpty() ? title : when + "  " + title);
+            addRow(rows, "Agenda", title, eventTime(e));
         }
     }
 
