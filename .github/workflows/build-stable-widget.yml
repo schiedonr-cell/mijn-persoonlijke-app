@@ -7,6 +7,10 @@ on:
       - '.github/workflows/build-stable-widget.yml'
   workflow_dispatch:
 
+concurrency:
+  group: stable-widget-build
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
