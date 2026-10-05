@@ -23,6 +23,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Reuse Android debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: mijn-dag-widget-debug-keystore-v1
       - name: Prepare Android SDK
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
