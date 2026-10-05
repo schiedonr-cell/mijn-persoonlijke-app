@@ -9,10 +9,16 @@ import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 public class WidgetConfigActivity extends Activity {
     private int appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
+    private int selectedBackground;
+    private int selectedOpacity;
+    private String selectedTextMode;
+    private int selectedAccent;
+    private TextView summary;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -20,49 +26,152 @@ public class WidgetConfigActivity extends Activity {
         Intent intent = getIntent();
         if (intent != null) appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
 
+        selectedBackground = WidgetStyle.background(this);
+        selectedOpacity = WidgetStyle.opacity(this);
+        selectedTextMode = WidgetStyle.textMode(this);
+        selectedAccent = WidgetStyle.accent(this);
+
+        ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setPadding(dp(24), dp(34), dp(24), dp(24));
+        root.setPadding(dp(20), dp(26), dp(20), dp(26));
         root.setBackgroundColor(Color.rgb(245,245,239));
+        scroll.addView(root);
 
-        TextView title = new TextView(this);
-        title.setText("Widgetkleur");
-        title.setTextSize(26);
-        title.setTextColor(Color.rgb(32,37,31));
-        title.setGravity(Gravity.CENTER);
-        root.addView(title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        TextView title = heading("Widgetstijl", 27);
+        root.addView(title);
 
-        TextView info = new TextView(this);
-        info.setText("Kies één rustige stijl. Deze geldt voor al je Mijn dag-widgets.");
-        info.setTextSize(15);
-        info.setTextColor(Color.rgb(100,108,99));
-        info.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        ip.setMargins(0, dp(10), 0, dp(24));
-        root.addView(info, ip);
+        TextView info = text("Kies kleur, transparantie, tekst en accent. Deze stijl geldt voor je Mijn dag-widgets.", 14, Color.rgb(92,100,92));
+        LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        infoLp.setMargins(0, dp(8), 0, dp(18));
+        root.addView(info, infoLp);
 
-        root.addView(button("Licht", WidgetStyle.LIGHT));
-        root.addView(button("Donker", WidgetStyle.DARK));
-        root.addView(button("Half-transparant", WidgetStyle.TRANSPARENT));
+        summary = text("", 13, Color.rgb(69,98,77));
+        LinearLayout.LayoutParams sumLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        sumLp.setMargins(0, 0, 0, dp(14));
+        root.addView(summary, sumLp);
+        updateSummary();
 
-        setContentView(root);
+        section(root, "Achtergrond");
+        root.addView(option("Antraciet", () -> selectBackground(WidgetStyle.BG_ANTHRACITE)));
+        root.addView(option("Zwart", () -> selectBackground(WidgetStyle.BG_BLACK)));
+        root.addView(option("Donkergroen", () -> selectBackground(WidgetStyle.BG_GREEN)));
+        root.addView(option("Blauwgrijs", () -> selectBackground(WidgetStyle.BG_BLUE_GREY)));
+        root.addView(option("Licht", () -> selectBackground(WidgetStyle.BG_LIGHT)));
+
+        section(root, "Transparantie");
+        LinearLayout opacityRow = row();
+        opacityRow.addView(compact("20%", () -> selectOpacity(20)));
+        opacityRow.addView(compact("50%", () -> selectOpacity(50)));
+        opacityRow.addView(compact("80%", () -> selectOpacity(80)));
+        opacityRow.addView(compact("100%", () -> selectOpacity(100)));
+        root.addView(opacityRow);
+
+        section(root, "Tekstkleur");
+        LinearLayout textRow = row();
+        textRow.addView(compact("Automatisch", () -> selectText(WidgetStyle.TEXT_AUTO)));
+        textRow.addView(compact("Licht", () -> selectText(WidgetStyle.TEXT_LIGHT)));
+        textRow.addView(compact("Donker", () -> selectText(WidgetStyle.TEXT_DARK)));
+        root.addView(textRow);
+
+        section(root, "Accentkleur");
+        root.addView(option("Groen", () -> selectAccent(WidgetStyle.ACCENT_GREEN)));
+        root.addView(option("Blauw", () -> selectAccent(WidgetStyle.ACCENT_BLUE)));
+        root.addView(option("Paars", () -> selectAccent(WidgetStyle.ACCENT_PURPLE)));
+        root.addView(option("Zand", () -> selectAccent(WidgetStyle.ACCENT_SAND)));
+
+        Button save = new Button(this);
+        save.setText("Opslaan");
+        save.setAllCaps(false);
+        save.setTextSize(18);
+        save.setTextColor(Color.WHITE);
+        save.setBackgroundColor(Color.rgb(69,98,77));
+        save.setOnClickListener(v -> save());
+        LinearLayout.LayoutParams saveLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(58));
+        saveLp.setMargins(0, dp(22), 0, 0);
+        root.addView(save, saveLp);
+
+        setContentView(scroll);
     }
 
-    private Button button(String text, String style) {
+    private void section(LinearLayout root, String label) {
+        TextView h = heading(label, 18);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, dp(18), 0, dp(7));
+        root.addView(h, lp);
+    }
+
+    private Button option(String text, Runnable action) {
         Button b = new Button(this);
         b.setText(text);
         b.setAllCaps(false);
-        b.setTextSize(17);
-        b.setOnClickListener(v -> choose(style));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(58));
-        lp.setMargins(0, dp(7), 0, dp(7));
+        b.setTextSize(16);
+        b.setOnClickListener(v -> action.run());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        lp.setMargins(0, dp(4), 0, dp(4));
         b.setLayoutParams(lp);
         return b;
     }
 
-    private void choose(String style) {
-        WidgetStyle.set(this, style);
+    private Button compact(String text, Runnable action) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setAllCaps(false);
+        b.setTextSize(13);
+        b.setOnClickListener(v -> action.run());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(50), 1f);
+        lp.setMargins(dp(3), 0, dp(3), 0);
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    private LinearLayout row() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        return row;
+    }
+
+    private TextView heading(String value, int size) {
+        return text(value, size, Color.rgb(32,37,31));
+    }
+
+    private TextView text(String value, int size, int color) {
+        TextView t = new TextView(this);
+        t.setText(value);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        return t;
+    }
+
+    private void selectBackground(int value) { selectedBackground = value; updateSummary(); }
+    private void selectOpacity(int value) { selectedOpacity = value; updateSummary(); }
+    private void selectText(String value) { selectedTextMode = value; updateSummary(); }
+    private void selectAccent(int value) { selectedAccent = value; updateSummary(); }
+
+    private void updateSummary() {
+        if (summary == null) return;
+        String textName = WidgetStyle.TEXT_AUTO.equals(selectedTextMode) ? "automatisch" : (WidgetStyle.TEXT_LIGHT.equals(selectedTextMode) ? "licht" : "donker");
+        summary.setText("Gekozen: " + backgroundName(selectedBackground) + " · " + selectedOpacity + "% · tekst " + textName + " · " + accentName(selectedAccent));
+    }
+
+    private String backgroundName(int color) {
+        if (color == WidgetStyle.BG_BLACK) return "zwart";
+        if (color == WidgetStyle.BG_GREEN) return "donkergroen";
+        if (color == WidgetStyle.BG_BLUE_GREY) return "blauwgrijs";
+        if (color == WidgetStyle.BG_LIGHT) return "licht";
+        return "antraciet";
+    }
+
+    private String accentName(int color) {
+        if (color == WidgetStyle.ACCENT_BLUE) return "blauw";
+        if (color == WidgetStyle.ACCENT_PURPLE) return "paars";
+        if (color == WidgetStyle.ACCENT_SAND) return "zand";
+        return "groen";
+    }
+
+    private void save() {
+        WidgetStyle.setOptions(this, selectedBackground, selectedOpacity, selectedTextMode, selectedAccent);
         Intent result = new Intent();
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
         setResult(RESULT_OK, result);
