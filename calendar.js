@@ -8,25 +8,24 @@ try{
   if(!raw)return;
   if(!localStorage.getItem(BACKUP_KEY))localStorage.setItem(BACKUP_KEY,raw);
   const s=JSON.parse(raw);
-  const pantry=Array.isArray(s.pantry)?s.pantry.map(p=>[
-    p?.id||'',
-    p?.name||'',
-    p?.location||'Voorraadkast',
-    p?.type||'ingredient',
-    p?.mealType||'diner',
-    Number(p?.servings||2),
-    p?.active!==false
-  ]):[];
   const weekPlan=Array.isArray(s.weekPlan)?s.weekPlan:[];
-  const weekMenu=Array.isArray(s.weekMenu)?s.weekMenu:weekPlan.map(x=>x?.recipeId).filter(Boolean);
-  const prefs=s.foodPrefs&&typeof s.foodPrefs==='object'?{
+  const weekMenu=Array.isArray(s.weekMenu)?s.weekMenu:weekPlan.map(x=>x&&x.recipeId).filter(Boolean);
+  const pantry=Array.isArray(s.pantry)?s.pantry.map(p=>({
+    id:p&&p.id||'',
+    name:p&&p.name||'',
+    location:p&&p.location||'Voorraadkast',
+    type:p&&p.type||'ingredient',
+    mealType:p&&p.mealType||'diner',
+    servings:Number(p&&p.servings||2),
+    active:!(p&&p.active===false)
+  })):[];
+  const compact={weekPlan,weekMenu,pantry};
+  if(s.foodPrefs&&typeof s.foodPrefs==='object')compact.foodPrefs={
     people:Number(s.foodPrefs.people||2),
-    selectedDays:Array.isArray(s.foodPrefs.selectedDays)?s.foodPrefs.selectedDays:weekPlan.map(x=>x?.date).filter(Boolean),
+    selectedDays:Array.isArray(s.foodPrefs.selectedDays)?s.foodPrefs.selectedDays:weekPlan.map(x=>x&&x.date).filter(Boolean),
     mealType:s.foodPrefs.mealType||'diner',
     usePantryMeals:s.foodPrefs.usePantryMeals!==false
-  }:undefined;
-  const compact={weekPlan,weekMenu,pantry};
-  if(prefs)compact.foodPrefs=prefs;
+  };
   localStorage.setItem(KEY,JSON.stringify(compact));
 }catch(e){}
 })();
