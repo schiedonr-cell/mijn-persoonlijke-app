@@ -26,19 +26,31 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".SmallWidgetProvider" android:exported="true">
+        <receiver
+            android:name=".SmallWidgetProvider"
+            android:label="Mijn dag – klein"
+            android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_small_info" />
         </receiver>
-        <receiver android:name=".MediumWidgetProvider" android:exported="true">
+        <receiver
+            android:name=".MediumWidgetProvider"
+            android:label="Mijn dag – middel"
+            android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_medium_info" />
         </receiver>
-        <receiver android:name=".LargeWidgetProvider" android:exported="true">
+        <receiver
+            android:name=".LargeWidgetProvider"
+            android:label="Mijn dag – groot"
+            android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_large_info" />
         </receiver>
-        <receiver android:name=".TodayWidgetProvider" android:exported="true">
+        <receiver
+            android:name=".TodayWidgetProvider"
+            android:label="Vandaag"
+            android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info" />
         </receiver>
