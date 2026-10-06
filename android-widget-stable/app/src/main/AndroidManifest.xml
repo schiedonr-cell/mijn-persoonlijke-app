@@ -80,5 +80,12 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_notes_info" />
         </receiver>
+        <receiver
+            android:name=".ShortcutRowWidgetProvider"
+            android:label="Focus · Eten · Notitie"
+            android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_shortcut_row_info" />
+        </receiver>
     </application>
 </manifest>
