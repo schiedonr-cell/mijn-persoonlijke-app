@@ -17,8 +17,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 7
-        versionName 'focus-vector-test-7'
+        versionCode 8
+        versionName 'mijn-dag-1.0'
     }
 
     buildTypes {
