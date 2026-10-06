@@ -100,7 +100,7 @@ final class SnapshotStore {
             String startedOn = h.optString("startedOn", "");
             if (!startedOn.isEmpty() && startedOn.compareTo(today) > 0) continue;
             JSONObject history = h.optJSONObject("history");
-            if (history != null && history.optBoolean(today, false)) continue;
+            if (history != null && truthy(history, today)) continue;
             addRow(rows, "Routine", h.optString("name", "Gewoonte"));
         }
     }
@@ -241,7 +241,7 @@ final class SnapshotStore {
 
     private static boolean doneToday(JSONObject item, String today) {
         JSONObject history = item.optJSONObject("history");
-        return history != null && history.optBoolean(today, false);
+        return history != null && truthy(history, today);
     }
 
     private static boolean isDue(JSONObject item, String today) {
@@ -267,10 +267,24 @@ final class SnapshotStore {
         Iterator<String> keys = history.keys();
         while (keys.hasNext()) {
             String key = keys.next();
-            if (!history.optBoolean(key, false)) continue;
+            if (!truthy(history, key)) continue;
             if (best.isEmpty() || key.compareTo(best) > 0) best = key;
         }
         return best;
+    }
+
+    private static boolean truthy(JSONObject object, String key) {
+        try {
+            if (object == null || !object.has(key) || object.isNull(key)) return false;
+            Object value = object.opt(key);
+            if (value == null || value == JSONObject.NULL) return false;
+            if (value instanceof Boolean) return (Boolean) value;
+            if (value instanceof Number) return ((Number) value).doubleValue() != 0d;
+            if (value instanceof String) return !((String) value).isEmpty();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static long dayDiff(String from, String to) {
