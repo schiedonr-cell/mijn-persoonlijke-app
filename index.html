@@ -581,6 +581,37 @@
     .mini-button.danger { color:var(--danger); }
 
     .tasks-toolbar { display:grid; grid-template-columns:1fr auto; gap:8px; margin-bottom:12px; }
+    .task-board { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .task-bucket { border:1px solid var(--line); border-radius:20px; background:var(--surface-soft); padding:10px; min-height:150px; }
+    .task-bucket.drag-over { outline:2px solid var(--accent); outline-offset:1px; }
+    .task-bucket-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:9px; }
+    .task-bucket-title { font-weight:900; font-size:14px; line-height:1.2; }
+    .task-bucket-sub { color:var(--muted); font-size:10px; line-height:1.3; margin-top:2px; }
+    .task-bucket-count { min-width:26px; height:26px; padding:0 7px; border-radius:999px; display:grid; place-items:center; background:#fff; border:1px solid var(--line); color:var(--muted); font-size:11px; font-weight:900; }
+    .task-board-item { border:1px solid var(--line); border-radius:15px; background:#fff; padding:10px; margin-top:8px; }
+    .task-board-item[draggable="true"] { cursor:grab; }
+    .task-board-name { font-weight:800; font-size:13px; line-height:1.35; }
+    .task-board-meta { color:var(--muted); font-size:10px; margin-top:4px; }
+    .task-board-actions { display:grid; grid-template-columns:1fr auto; gap:6px; margin-top:8px; }
+    .task-board-actions button,.task-move-select { min-height:34px; border:0; border-radius:10px; background:var(--accent-soft); color:var(--accent-strong); padding:6px 8px; font-size:10px; font-weight:850; }
+    .task-move-select { background:var(--surface-soft); color:var(--text); border:1px solid var(--line); min-width:84px; }
+    .task-inbox-card { margin-bottom:12px; border:1px dashed var(--accent); border-radius:18px; background:var(--accent-soft); padding:12px; }
+    .task-inbox-list { display:grid; gap:8px; margin-top:9px; }
+    .task-inbox-item { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; padding:9px 10px; border-radius:13px; background:#fff; border:1px solid rgba(69,98,77,.14); }
+    .task-inbox-name { font-size:13px; font-weight:800; }
+    .task-inbox-item select { min-height:36px; border:1px solid var(--line); border-radius:10px; background:var(--surface-soft); color:var(--text); font-size:11px; font-weight:800; }
+    .task-reminder-button { min-width:42px; min-height:36px; border:0; border-radius:11px; background:var(--surface-soft); color:var(--accent-strong); font-weight:900; cursor:pointer; }
+    .reminder-list { display:grid; gap:8px; margin-top:12px; }
+    .reminder-item { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; padding:10px 11px; border:1px solid var(--line); border-radius:13px; background:var(--surface-soft); }
+    .reminder-item strong { font-size:13px; }
+    .reminder-item span { color:var(--muted); font-size:11px; display:block; margin-top:2px; }
+    .reminder-item button { width:36px; height:36px; border:0; border-radius:10px; background:#fff; color:var(--danger); font-weight:900; }
+    .note-list { display:grid; gap:9px; }
+    .note-item { border:1px solid var(--line); border-radius:17px; padding:13px; background:#fff; }
+    .note-text { white-space:pre-wrap; font-weight:700; line-height:1.45; }
+    .note-meta { color:var(--muted); font-size:11px; margin-top:7px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .note-meta button { border:0; background:var(--surface-soft); color:var(--danger); border-radius:10px; min-height:34px; padding:6px 9px; font-weight:800; }
+    @media (max-width:430px){ .task-board { gap:8px; } .task-bucket { padding:8px; } }
     .task-actions { display:flex; gap:7px; flex-wrap:wrap; margin:10px 0 0 36px; }
     .task-action { min-height:36px; border:0; border-radius:11px; padding:7px 10px; background:var(--surface-soft); color:var(--muted); font-size:12px; font-weight:800; cursor:pointer; }
     .task-action.primary { background:var(--accent-soft); color:var(--accent-strong); }
@@ -840,8 +871,9 @@
 
         <div class="daily-panel" data-daily-panel="tasks">
           <div class="section-card">
-            <div class="section-heading"><div><h3 style="margin-bottom:3px;">Alle taken</h3><span class="small-muted">Vandaag, later, deadlines en rustende taken.</span></div></div>
+            <div class="section-heading"><div><h3 style="margin-bottom:3px;">Takenbord</h3><span class="small-muted">Eerst verzamelen, daarna pas kiezen wat wanneer hoort.</span></div></div>
             <div class="tasks-toolbar"><button class="primary-button" id="addTaskFromListButton">+ Taak</button><button class="secondary-button" id="wakeAllButton" style="width:auto;min-width:96px;">Alles actief</button></div>
+            <div id="taskInbox"></div>
             <div id="allTasksList"></div>
           </div>
         </div>
@@ -939,12 +971,16 @@
     <section class="view" data-view="notes">
       <header class="screen-header">
         <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
-        <div class="screen-title-wrap"><h2>Notities</h2><p>Deze plek staat alvast klaar.</p></div>
+        <div class="screen-title-wrap"><h2>Notities</h2><p>Snel iets bewaren zonder er meteen een taak van te maken.</p></div>
       </header>
-      <div class="section-card notes-placeholder">
-        <div class="big-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l3 3v15H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm8 0v4h4M8 11h6M8 15h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <h3>Notities komen hier</h3>
-        <p>In een volgende ronde maken we hier losse notities en mappen, zoals je bij TickTick prettig vindt. Voor nu blijft dit bewust alleen een vaste plek; de echte notitiemappen komen later.</p>
+      <div class="section-card">
+        <label class="field-label" for="quickNoteInput">Nieuwe notitie</label>
+        <textarea class="text-input textarea-input" id="quickNoteInput" placeholder="Iets om te onthouden..."></textarea>
+        <button class="soft-button" id="addQuickNoteButton" style="margin-top:9px;">Notitie bewaren</button>
+      </div>
+      <div class="section-card">
+        <div class="section-heading"><div><h3>Mijn notities</h3><span class="small-muted">Nieuwste bovenaan</span></div><span class="small-muted" id="noteCounter">0</span></div>
+        <div class="note-list" id="noteList"></div>
       </div>
     </section>
   </main>
@@ -959,6 +995,15 @@
       <label class="field-label" id="inputLabel" for="modalInput">Naam</label>
       <input class="text-input" id="modalInput" autocomplete="off" />
       <div id="taskOptions" style="display:none;">
+        <div class="spacer-14"></div>
+        <label class="field-label" for="taskBucket">Waar hoort deze taak?</label>
+        <select class="text-input" id="taskBucket">
+          <option value="inbox">Nog indelen</option>
+          <option value="A">A · Vandaag</option>
+          <option value="B">B · Deze week</option>
+          <option value="C">C · Volgende week</option>
+          <option value="D">D · Later / ooit</option>
+        </select>
         <div class="spacer-14"></div>
         <label class="field-label" for="taskDeadline">Deadline <span style="font-weight:600;color:var(--muted);">(optioneel)</span></label>
         <input class="text-input" type="date" id="taskDeadline" />
@@ -1063,6 +1108,17 @@
         <button class="secondary-button" id="testReminderButton" type="button">Test melding</button>
       </div>
       <p class="reminder-note">De tijden zijn richttijden. De controle loopt ongeveer ieder kwartier, dus een melding kan iets later komen. Per onderdeel krijg je maximaal één herinnering per dag.</p>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="taskReminderModal" role="dialog" aria-modal="true" aria-labelledby="taskReminderModalTitle">
+    <div class="sheet">
+      <div class="sheet-head"><div><h3 id="taskReminderModalTitle">Herinneringen</h3><p class="small-muted" id="taskReminderTaskName" style="margin:5px 0 0;"></p></div><button class="close-button" data-close-task-reminders aria-label="Sluiten">×</button></div>
+      <label class="field-label" for="taskReminderDateTime">Nieuwe herinnering</label>
+      <input class="text-input" type="datetime-local" id="taskReminderDateTime" />
+      <button class="primary-button" id="addTaskReminderButton" type="button" style="margin-top:9px;">+ Herinnering toevoegen</button>
+      <div class="reminder-list" id="taskReminderList"></div>
+      <p class="reminder-note">Je kunt meerdere tijden toevoegen. Ze worden als echte Android-herinneringen ingepland.</p>
     </div>
   </div>
 
@@ -1175,7 +1231,7 @@
     dump: [],
     dayClosedDate: null,
     focus: { taskId: null, targetType: null, targetId: null, durationSec: 300, remainingSec: 300, running: false, soundEnabled: true },
-    weekMenu: [], shopping: [], projects: [],
+    weekMenu: [], shopping: [], projects: [], notes: [],
     foodPrefs: { people:2, selectedDays:[], mealType:"diner", usePantryMeals:true, diet:"alleseter", allergies:[], unwanted:[], preferences:["snel","simpel"], appliances:["kookplaat","oven","magnetron","airfryer"], aiWish:"" },
     weekPlan: [], pantry: [], favorites: [], recipeHistory: [], shoppingSkippedCount: 0
   };
@@ -1210,6 +1266,8 @@
       id: task.id || uid('task'), name: task.name || 'Taak', done: Boolean(task.done), elapsed: Number(task.elapsed || 0), running: false,
       deadline: task.deadline || '', createdAt: task.createdAt || Date.now(), completedAt: task.completedAt || null,
       paused: Boolean(task.paused), deferUntil: task.deferUntil || '',
+      bucket: ['A','B','C','D','inbox'].includes(task.bucket) ? task.bucket : 'inbox',
+      reminders: Array.isArray(task.reminders) ? task.reminders.map(x=>({id:x.id||uid('rem'),at:Number(x.at||0)})).filter(x=>x.at>0) : [],
       subtasks: Array.isArray(task.subtasks) ? task.subtasks.map(st => typeof st === 'string' ? {id:uid('sub'),name:st,done:false} : {id:st.id||uid('sub'),name:st.name||'Stap',done:Boolean(st.done)}) : []
     };
   }
@@ -1288,7 +1346,7 @@
         progressHistoryV168:true,
         energyHistory,
         habitVersionSelections:(saved.habitVersionSelections&&typeof saved.habitVersionSelections==='object')?saved.habitVersionSelections:{},
-        tasks: Array.isArray(saved.tasks) ? saved.tasks.map(normalizeTask) : [],
+        tasks: Array.isArray(saved.tasks) ? saved.tasks.map(t=>normalizeTask({...t,bucket:t.bucket||((saved.todayPlan?.taskIds||[]).includes(t.id)?'A':'inbox')})) : [],
         householdTasks: Array.isArray(saved.householdTasks) ? saved.householdTasks.map(normalizeHouseholdTask) : structuredClone(DEFAULT_HOUSEHOLD_TASKS),
         habits: habits.length?habits:structuredClone(defaultState.habits),
         dailyBasisHistory: saved.dailyBasisHistory && typeof saved.dailyBasisHistory==='object' ? saved.dailyBasisHistory : {},
@@ -1296,7 +1354,7 @@
         dump: Array.isArray(saved.dump) ? saved.dump : [],
         todayPlan: saved.todayPlan && Array.isArray(saved.todayPlan.taskIds) ? saved.todayPlan : {date:null,taskIds:[]},
         focus: {...structuredClone(defaultState.focus), ...(saved.focus||{}), targetType:saved.focus?.targetType||(saved.focus?.taskId?'task':null), targetId:saved.focus?.targetId||saved.focus?.taskId||null, running:false},
-        weekMenu: Array.isArray(saved.weekMenu)?saved.weekMenu:[], shopping:Array.isArray(saved.shopping)?saved.shopping:[], projects:Array.isArray(saved.projects)?saved.projects:[],
+        weekMenu: Array.isArray(saved.weekMenu)?saved.weekMenu:[], shopping:Array.isArray(saved.shopping)?saved.shopping:[], projects:Array.isArray(saved.projects)?saved.projects:[], notes:Array.isArray(saved.notes)?saved.notes:[],
         foodPrefs: {...structuredClone(defaultState.foodPrefs), ...(saved.foodPrefs||{}), selectedDays:Array.isArray(saved.foodPrefs?.selectedDays)?saved.foodPrefs.selectedDays:[]},
         weekPlan: Array.isArray(saved.weekPlan)?saved.weekPlan:[], pantry:Array.isArray(saved.pantry)?saved.pantry.map(p=>({...p,type:p.type||'ingredient',mealType:p.mealType||'diner',servings:Number(p.servings||2)})):[], favorites:Array.isArray(saved.favorites)?saved.favorites:[], recipeHistory:Array.isArray(saved.recipeHistory)?saved.recipeHistory:[], shoppingSkippedCount:Number(saved.shoppingSkippedCount||0)
       };
@@ -1304,7 +1362,7 @@
   }
   function saveState(){ try { const s=structuredClone(state); s.tasks=s.tasks.map(t=>({...t,running:false})); s.focus.running=false; localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {} }
 
-  function showView(name){ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===name)); window.scrollTo({top:0,behavior:'instant'}); if(name==='today'){ setDailyTab(dailyTab); renderToday(); } if(name==='food'){ setFoodTab(foodTab); renderFoodAll(); } if(name==='projects')renderProjects(); }
+  function showView(name){ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===name)); window.scrollTo({top:0,behavior:'instant'}); if(name==='today'){ setDailyTab(dailyTab); renderToday(); } if(name==='food'){ setFoodTab(foodTab); renderFoodAll(); } if(name==='projects')renderProjects();renderNotes(); if(name==='notes')renderNotes(); }
   function openWidgetTargetFromUrl(){
     try{
       const target=new URLSearchParams(window.location.search).get('open');
@@ -1382,7 +1440,7 @@
     finally{button.disabled=false;button.textContent='Test melding';}
   }
 
-  function setDailyTab(tab){ dailyTab=tab; document.querySelectorAll('[data-daily-panel]').forEach(p=>p.classList.toggle('active',p.dataset.dailyPanel===tab)); document.querySelectorAll('[data-daily-tab]').forEach(b=>b.classList.toggle('active',b.dataset.dailyTab===tab)); const titles={start:'Je dag passend bij je energie.',dump:'Even uit je hoofd.',tasks:'Alles op één takenlijst.',focus:'Eén ding tegelijk.',shutdown:'Rustig de dag dicht.'}; document.getElementById('todaySubTitle').textContent=titles[tab]||''; if(tab==='focus')renderFocus(); if(tab==='shutdown')renderShutdown(); if(tab==='dump')renderDump(); if(tab==='tasks')renderAllTasks(); window.scrollTo({top:0,behavior:'instant'}); }
+  function setDailyTab(tab){ dailyTab=tab; document.querySelectorAll('[data-daily-panel]').forEach(p=>p.classList.toggle('active',p.dataset.dailyPanel===tab)); document.querySelectorAll('[data-daily-tab]').forEach(b=>b.classList.toggle('active',b.dataset.dailyTab===tab)); const titles={start:'Je dag passend bij je energie.',dump:'Even uit je hoofd.',tasks:'Van inbox naar Vandaag, deze week of later.',focus:'Eén ding tegelijk.',shutdown:'Rustig de dag dicht.'}; document.getElementById('todaySubTitle').textContent=titles[tab]||''; if(tab==='focus')renderFocus(); if(tab==='shutdown')renderShutdown(); if(tab==='dump')renderDump(); if(tab==='tasks')renderAllTasks(); window.scrollTo({top:0,behavior:'instant'}); }
 
   function energyLimit(){ return Number(state.energy)||1; }
   function deadlinePriority(task){
@@ -1394,7 +1452,7 @@
     if(days<0)return[0,days,task.createdAt||0]; if(days===0)return[1,0,task.createdAt||0]; return[2,days,task.createdAt||0];
   }
   function compareTaskPriority(a,b){ const pa=deadlinePriority(a),pb=deadlinePriority(b); for(let i=0;i<pa.length;i++)if(pa[i]!==pb[i])return pa[i]-pb[i]; return 0; }
-  function isEligibleToday(t){ const today=localDateKey(); return !t.done && !t.paused && (!t.deferUntil || t.deferUntil<=today); }
+  function isEligibleToday(t){ const today=localDateKey(); return !t.done && !t.paused && t.bucket==='A' && (!t.deferUntil || t.deferUntil<=today); }
   function refillTodayPlan(rebalance=false){
     const limit=energyLimit(),today=localDateKey();
     const ids=state.todayPlan?.date===today?state.todayPlan.taskIds:[];
@@ -1503,7 +1561,7 @@
       <div class="task-main"><div class="task-name">${escapeHtml(task.name)}</div>${(deadline||task.paused)?`<div class="task-meta">${deadline?`<span class="task-badge ${deadline.cls}">${escapeHtml(deadline.text)}</span>`:''}${task.paused?`<span class="task-badge">Rust even</span>`:''}</div>`:''}</div>
       <button class="timer-button" data-focus-task="${task.id}">Focus</button></div>
       ${task.subtasks?.length?`<details class="task-step-details" data-task-step-details="${task.id}" ${openTaskStepIds.has(task.id)?'open':''}><summary><span>${escapeHtml(progress||'Stappen')}</span><b>Bekijken</b></summary><div class="subtask-list">${task.subtasks.map(st=>`<label class="subtask-row ${st.done?'done':''}"><input class="check" type="checkbox" ${st.done?'checked':''} data-subtask-check="${task.id}|${st.id}" /><span class="subtask-name">${escapeHtml(st.name)}</span></label>`).join('')}</div>${!task.done?`<button class="task-step-manage" data-manage-task-steps="${task.id}">Stappen beheren</button>`:''}</details>`:(!task.done?`<button class="task-step-manage" data-manage-task-steps="${task.id}">+ Kleine stappen</button>`:'')}
-      ${showActions?`<div class="task-actions"><button class="task-action primary" data-focus-task="${task.id}">Focus</button><button class="task-action" data-toggle-pause="${task.id}">${task.paused?'Weer actief':'Laat rusten'}</button><button class="task-action" data-tomorrow="${task.id}">Morgen</button></div>`:''}
+      ${showActions?`<div class="task-actions"><button class="task-action primary" data-focus-task="${task.id}">Focus</button><button class="task-action" data-task-reminders="${task.id}">🔔 ${task.reminders?.length||0}</button><button class="task-action" data-toggle-pause="${task.id}">${task.paused?'Weer actief':'Laat rusten'}</button><button class="task-action" data-tomorrow="${task.id}">Morgen</button></div>`:''}
     </div>`;
   }
 
@@ -1534,11 +1592,36 @@
     document.getElementById('habitModal').classList.add('open');
   }
 
-  function renderDump(){ const items=state.dump.filter(x=>!x.processed).sort((a,b)=>b.createdAt-a.createdAt); document.getElementById('dumpCounter').textContent=String(items.length); document.getElementById('dumpList').innerHTML=items.length?`<div style="display:grid;gap:9px;">${items.map(i=>`<div class="dump-item"><div class="dump-item-top"><div class="dump-text">${escapeHtml(i.text)}</div></div><div class="dump-time">${formatClock(i.createdAt)}</div><div class="dump-actions"><button class="mini-button accent" data-dump-task="${i.id}">Maak taak</button><button class="mini-button danger" data-dump-delete="${i.id}">Verwijder</button></div></div>`).join('')}</div>`:`<div class="empty-state">Je dump is leeg. Mooi rustig.</div>`; }
+  function renderDump(){ const items=state.dump.filter(x=>!x.processed).sort((a,b)=>b.createdAt-a.createdAt); document.getElementById('dumpCounter').textContent=String(items.length); document.getElementById('dumpList').innerHTML=items.length?`<div style="display:grid;gap:9px;">${items.map(i=>`<div class="dump-item"><div class="dump-item-top"><div class="dump-text">${escapeHtml(i.text)}</div></div><div class="dump-time">${formatClock(i.createdAt)}</div><div class="dump-actions" style="grid-template-columns:1fr 1fr 1fr;"><button class="mini-button accent" data-dump-task="${i.id}">Taak</button><button class="mini-button" data-dump-note="${i.id}">Notitie</button><button class="mini-button danger" data-dump-delete="${i.id}">Weg</button></div></div>`).join('')}</div>`:`<div class="empty-state">Je dump is leeg. Mooi rustig.</div>`; }
   function addDump(text){ text=text.trim(); if(!text)return; state.dump.push({id:uid('dump'),text,createdAt:Date.now(),processed:false}); saveState(); renderDump(); }
   function setupSpeech(){ const Ctor=window.SpeechRecognition||window.webkitSpeechRecognition; const hint=document.getElementById('speechHint'); if(!Ctor){ hint.textContent='Inspreken wordt door deze browser niet ondersteund. Typen werkt wel.'; return; } speechRecognition=new Ctor(); speechRecognition.lang='nl-NL'; speechRecognition.interimResults=false; speechRecognition.maxAlternatives=1; speechRecognition.onstart=()=>{document.getElementById('dumpMicButton').classList.add('listening');hint.textContent='Ik luister...';}; speechRecognition.onend=()=>{document.getElementById('dumpMicButton').classList.remove('listening');hint.textContent='Tik om te spreken, of typ hieronder.';}; speechRecognition.onerror=()=>showToast('Inspreken lukte niet. Typen kan altijd.'); speechRecognition.onresult=e=>{ const text=e.results?.[0]?.[0]?.transcript||''; if(text){addDump(text);showToast('Gedachte bewaard.');} }; }
 
-  function renderAllTasks(){ const active=state.tasks.filter(t=>!t.done&&!t.paused).sort(compareTaskPriority), paused=state.tasks.filter(t=>!t.done&&t.paused).sort(compareTaskPriority), today=localDateKey(),doneToday=state.tasks.filter(t=>t.done&&t.completedAt&&localDateKey(new Date(t.completedAt))===today).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0)); const completedBlock=doneToday.length?`<details class="completed-habits" style="margin-top:12px;"><summary>Vandaag afgerond (${doneToday.length})<span>Bekijken</span></summary><div class="completed-habits-list">${doneToday.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div>${t.completedAt?`<div class="completed-habit-meta">Afgerond om ${escapeHtml(formatClock(t.completedAt))}</div>`:''}</div><button class="habit-undo-button" data-task-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''; document.getElementById('allTasksList').innerHTML=`${active.length?active.map(t=>renderTaskCard(t,{actions:true})).join(''):`<div class="empty-state">Geen actieve taken.</div>`}${paused.length?`<div class="paused-label">Rust even</div>${paused.map(t=>renderTaskCard(t,{actions:true})).join('')}`:''}${completedBlock}`; }
+  const TASK_BUCKETS={
+    A:{title:'A · Vandaag',sub:'Wat echt vandaag telt'},
+    B:{title:'B · Deze week',sub:'Belangrijk, maar niet vandaag'},
+    C:{title:'C · Volgende week',sub:'Later bewust oppakken'},
+    D:{title:'D · Later / ooit',sub:'Bewaren zonder druk'}
+  };
+  function taskBucketOptions(selected){return ['A','B','C','D'].map(k=>`<option value="${k}" ${selected===k?'selected':''}>${TASK_BUCKETS[k].title}</option>`).join('');}
+  function taskBoardMini(t){const meta=[t.deadline?`deadline ${formatDateShort(t.deadline)}`:'',t.reminders?.length?`🔔 ${t.reminders.length}`:''].filter(Boolean).join(' · ');return `<div class="task-board-item" draggable="true" data-drag-task="${t.id}"><div class="task-board-name">${escapeHtml(t.name)}</div>${meta?`<div class="task-board-meta">${escapeHtml(meta)}</div>`:''}<div class="task-board-actions"><button data-focus-task="${t.id}">Focus</button><select class="task-move-select" data-move-task="${t.id}" aria-label="Taak verplaatsen">${taskBucketOptions(t.bucket)}</select></div><div style="display:flex;gap:6px;margin-top:6px;"><button class="task-reminder-button" data-task-reminders="${t.id}" aria-label="Herinneringen">🔔 ${t.reminders?.length||0}</button><button class="task-reminder-button" data-manage-task-steps="${t.id}" aria-label="Kleine stappen">☰</button><label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);"><input class="check" style="width:20px;height:20px;" type="checkbox" data-task-check="${t.id}"> Klaar</label></div></div>`;}
+  function renderAllTasks(){
+    const inbox=state.tasks.filter(t=>!t.done&&t.bucket==='inbox').sort(compareTaskPriority);
+    const inboxBox=document.getElementById('taskInbox');
+    if(inboxBox)inboxBox.innerHTML=inbox.length?`<div class="task-inbox-card"><strong>Nog indelen · ${inbox.length}</strong><div class="small-muted" style="margin-top:3px;">Hier staan bestaande of nieuwe taken die nog geen plek hebben.</div><div class="task-inbox-list">${inbox.map(t=>`<div class="task-inbox-item"><div class="task-inbox-name">${escapeHtml(t.name)}</div><select data-move-task="${t.id}"><option value="">Kies…</option>${taskBucketOptions('')}</select></div>`).join('')}</div></div>`:'';
+    const board=['A','B','C','D'].map(k=>{const list=state.tasks.filter(t=>!t.done&&t.bucket===k&&!t.paused).sort(compareTaskPriority);return `<section class="task-bucket" data-drop-bucket="${k}"><div class="task-bucket-head"><div><div class="task-bucket-title">${TASK_BUCKETS[k].title}</div><div class="task-bucket-sub">${TASK_BUCKETS[k].sub}</div></div><div class="task-bucket-count">${list.length}</div></div>${list.length?list.map(taskBoardMini).join(''):`<div class="empty-state" style="padding:12px 4px;">Leeg</div>`}</section>`;}).join('');
+    const paused=state.tasks.filter(t=>!t.done&&t.paused).sort(compareTaskPriority),today=localDateKey(),doneToday=state.tasks.filter(t=>t.done&&t.completedAt&&localDateKey(new Date(t.completedAt))===today).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
+    const extras=`${paused.length?`<details class="completed-habits" style="margin-top:12px;"><summary>Rust even (${paused.length})<span>Bekijken</span></summary><div class="completed-habits-list">${paused.map(t=>`<div class="completed-habit-row"><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div></div><button class="habit-undo-button" data-toggle-pause="${t.id}">Activeren</button></div>`).join('')}</div></details>`:''}${doneToday.length?`<details class="completed-habits" style="margin-top:12px;"><summary>Vandaag afgerond (${doneToday.length})<span>Bekijken</span></summary><div class="completed-habits-list">${doneToday.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div></div><button class="habit-undo-button" data-task-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''}`;
+    document.getElementById('allTasksList').innerHTML=`<div class="task-board">${board}</div>${extras}`;
+  }
+
+  function renderNotes(){const list=(state.notes||[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));const counter=document.getElementById('noteCounter'),wrap=document.getElementById('noteList');if(counter)counter.textContent=String(list.length);if(wrap)wrap.innerHTML=list.length?list.map(n=>`<div class="note-item"><div class="note-text">${escapeHtml(n.text)}</div><div class="note-meta"><span>${formatClock(n.createdAt||Date.now())}</span><button data-note-delete="${n.id}">Verwijder</button></div></div>`).join(''):`<div class="empty-state">Nog geen notities.</div>`;}
+  function addNote(text){text=String(text||'').trim();if(!text)return false;state.notes||=[];state.notes.push({id:uid('note'),text,createdAt:Date.now()});saveState();renderNotes();return true;}
+
+  let activeReminderTaskId=null;
+  function openTaskReminders(id){const t=state.tasks.find(x=>x.id===id);if(!t)return;activeReminderTaskId=id;document.getElementById('taskReminderTaskName').textContent=t.name;const inp=document.getElementById('taskReminderDateTime'),d=new Date(Date.now()+3600000);d.setSeconds(0,0);inp.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;renderTaskReminderList();document.getElementById('taskReminderModal').classList.add('open');}
+  function renderTaskReminderList(){const t=state.tasks.find(x=>x.id===activeReminderTaskId),wrap=document.getElementById('taskReminderList');if(!wrap)return;const list=(t?.reminders||[]).slice().sort((a,b)=>a.at-b.at);wrap.innerHTML=list.length?list.map(r=>{const d=new Date(r.at),label=new Intl.DateTimeFormat('nl-NL',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(d);return `<div class="reminder-item"><div><strong>${escapeHtml(label)}</strong><span>Android-alarm</span></div><button data-remove-task-reminder="${r.id}">×</button></div>`;}).join(''):`<div class="empty-state">Nog geen herinneringen voor deze taak.</div>`;}
+  function addTaskReminder(){const t=state.tasks.find(x=>x.id===activeReminderTaskId),value=document.getElementById('taskReminderDateTime').value;if(!t||!value)return;const at=new Date(value).getTime();if(!Number.isFinite(at)||at<=Date.now()+10000)return showToast('Kies een tijd in de toekomst.');const r={id:uid('rem'),at};t.reminders||=[];t.reminders.push(r);saveState();if(window.AndroidWidgetBridge?.scheduleReminder)AndroidWidgetBridge.scheduleReminder('task-'+t.id+'-'+r.id,t.name,'Herinnering voor je taak',at,'today');renderTaskReminderList();renderAllTasks();showToast('Herinnering toegevoegd.');}
+  function removeTaskReminder(id){const t=state.tasks.find(x=>x.id===activeReminderTaskId);if(!t)return;const r=t.reminders?.find(x=>x.id===id);t.reminders=(t.reminders||[]).filter(x=>x.id!==id);saveState();if(r&&window.AndroidWidgetBridge?.cancelReminder)AndroidWidgetBridge.cancelReminder('task-'+t.id+'-'+r.id);renderTaskReminderList();renderAllTasks();}
 
   function nextOpenSubtask(task){ return task?.subtasks?.find(s=>!s.done)?.name||''; }
   function focusItemByType(type,id){
@@ -1731,7 +1814,7 @@
     inputMode=mode; editingHabitId=mode==='habit-edit'?id:null; editingHouseholdId=mode==='household-edit'?id:null;
     const title=document.getElementById('inputModalTitle'),hint=document.getElementById('inputModalHint'),label=document.getElementById('inputLabel'),input=document.getElementById('modalInput'),save=document.getElementById('modalSaveButton');
     input.value=''; document.getElementById('taskDeadline').value=''; document.getElementById('taskSubtasks').value=''; document.getElementById('taskSubtasks').dataset.source=''; renderTaskStepEditor([]); taskStepsStatus('AI maakt automatisch kleine, concrete stappen. Je kunt elke stap zelf aanpassen.'); document.getElementById('habitDescription').value=''; document.getElementById('habitEnergyAdaptive').checked=false; ['habitLowMinimum','habitLowDetail','habitNormalMinimum','habitNormalDetail','habitHighMinimum','habitHighDetail'].forEach(x=>document.getElementById(x).value=''); document.getElementById('householdDescription').value='';document.getElementById('householdEffort').value='1';document.getElementById('householdFrequency').value='1';document.getElementById('householdFrequencyCustom').value='';document.getElementById('householdFixedReminder').checked=false;updateHouseholdFrequencyVisibility();
-    document.getElementById('taskOptions').style.display='none';document.getElementById('habitOptions').style.display='none';document.getElementById('householdOptions').style.display='none';
+    document.getElementById('taskOptions').style.display='none';if(document.getElementById('taskBucket'))document.getElementById('taskBucket').value='inbox';document.getElementById('habitOptions').style.display='none';document.getElementById('householdOptions').style.display='none';
     if(mode==='task'){title.textContent='Nieuwe taak';hint.textContent='Typ de hoofdtaak. AI deelt hem automatisch op in kleine stappen.';label.textContent='Wat wil je doen?';input.placeholder='Bijv. slaapkamer behangen';save.textContent='Taak toevoegen';document.getElementById('taskOptions').style.display='block';}
     else if(mode==='habit'||mode==='habit-edit'){const h=mode==='habit-edit'?state.habits.find(x=>x.id===id):null;title.textContent=h?'Gewoonte bewerken':'Nieuwe gewoonte';hint.textContent=h?'Pas de tekst of energieversies aan. Je historie blijft bewaard.':'Kies zelf of dit iedere dag hetzelfde is of met je energie meebeweegt.';label.textContent='Naam';input.placeholder='Bijv. Lezen, Ochtendroutine of Bewegen';input.value=h?.name||'';document.getElementById('habitDescription').value=h?.description||'';document.getElementById('habitEnergyAdaptive').checked=Boolean(h?.energyAdaptive);const lv=h?.levels||{};document.getElementById('habitLowMinimum').value=lv[1]?.minimum||'';document.getElementById('habitLowDetail').value=lv[1]?.detail||'';document.getElementById('habitNormalMinimum').value=lv[2]?.minimum||'';document.getElementById('habitNormalDetail').value=lv[2]?.detail||'';document.getElementById('habitHighMinimum').value=lv[3]?.minimum||'';document.getElementById('habitHighDetail').value=lv[3]?.detail||'';save.textContent=h?'Wijzigingen opslaan':'Toevoegen';document.getElementById('habitOptions').style.display='block';updateHabitOptionVisibility();}
     else if(mode==='household'||mode==='household-edit'){const h=mode==='household-edit'?state.householdTasks.find(x=>x.id===id):null;title.textContent=h?'Huishoudklus aanpassen':'Nieuw huishoudklusje';hint.textContent='Kleine terugkerende klusjes. Je energie bepaalt hoeveel er vandaag worden gekozen.';label.textContent='Klus';input.placeholder='Bijv. Robotstofzuiger aanzetten';input.value=h?.name||'';document.getElementById('householdDescription').value=h?.description||'';document.getElementById('householdEffort').value=String(h?.effort||1);const freq=String(h?.frequency||1),freqSelect=document.getElementById('householdFrequency'),knownFreq=['1','2','3','4','5','7','14','28','30'];if(knownFreq.includes(freq)){freqSelect.value=freq;}else{freqSelect.value='custom';document.getElementById('householdFrequencyCustom').value=freq;}document.getElementById('householdFixedReminder').checked=Boolean(h?.fixedReminder);updateHouseholdFrequencyVisibility();save.textContent=h?'Wijzigingen opslaan':'Klus toevoegen';document.getElementById('householdOptions').style.display='block';}
@@ -1741,7 +1824,7 @@
   function closeInputModal(){taskStepsRequestId++;document.getElementById('inputModal').classList.remove('open');inputMode=null;editingHabitId=null;editingHouseholdId=null;}
   function saveModalInput(){
     const value=document.getElementById('modalInput').value.trim(); if(!value)return showToast('Vul eerst een naam in.');
-    if(inputMode==='task'){const ta=document.getElementById('taskSubtasks');if(!ta.value.trim())fillSuggestedSteps(false);const deadline=document.getElementById('taskDeadline').value||'',source=ta.dataset.source||'manual',subtasks=ta.value.split('\n').map(x=>x.trim()).filter(Boolean).map(name=>({id:uid('sub'),name,done:false}));const task={id:uid('task'),name:value,done:false,elapsed:0,running:false,deadline,subtasks,subtasksSource:source,createdAt:Date.now(),completedAt:null,paused:false,deferUntil:''};state.tasks.push(task);refillTodayPlan(Boolean(deadline));saveState();const autoImprove=source==='local-auto';closeInputModal();renderToday();renderAllTasks();showToast(autoImprove?'Taak opgeslagen. Slimme stappen worden gemaakt…':(state.todayPlan.taskIds.includes(task.id)?'Taak staat bij Vandaag.':'Taak toegevoegd aan je lijst.'));if(autoImprove)improveSavedTaskSteps(task.id,value); }
+    if(inputMode==='task'){const ta=document.getElementById('taskSubtasks');if(!ta.value.trim())fillSuggestedSteps(false);const deadline=document.getElementById('taskDeadline').value||'',source=ta.dataset.source||'manual',subtasks=ta.value.split('\n').map(x=>x.trim()).filter(Boolean).map(name=>({id:uid('sub'),name,done:false}));const bucket=document.getElementById('taskBucket')?.value||'inbox',task={id:uid('task'),name:value,done:false,elapsed:0,running:false,deadline,bucket,reminders:[],subtasks,subtasksSource:source,createdAt:Date.now(),completedAt:null,paused:false,deferUntil:''};state.tasks.push(task);refillTodayPlan(Boolean(deadline));saveState();const autoImprove=source==='local-auto';closeInputModal();renderToday();renderAllTasks();showToast(autoImprove?'Taak opgeslagen. Slimme stappen worden gemaakt…':(state.todayPlan.taskIds.includes(task.id)?'Taak staat bij Vandaag.':'Taak toegevoegd aan je lijst.'));if(autoImprove)improveSavedTaskSteps(task.id,value); }
     else if(inputMode==='habit'||inputMode==='habit-edit'){const adaptive=document.getElementById('habitEnergyAdaptive').checked,levels={1:{minimum:document.getElementById('habitLowMinimum').value.trim(),detail:document.getElementById('habitLowDetail').value.trim()},2:{minimum:document.getElementById('habitNormalMinimum').value.trim(),detail:document.getElementById('habitNormalDetail').value.trim()},3:{minimum:document.getElementById('habitHighMinimum').value.trim(),detail:document.getElementById('habitHighDetail').value.trim()}};if(adaptive&&!levels[1].minimum&&!levels[2].minimum&&!levels[3].minimum)return showToast('Vul minstens één energieversie in.');const wasEdit=inputMode==='habit-edit';if(wasEdit){const h=state.habits.find(x=>x.id===editingHabitId);if(h){h.name=value;h.description=document.getElementById('habitDescription').value.trim();h.energyAdaptive=adaptive;h.levels=levels;}}else state.habits.push(normalizeHabit({id:uid('habit'),name:value,description:document.getElementById('habitDescription').value.trim(),energyAdaptive:adaptive,levels,history:{},startedOn:localDateKey()}));saveState();closeInputModal();renderDailyBasis();showToast(wasEdit?'Aangepast.':'Gewoonte toegevoegd.');}
     else if(inputMode==='household'||inputMode==='household-edit'){const wasEdit=inputMode==='household-edit',description=document.getElementById('householdDescription').value.trim(),effort=Number(document.getElementById('householdEffort').value||1),frequency=householdFrequencyValue(),fixedReminder=document.getElementById('householdFixedReminder').checked;if(!frequency)return showToast('Vul een geldig aantal dagen in (1–365).');if(wasEdit){const h=state.householdTasks.find(x=>x.id===editingHouseholdId);if(h){h.name=value;h.description=description;h.effort=effort;h.frequency=frequency;h.fixedReminder=fixedReminder;}}else state.householdTasks.push(normalizeHouseholdTask({id:uid('house'),name:value,description,effort,frequency,fixedReminder,history:{},paused:false,deferUntil:''}));saveState();closeInputModal();renderHousehold();renderHouseholdManage();showToast(wasEdit?'Huishoudklus aangepast.':'Huishoudklus toegevoegd.');}
     else {state.projects.push({id:uid('project'),name:value});saveState();closeInputModal();renderProjects();}
@@ -1986,12 +2069,19 @@
     const tomorrow=e.target.closest('[data-tomorrow]');if(tomorrow){const t=state.tasks.find(x=>x.id===tomorrow.dataset.tomorrow);if(t){t.deferUntil=addDaysKey(1);t.paused=false;state.todayPlan.taskIds=state.todayPlan.taskIds.filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderToday();renderAllTasks();renderShutdown();showToast('Taak staat voor morgen.');}return;}
     if(e.target.closest('[data-keep-list]')){showToast('Taak blijft actief op je lijst.');return;}
     if(e.target.closest('#wakeAllButton')){state.tasks.forEach(t=>t.paused=false);saveState();renderAllTasks();showToast('Alle taken zijn weer actief.');return;}
+    const taskRem=e.target.closest('[data-task-reminders]');if(taskRem)return openTaskReminders(taskRem.dataset.taskReminders);
+    if(e.target.closest('[data-close-task-reminders]')){activeReminderTaskId=null;return document.getElementById('taskReminderModal').classList.remove('open');}
+    if(e.target.closest('#addTaskReminderButton'))return addTaskReminder();
+    const removeRem=e.target.closest('[data-remove-task-reminder]');if(removeRem)return removeTaskReminder(removeRem.dataset.removeTaskReminder);
+    const noteDel=e.target.closest('[data-note-delete]');if(noteDel){state.notes=(state.notes||[]).filter(n=>n.id!==noteDel.dataset.noteDelete);saveState();renderNotes();return;}
+    if(e.target.closest('#addQuickNoteButton')){const inp=document.getElementById('quickNoteInput');if(addNote(inp.value)){inp.value='';showToast('Notitie bewaard.');}return;}
     if(e.target.closest('#reviewDumpButton'))return setDailyTab('dump');
     if(e.target.closest('#saveReflectionButton'))return saveReflectionFromForm(false);
     if(e.target.closest('#closeDayButton')){saveReflectionFromForm(true);state.dayClosedDate=localDateKey();state.focus.running=false;saveState();setDailyTab('start');renderToday();return showToast('Dag afgesloten.');}
     if(e.target.closest('#addDumpButton')){const inp=document.getElementById('dumpTextInput');addDump(inp.value);inp.value='';return;}
     if(e.target.closest('#dumpMicButton')){if(!speechRecognition)return showToast('Inspreken werkt hier niet; typ je gedachte hieronder.');try{speechRecognition.start();}catch{}return;}
-    const dumpTask=e.target.closest('[data-dump-task]');if(dumpTask){const item=state.dump.find(x=>x.id===dumpTask.dataset.dumpTask);if(item){const task={id:uid('task'),name:item.text,done:false,elapsed:0,running:false,deadline:'',createdAt:Date.now(),completedAt:null,paused:false,deferUntil:'',subtasks:generateMicrosteps(item.text).map(name=>({id:uid('sub'),name,done:false}))};state.tasks.push(task);item.processed=true;refillTodayPlan(false);saveState();renderDump();renderToday();showToast('Omgezet naar taak.');}return;}
+    const dumpTask=e.target.closest('[data-dump-task]');if(dumpTask){const item=state.dump.find(x=>x.id===dumpTask.dataset.dumpTask);if(item){const task={id:uid('task'),name:item.text,done:false,elapsed:0,running:false,deadline:'',bucket:'inbox',reminders:[],createdAt:Date.now(),completedAt:null,paused:false,deferUntil:'',subtasks:generateMicrosteps(item.text).map(name=>({id:uid('sub'),name,done:false}))};state.tasks.push(task);item.processed=true;saveState();renderDump();renderAllTasks();showToast('Als taak naar Nog indelen gezet.');}return;}
+    const dumpNote=e.target.closest('[data-dump-note]');if(dumpNote){const item=state.dump.find(x=>x.id===dumpNote.dataset.dumpNote);if(item&&addNote(item.text)){item.processed=true;saveState();renderDump();showToast('Als notitie bewaard.');}return;}
     const dumpDel=e.target.closest('[data-dump-delete]');if(dumpDel){state.dump=state.dump.filter(x=>x.id!==dumpDel.dataset.dumpDelete);saveState();renderDump();return;}
     const hedit=e.target.closest('[data-household-edit]');if(hedit){document.getElementById('householdModal').classList.remove('open');return openInputModal('household-edit',hedit.dataset.householdEdit);}
     const htom=e.target.closest('[data-household-tomorrow]');if(htom){const t=state.householdTasks.find(x=>x.id===htom.dataset.householdTomorrow);if(t){t.deferUntil=addDaysKey(1);t.paused=false;saveState();renderHousehold();renderHouseholdManage();showToast('Huishoudklus staat voor morgen.');}return;}
@@ -2019,6 +2109,7 @@
     if(e.target.matches('[data-saved-step-check]')){const task=activeTaskForSteps(),st=task?.subtasks?.find(x=>x.id===e.target.dataset.savedStepCheck);if(st){st.done=e.target.checked;saveState();renderSavedTaskStepEditor();renderToday();renderAllTasks();renderFocus();}}
     if(e.target.matches('[data-habit-check]')){const h=state.habits.find(x=>x.id===e.target.dataset.habitCheck);if(h){const today=localDateKey();h.history||={};h.versionHistory||={};if(e.target.checked){h.history[today]=true;if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}else delete h.versionHistory[today];if(state.focus.targetType==='habit'&&state.focus.targetId===h.id)state.focus.running=false;}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderDailyBasis();}}
     if(e.target.matches('[data-household-check]')){const h=state.householdTasks.find(x=>x.id===e.target.dataset.householdCheck);if(h){h.history||={};if(e.target.checked){h.history[localDateKey()]=true;h.deferUntil='';if(state.focus.targetType==='household'&&state.focus.targetId===h.id)state.focus.running=false;}else delete h.history[localDateKey()];saveState();renderHousehold();}}
+    if(e.target.matches('[data-move-task]')){const t=state.tasks.find(x=>x.id===e.target.dataset.moveTask),bucket=e.target.value;if(t&&['A','B','C','D'].includes(bucket)){t.bucket=bucket;t.paused=false;t.deferUntil='';if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderAllTasks();renderToday();showToast('Taak verplaatst.');}}
     if(e.target.matches('[data-shopping-check]')){const item=state.shopping.find(x=>x.id===e.target.dataset.shoppingCheck);if(item){item.done=e.target.checked;saveState();renderShopping();}}
     if(e.target.matches('#focusSoundToggle')){state.focus.soundEnabled=e.target.checked;if(e.target.checked)ensureFocusAudio();saveState();showToast(e.target.checked?'Focussignaal aan.':'Focussignaal uit.');}
     if(e.target.matches('#habitEnergyAdaptive'))updateHabitOptionVisibility();
@@ -2028,6 +2119,10 @@
     if(e.target.matches('[data-pantry-check]')){const item=state.pantry.find(x=>x.id===e.target.dataset.pantryCheck);if(item){item.active=e.target.checked;saveState();renderPantry();}}
   });
 
+  document.addEventListener('dragstart',e=>{const item=e.target.closest?.('[data-drag-task]');if(item&&e.dataTransfer){e.dataTransfer.setData('text/task-id',item.dataset.dragTask);e.dataTransfer.effectAllowed='move';}});
+  document.addEventListener('dragover',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone){e.preventDefault();zone.classList.add('drag-over');}});
+  document.addEventListener('dragleave',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone)zone.classList.remove('drag-over');});
+  document.addEventListener('drop',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(!zone)return;e.preventDefault();document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));const id=e.dataTransfer?.getData('text/task-id'),t=state.tasks.find(x=>x.id===id),bucket=zone.dataset.dropBucket;if(t&&['A','B','C','D'].includes(bucket)){t.bucket=bucket;t.paused=false;t.deferUntil='';if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(x=>x!==t.id);refillTodayPlan(false);saveState();renderAllTasks();renderToday();showToast('Taak verplaatst.');}});
   document.addEventListener('toggle',e=>{if(e.target.matches?.('.task-step-details[data-task-step-details]')){const id=e.target.dataset.taskStepDetails;if(e.target.open)openTaskStepIds.add(id);else openTaskStepIds.delete(id);}},true);
   document.addEventListener('input',e=>{ if(e.target.matches('#reflectionGood,#reflectionTension,#reflectionRelax')) saveReflectionFromForm(true); if(e.target.matches('#taskStepEditor .task-step-input')&&inputMode==='task'){syncTaskStepTextareaFromEditor('manual');taskStepsStatus('Je eigen aanpassing wordt bewaard; AI overschrijft die niet automatisch.');} if(e.target.matches('[data-saved-step-name]')){const task=activeTaskForSteps(),st=task?.subtasks?.find(x=>x.id===e.target.dataset.savedStepName);if(st){st.name=e.target.value;task.subtasksSource='manual';saveState();renderToday();renderAllTasks();savedTaskStepsStatus('Aanpassing bewaard.');}} });
 
@@ -2037,7 +2132,7 @@
   document.getElementById('manualProduct').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('addProductButton').click();});
   document.getElementById('pantryInput').addEventListener('keydown',e=>{if(e.key==='Enter')addPantryItem();});
   document.getElementById('recipeSearch').addEventListener('input',e=>{recipeSearch=e.target.value;renderRecipeLibrary();});
-  document.getElementById('inputModal').addEventListener('click',e=>{if(e.target.id==='inputModal')closeInputModal();});document.getElementById('taskStepsModal').addEventListener('click',e=>{if(e.target.id==='taskStepsModal')closeTaskStepsManage();});document.getElementById('recipeModal').addEventListener('click',e=>{if(e.target.id==='recipeModal')closeRecipeModal();});document.getElementById('habitModal').addEventListener('click',e=>{if(e.target.id==='habitModal'){activeHabitId=null;e.target.classList.remove('open');}});document.getElementById('progressModal').addEventListener('click',e=>{if(e.target.id==='progressModal')e.target.classList.remove('open');});document.getElementById('reminderModal').addEventListener('click',e=>{if(e.target.id==='reminderModal')closeReminderModal();});document.getElementById('foodSettingsModal').addEventListener('click',e=>{if(e.target.id==='foodSettingsModal'){foodDraft=null;e.target.classList.remove('open');}});document.getElementById('replaceMealModal').addEventListener('click',e=>{if(e.target.id==='replaceMealModal'){replacePlanIndex=null;e.target.classList.remove('open');}});
+  document.getElementById('inputModal').addEventListener('click',e=>{if(e.target.id==='inputModal')closeInputModal();});document.getElementById('taskStepsModal').addEventListener('click',e=>{if(e.target.id==='taskStepsModal')closeTaskStepsManage();});document.getElementById('recipeModal').addEventListener('click',e=>{if(e.target.id==='recipeModal')closeRecipeModal();});document.getElementById('habitModal').addEventListener('click',e=>{if(e.target.id==='habitModal'){activeHabitId=null;e.target.classList.remove('open');}});document.getElementById('progressModal').addEventListener('click',e=>{if(e.target.id==='progressModal')e.target.classList.remove('open');});document.getElementById('reminderModal').addEventListener('click',e=>{if(e.target.id==='reminderModal')closeReminderModal();});document.getElementById('taskReminderModal').addEventListener('click',e=>{if(e.target.id==='taskReminderModal'){activeReminderTaskId=null;e.target.classList.remove('open');}});document.getElementById('foodSettingsModal').addEventListener('click',e=>{if(e.target.id==='foodSettingsModal'){foodDraft=null;e.target.classList.remove('open');}});document.getElementById('replaceMealModal').addEventListener('click',e=>{if(e.target.id==='replaceMealModal'){replacePlanIndex=null;e.target.classList.remove('open');}});
 
   let deferredInstallPrompt=null; const installCard=document.getElementById('installCard'),installButton=document.getElementById('installAppButton');window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;installCard?.classList.add('show');});installButton?.addEventListener('click',async()=>{if(!deferredInstallPrompt)return showToast('Deze app staat al op je telefoon of installeren is hier niet beschikbaar.');deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installCard?.classList.remove('show');});window.addEventListener('appinstalled',()=>installCard?.classList.remove('show'));
   if('serviceWorker'in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').then(()=>{if(reminderSettings.enabled)setTimeout(syncReminderState,900);}).catch(()=>{}));
