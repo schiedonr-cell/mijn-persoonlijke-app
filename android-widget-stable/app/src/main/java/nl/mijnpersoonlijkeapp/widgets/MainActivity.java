@@ -277,7 +277,17 @@ public class MainActivity extends Activity {
     private void syncWidget() {
         if (webView == null || !imported()) return;
         try {
-            webView.evaluateJavascript("(function(){try{AndroidWidgetBridge.update(localStorage.getItem('mijnPersoonlijkeAppV1')||'',localStorage.getItem('mijnPersoonlijkeAppCalendarEventsV1')||'');}catch(e){}})();", null);
+            String js = "(function(){try{" +
+                    "var liveHouse='';" +
+                    "if(typeof householdVisibleToday==='function'){" +
+                    "var list=householdVisibleToday();" +
+                    "if(Array.isArray(list)){" +
+                    "if(typeof householdDoneToday==='function')list=list.filter(function(x){return !householdDoneToday(x);});" +
+                    "liveHouse=JSON.stringify(list.map(function(x){return {name:(x&&x.name)||'Huishouden'};}));" +
+                    "}}" +
+                    "AndroidWidgetBridge.update(localStorage.getItem('mijnPersoonlijkeAppV1')||'',localStorage.getItem('mijnPersoonlijkeAppCalendarEventsV1')||'',liveHouse);" +
+                    "}catch(e){try{AndroidWidgetBridge.update(localStorage.getItem('mijnPersoonlijkeAppV1')||'',localStorage.getItem('mijnPersoonlijkeAppCalendarEventsV1')||'','');}catch(_){} }})();";
+            webView.evaluateJavascript(js, null);
         } catch (Exception ignored) {}
     }
 
@@ -293,8 +303,8 @@ public class MainActivity extends Activity {
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
 
     private final class Bridge {
-        @JavascriptInterface public void update(String stateJson, String calendarJson) {
-            SnapshotStore.updateFromWebState(getApplicationContext(), stateJson, calendarJson);
+        @JavascriptInterface public void update(String stateJson, String calendarJson, String liveHouseholdJson) {
+            SnapshotStore.updateFromWebState(getApplicationContext(), stateJson, calendarJson, liveHouseholdJson);
         }
     }
 }
