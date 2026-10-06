@@ -1,5 +1,7 @@
 (()=>{
 'use strict';
+if(window.__mijnDagNotesLoaded)return;
+window.__mijnDagNotesLoaded=true;
 
 const NOTES_KEY='mijnPersoonlijkeAppNotesV1';
 const WIDGET_SESSION_KEY='mijnPersoonlijkeAppNotesWidgetHandledV1';
@@ -130,6 +132,16 @@ function renderNotes(){
   list.innerHTML=notes.map(note=>{const folder=folderById(note.folderId);return `<button type="button" class="note-card" data-note-open="${esc(note.id)}"><div class="note-card-top"><div class="note-card-title">${esc(noteTitle(note))}</div>${note.pinned?'<span class="note-pin" aria-label="Vastgezet">★</span>':''}</div><div class="note-card-preview">${esc(notePreview(note))}</div><div class="note-card-meta">${folder?`<span class="note-folder-badge">📁 ${esc(folder.name)}</span>`:'<span class="note-folder-badge">Zonder map</span>'}<span>${esc(formatUpdated(note.updatedAt))}</span></div></button>`;}).join('');
 }
 function renderAll(){renderFolders();renderNotes();}
+function addFromInbox(text){
+  const body=String(text||'').trim();if(!body)return false;
+  const stamp=now();
+  data.notes.unshift({id:uid('note'),title:'',body,folderId:null,pinned:false,createdAt:stamp,updatedAt:stamp});
+  selectedFolder='all';searchTerm='';
+  const search=document.getElementById('notesSearch');if(search)search.value='';
+  saveData();renderAll();return true;
+}
+window.MijnDagNotes={addFromInbox,refresh:()=>{data=loadData();renderAll();}};
+
 
 function populateFolderSelect(value){
   const select=document.getElementById('noteFolderSelect');if(!select)return;
