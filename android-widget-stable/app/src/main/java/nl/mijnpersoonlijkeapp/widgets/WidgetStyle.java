@@ -8,6 +8,7 @@ import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Build;
+import android.util.TypedValue;
 import android.widget.RemoteViews;
 
 final class WidgetStyle {
@@ -26,11 +27,18 @@ final class WidgetStyle {
     static final int ACCENT_PURPLE = Color.rgb(177, 148, 201);
     static final int ACCENT_SAND = Color.rgb(210, 176, 126);
 
+    static final int ICON_SMALL = 32;
+    static final int ICON_MEDIUM = 44;
+    static final int ICON_LARGE = 56;
+    static final int ICON_XLARGE = 68;
+
     private static final String PREFS = "widget_style_prefs";
     private static final String KEY_BG = "background_color";
-    private static final String KEY_OPACITY = "background_opacity";
+    private static final String KEY_OLD_OPACITY = "background_opacity";
+    private static final String KEY_TRANSPARENCY = "background_transparency_v2";
     private static final String KEY_TEXT = "text_mode";
     private static final String KEY_ACCENT = "accent_color";
+    private static final String KEY_ICON_SIZE = "icon_size_sp";
 
     private WidgetStyle() {}
 
@@ -43,11 +51,14 @@ final class WidgetStyle {
         return BG_LIGHT;
     }
 
-    static int opacity(Context context) {
+    static int transparency(Context context) {
         SharedPreferences p = prefs(context);
-        if (p.contains(KEY_OPACITY)) return clampOpacity(p.getInt(KEY_OPACITY, 80));
+        if (p.contains(KEY_TRANSPARENCY)) return clampPercent(p.getInt(KEY_TRANSPARENCY, 75));
+        // The old screen was labelled "Transparantie" but stored this value as opacity.
+        // Treat that stored number as the transparency percentage the user actually selected.
+        if (p.contains(KEY_OLD_OPACITY)) return clampPercent(p.getInt(KEY_OLD_OPACITY, 75));
         String old = p.getString("style", "light");
-        return "transparent".equals(old) ? 60 : 100;
+        return "transparent".equals(old) ? 60 : 0;
     }
 
     static String textMode(Context context) {
@@ -58,41 +69,53 @@ final class WidgetStyle {
         return prefs(context).getInt(KEY_ACCENT, ACCENT_GREEN);
     }
 
-    static void setOptions(Context context, int background, int opacity, String textMode, int accent) {
+    static int iconSize(Context context) {
+        int value = prefs(context).getInt(KEY_ICON_SIZE, ICON_LARGE);
+        if (value <= ICON_SMALL) return ICON_SMALL;
+        if (value <= ICON_MEDIUM) return ICON_MEDIUM;
+        if (value <= ICON_LARGE) return ICON_LARGE;
+        return ICON_XLARGE;
+    }
+
+    static void setOptions(Context context, int background, int transparency, String textMode, int accent, int iconSize) {
         if (!TEXT_LIGHT.equals(textMode) && !TEXT_DARK.equals(textMode)) textMode = TEXT_AUTO;
         prefs(context).edit()
                 .putInt(KEY_BG, background)
-                .putInt(KEY_OPACITY, clampOpacity(opacity))
+                .putInt(KEY_TRANSPARENCY, clampPercent(transparency))
                 .putString(KEY_TEXT, textMode)
                 .putInt(KEY_ACCENT, accent)
+                .putInt(KEY_ICON_SIZE, iconSize)
                 .apply();
         refreshAll(context);
     }
 
     static void applyQuick(RemoteViews v, Context context) {
         int base = background(context);
-        int opacity = opacity(context);
+        int transparency = transparency(context);
+        int opacity = 100 - transparency;
         boolean lightText = useLightText(context, base);
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
         int root = withOpacity(base, opacity);
         int buttonBase = blend(base, lightText ? Color.WHITE : Color.BLACK, lightText ? 0.12f : 0.06f);
-        int button = withOpacity(buttonBase, Math.min(100, opacity + 12));
+        int buttonOpacity = opacity == 0 ? 0 : Math.min(100, opacity + 10);
+        int button = withOpacity(buttonBase, buttonOpacity);
 
         setRoundedBackground(v, R.id.widget_root, root,
-                lightText ? R.drawable.widget_bg_dark : (opacity < 90 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
+                lightText ? R.drawable.widget_bg_dark : (transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
         setText(v, R.id.widget_title, text);
 
         int[] neutral = new int[]{R.id.btn_today, R.id.btn_food, R.id.btn_projects, R.id.btn_notes};
         for (int id : neutral) {
             setRoundedBackground(v, id, button,
-                    lightText ? R.drawable.button_secondary_bg_dark : (opacity < 90 ? R.drawable.button_secondary_bg_transparent : R.drawable.button_secondary_bg));
+                    lightText ? R.drawable.button_secondary_bg_dark : (transparency >= 50 ? R.drawable.button_secondary_bg_transparent : R.drawable.button_secondary_bg));
             setText(v, id, text);
         }
     }
 
     static void applyToday(RemoteViews v, Context context) {
         int base = background(context);
-        int opacity = opacity(context);
+        int transparency = transparency(context);
+        int opacity = 100 - transparency;
         boolean lightText = useLightText(context, base);
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
         int muted = lightText ? Color.rgb(202, 208, 203) : Color.rgb(83, 91, 84);
@@ -101,7 +124,7 @@ final class WidgetStyle {
                 Color.red(accent), Color.green(accent), Color.blue(accent));
 
         setRoundedBackground(v, R.id.today_root, withOpacity(base, opacity),
-                lightText ? R.drawable.widget_bg_dark : (opacity < 90 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
+                lightText ? R.drawable.widget_bg_dark : (transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
         setText(v, R.id.today_title, text);
         setText(v, R.id.today_subtitle, muted);
         setBackgroundColor(v, R.id.today_divider, divider);
@@ -122,14 +145,16 @@ final class WidgetStyle {
 
     static void applyFocus(RemoteViews v, Context context) {
         int base = background(context);
-        int opacity = opacity(context);
+        int transparency = transparency(context);
+        int opacity = 100 - transparency;
         boolean lightText = useLightText(context, base);
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
 
         setRoundedBackground(v, R.id.focus_root, withOpacity(base, opacity),
-                lightText ? R.drawable.widget_bg_dark : (opacity < 90 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
+                lightText ? R.drawable.widget_bg_dark : (transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
         setText(v, R.id.focus_icon, accent(context));
         setText(v, R.id.focus_title, text);
+        try { v.setTextViewTextSize(R.id.focus_icon, TypedValue.COMPLEX_UNIT_SP, iconSize(context)); } catch (Exception ignored) {}
     }
 
     static void refreshAll(Context context) {
@@ -144,8 +169,8 @@ final class WidgetStyle {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    private static int clampOpacity(int value) {
-        return Math.max(20, Math.min(100, value));
+    private static int clampPercent(int value) {
+        return Math.max(0, Math.min(100, value));
     }
 
     private static boolean useLightText(Context context, int background) {
@@ -156,7 +181,8 @@ final class WidgetStyle {
     }
 
     private static int withOpacity(int color, int opacity) {
-        return Color.argb(Math.round(255f * clampOpacity(opacity) / 100f),
+        int safeOpacity = clampPercent(opacity);
+        return Color.argb(Math.round(255f * safeOpacity / 100f),
                 Color.red(color), Color.green(color), Color.blue(color));
     }
 
