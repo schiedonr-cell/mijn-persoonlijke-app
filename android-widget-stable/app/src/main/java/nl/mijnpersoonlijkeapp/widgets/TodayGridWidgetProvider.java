@@ -133,7 +133,12 @@ public class TodayGridWidgetProvider extends AppWidgetProvider {
         int cardOpacity = opacity == 0 ? 0 : Math.min(100, opacity + 8);
         int cardColor = Color.argb(Math.round(255f * cardOpacity / 100f), Color.red(base), Color.green(base), Color.blue(base));
 
-        try { v.setInt(R.id.grid_root, "setBackgroundResource", transparency >= 75 ? R.drawable.widget_bg_outline : R.drawable.widget_bg_clear); } catch (Exception ignored) {}
+        try {
+            v.setInt(R.id.grid_root, "setBackgroundResource", transparency >= 75 ? R.drawable.widget_bg_outline : R.drawable.widget_bg_clear);
+            if (transparency >= 75 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                v.setColorStateList(R.id.grid_root, "setBackgroundTintList", ColorStateList.valueOf(WidgetStyle.borderColor(context)));
+            }
+        } catch (Exception ignored) {}
         tintBackground(v, R.id.grid_panel, panelColor, transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg);
         for (int id : new int[]{R.id.grid_agenda,R.id.grid_tasks,R.id.grid_routines,R.id.grid_household})
             tintBackground(v, id, cardColor, transparency >= 50 ? R.drawable.button_secondary_bg_transparent : R.drawable.button_secondary_bg);
