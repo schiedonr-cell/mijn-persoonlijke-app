@@ -83,12 +83,29 @@ public class WidgetConfigActivity extends Activity {
         section(root, "Accentkleur");
         root.addView(option("Groen", () -> selectAccent(WidgetStyle.ACCENT_GREEN)));
         root.addView(option("Blauw", () -> selectAccent(WidgetStyle.ACCENT_BLUE)));
+        root.addView(option("Lichtblauw", () -> selectAccent(WidgetStyle.ACCENT_LIGHT_BLUE)));
         root.addView(option("Petrol / teal", () -> selectAccent(WidgetStyle.ACCENT_TEAL)));
+        root.addView(option("Mint", () -> selectAccent(WidgetStyle.ACCENT_MINT)));
+        root.addView(option("Saliegroen", () -> selectAccent(WidgetStyle.ACCENT_SAGE)));
         root.addView(option("Paars", () -> selectAccent(WidgetStyle.ACCENT_PURPLE)));
-        root.addView(option("Zand", () -> selectAccent(WidgetStyle.ACCENT_SAND)));
-        root.addView(option("Goud", () -> selectAccent(WidgetStyle.ACCENT_GOLD)));
-        root.addView(option("Terracotta", () -> selectAccent(WidgetStyle.ACCENT_TERRACOTTA)));
+        root.addView(option("Mauve", () -> selectAccent(WidgetStyle.ACCENT_MAUVE)));
         root.addView(option("Roze", () -> selectAccent(WidgetStyle.ACCENT_PINK)));
+        root.addView(option("Zand", () -> selectAccent(WidgetStyle.ACCENT_SAND)));
+        root.addView(option("Terracotta", () -> selectAccent(WidgetStyle.ACCENT_TERRACOTTA)));
+        root.addView(option("Crème", () -> selectAccent(WidgetStyle.ACCENT_CREAM)));
+        root.addView(option("Wit", () -> selectAccent(WidgetStyle.ACCENT_WHITE)));
+        root.addView(option("Lichtgrijs", () -> selectAccent(WidgetStyle.ACCENT_LIGHT_GREY)));
+        root.addView(option("Donkergrijs", () -> selectAccent(WidgetStyle.ACCENT_DARK_GREY)));
+        root.addView(option("Zwart", () -> selectAccent(WidgetStyle.ACCENT_BLACK)));
+        root.addView(option("Goud (zacht)", () -> selectAccent(WidgetStyle.ACCENT_GOLD)));
+        root.addView(option("Champagnegoud", () -> selectAccent(WidgetStyle.ACCENT_CHAMPAGNE_GOLD)));
+        root.addView(option("Klassiek goud", () -> selectAccent(WidgetStyle.ACCENT_CLASSIC_GOLD)));
+        root.addView(option("Oud goud", () -> selectAccent(WidgetStyle.ACCENT_OLD_GOLD)));
+        root.addView(option("Roségoud", () -> selectAccent(WidgetStyle.ACCENT_ROSE_GOLD)));
+        root.addView(option("Rood", () -> selectAccent(WidgetStyle.ACCENT_RED)));
+        root.addView(option("Dieprood", () -> selectAccent(WidgetStyle.ACCENT_DEEP_RED)));
+        root.addView(option("Bordeaux", () -> selectAccent(WidgetStyle.ACCENT_BORDEAUX)));
+        root.addView(option("Koraalrood", () -> selectAccent(WidgetStyle.ACCENT_CORAL)));
 
         section(root, "Pictogramgrootte");
         LinearLayout iconRow = row();
@@ -178,12 +195,29 @@ public class WidgetConfigActivity extends Activity {
 
     private String accentName(int color) {
         if (color == WidgetStyle.ACCENT_BLUE) return "blauw";
+        if (color == WidgetStyle.ACCENT_LIGHT_BLUE) return "lichtblauw";
         if (color == WidgetStyle.ACCENT_TEAL) return "petrol/teal";
+        if (color == WidgetStyle.ACCENT_MINT) return "mint";
+        if (color == WidgetStyle.ACCENT_SAGE) return "saliegroen";
         if (color == WidgetStyle.ACCENT_PURPLE) return "paars";
+        if (color == WidgetStyle.ACCENT_MAUVE) return "mauve";
         if (color == WidgetStyle.ACCENT_SAND) return "zand";
-        if (color == WidgetStyle.ACCENT_GOLD) return "goud";
+        if (color == WidgetStyle.ACCENT_GOLD) return "goud (zacht)";
+        if (color == WidgetStyle.ACCENT_CHAMPAGNE_GOLD) return "champagnegoud";
+        if (color == WidgetStyle.ACCENT_CLASSIC_GOLD) return "klassiek goud";
+        if (color == WidgetStyle.ACCENT_OLD_GOLD) return "oud goud";
+        if (color == WidgetStyle.ACCENT_ROSE_GOLD) return "roségoud";
         if (color == WidgetStyle.ACCENT_TERRACOTTA) return "terracotta";
         if (color == WidgetStyle.ACCENT_PINK) return "roze";
+        if (color == WidgetStyle.ACCENT_WHITE) return "wit";
+        if (color == WidgetStyle.ACCENT_CREAM) return "crème";
+        if (color == WidgetStyle.ACCENT_LIGHT_GREY) return "lichtgrijs";
+        if (color == WidgetStyle.ACCENT_DARK_GREY) return "donkergrijs";
+        if (color == WidgetStyle.ACCENT_BLACK) return "zwart";
+        if (color == WidgetStyle.ACCENT_RED) return "rood";
+        if (color == WidgetStyle.ACCENT_DEEP_RED) return "dieprood";
+        if (color == WidgetStyle.ACCENT_BORDEAUX) return "bordeaux";
+        if (color == WidgetStyle.ACCENT_CORAL) return "koraalrood";
         return "groen";
     }
 
