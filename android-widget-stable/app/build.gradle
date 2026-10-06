@@ -17,8 +17,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 19
-        versionName 'mijn-dag-2.1-taskmatrix-reminders'
+        versionCode 20
+        versionName 'mijn-dag-2.2-inbox-general-reminders'
     }
 
     buildTypes {
