@@ -279,7 +279,13 @@ public class MainActivity extends Activity {
         try {
             String js = "(function(){try{" +
                     "var liveHouse='';" +
-                    "if(typeof householdVisibleToday==='function'){" +
+                    "var box=document.getElementById('householdList');" +
+                    "if(box){" +
+                    "var items=[];" +
+                    "var nodes=box.querySelectorAll('.household-name');" +
+                    "for(var i=0;i<nodes.length;i++){var name=(nodes[i].textContent||'').trim();if(name)items.push({name:name});}" +
+                    "liveHouse=JSON.stringify(items);" +
+                    "}else if(typeof householdVisibleToday==='function'){" +
                     "var list=householdVisibleToday();" +
                     "if(Array.isArray(list)){" +
                     "if(typeof householdDoneToday==='function')list=list.filter(function(x){return !householdDoneToday(x);});" +
