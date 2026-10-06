@@ -135,6 +135,24 @@ final class WidgetStyle {
     }
 
     static void applyFocus(RemoteViews v, Context context) {
+        applyTile(v, context,
+                R.id.focus_root, R.id.focus_panel, R.id.focus_title,
+                new int[]{R.id.focus_icon_small, R.id.focus_icon_medium, R.id.focus_icon_large, R.id.focus_icon_xlarge});
+    }
+
+    static void applyFood(RemoteViews v, Context context) {
+        applyTile(v, context,
+                R.id.food_root, R.id.food_panel, R.id.food_title,
+                new int[]{R.id.food_icon_small, R.id.food_icon_medium, R.id.food_icon_large, R.id.food_icon_xlarge});
+    }
+
+    static void applyNotes(RemoteViews v, Context context) {
+        applyTile(v, context,
+                R.id.notes_root, R.id.notes_panel, R.id.notes_title,
+                new int[]{R.id.notes_icon_small, R.id.notes_icon_medium, R.id.notes_icon_large, R.id.notes_icon_xlarge});
+    }
+
+    private static void applyTile(RemoteViews v, Context context, int rootId, int panelId, int titleId, int[] iconIds) {
         int base = background(context);
         int transparency = transparency(context);
         int opacity = 100 - transparency;
@@ -142,21 +160,20 @@ final class WidgetStyle {
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
         int accent = accent(context);
 
-        applyOutlinedPanel(v, R.id.focus_root, R.id.focus_panel, base, opacity, transparency);
-        setText(v, R.id.focus_title, text);
+        applyOutlinedPanel(v, rootId, panelId, base, opacity, transparency);
+        setText(v, titleId, text);
 
-        int[] iconIds = new int[]{R.id.focus_icon_small, R.id.focus_icon_medium, R.id.focus_icon_large, R.id.focus_icon_xlarge};
         for (int id : iconIds) {
             try { v.setViewVisibility(id, View.GONE); } catch (Exception ignored) {}
             try { v.setInt(id, "setColorFilter", accent); } catch (Exception ignored) {}
         }
-        int selectedId = R.id.focus_icon_large;
+        int selectedIndex = 2;
         int size = iconSize(context);
-        if (size <= ICON_SMALL) selectedId = R.id.focus_icon_small;
-        else if (size <= ICON_MEDIUM) selectedId = R.id.focus_icon_medium;
-        else if (size <= ICON_LARGE) selectedId = R.id.focus_icon_large;
-        else selectedId = R.id.focus_icon_xlarge;
-        try { v.setViewVisibility(selectedId, View.VISIBLE); } catch (Exception ignored) {}
+        if (size <= ICON_SMALL) selectedIndex = 0;
+        else if (size <= ICON_MEDIUM) selectedIndex = 1;
+        else if (size <= ICON_LARGE) selectedIndex = 2;
+        else selectedIndex = 3;
+        try { v.setViewVisibility(iconIds[selectedIndex], View.VISIBLE); } catch (Exception ignored) {}
     }
 
     private static void applyOutlinedPanel(RemoteViews v, int outerId, int panelId, int base, int opacity, int transparency) {
@@ -171,6 +188,8 @@ final class WidgetStyle {
         refresh(context, LargeWidgetProvider.class);
         refresh(context, TodayWidgetProvider.class);
         refresh(context, FocusWidgetProvider.class);
+        refresh(context, FoodWidgetProvider.class);
+        refresh(context, NotesWidgetProvider.class);
     }
 
     private static SharedPreferences prefs(Context context) { return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
