@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.webkit.JavascriptInterface;
@@ -43,6 +44,8 @@ public class MainActivity extends Activity {
     private static final String IMPORT_FILE = "pending-import.json";
     private static final int PICK_FILE = 77;
     private static final int CALENDAR_PERMISSION = 78;
+    private static final int NOTIFICATION_PERMISSION = 79;
+    private static final int SPEECH_REQUEST = 80;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WebView webView;
@@ -58,6 +61,8 @@ public class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ReminderReceiver.ensureChannel(this);
+        NativeAlarmScheduler.rescheduleAll(this);
         readTarget(getIntent());
         if (acceptSharedTransfer(getIntent()) || imported() || importFile().exists()) openApp();
         else showTransferChoice(true);
@@ -146,6 +151,16 @@ public class MainActivity extends Activity {
         if (requestCode == PICK_FILE && resultCode == RESULT_OK && data != null && data.getData() != null) {
             if (saveTransfer(readUri(data.getData()))) openApp();
             else Toast.makeText(this, "Dit bestand bevat geen geldige appgegevens.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (requestCode == SPEECH_REQUEST) {
+            if (resultCode == RESULT_OK && data != null) {
+                ArrayList<String> list = data.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS);
+                String text = list != null && !list.isEmpty() ? list.get(0) : "";
+                deliverSpeechResult(text);
+            } else {
+                deliverSpeechResult("");
+            }
         }
     }
 
@@ -210,6 +225,7 @@ public class MainActivity extends Activity {
                 if (importFile().exists() && !importing) importIntoWebView();
                 else if (imported()) {
                     injectCalendarCache();
+                    installNativeHooks();
                     syncWidget();
                     startSync();
                     requestCalendarIfNeeded();
@@ -250,6 +266,72 @@ public class MainActivity extends Activity {
         }
         String[] p = pairs.get(i);
         webView.evaluateJavascript("localStorage.setItem(" + JSONObject.quote(p[0]) + "," + JSONObject.quote(p[1]) + ");", v -> injectNext(pairs, i+1));
+    }
+
+    private void installNativeHooks() {
+        if (webView == null) return;
+        String js =
+            "(function(){" +
+            "if(window.__mijnDagNativeHooks)return;window.__mijnDagNativeHooks=true;" +
+            "function nativeReminderPatch(){" +
+            "var box=document.getElementById('reminderSupportStatus');" +
+            "if(box)box.innerHTML='<strong>Android-meldingen beschikbaar</strong><span>Deze herinneringen lopen via de geïnstalleerde app en werken ook als je scherm uit staat.</span>';" +
+            "var t=document.getElementById('reminderEnabledToggle'),test=document.getElementById('testReminderButton');if(t)t.disabled=false;if(test)test.disabled=false;" +
+            "var note=document.querySelector('#reminderModal .reminder-note');if(note)note.textContent='Deze tijden worden als echte Android-herinneringen ingesteld.';" +
+            "}" +
+            "function parseClock(text){var m=String(text||'').trim().match(/^(\\d+):(\\d{2})$/);if(!m)return 0;return Number(m[1])*60+Number(m[2]);}" +
+            "document.addEventListener('click',function(e){" +
+            "var open=e.target.closest&&e.target.closest('#openReminderButton');if(open){setTimeout(nativeReminderPatch,0);return;}" +
+            "var save=e.target.closest&&e.target.closest('#saveReminderButton');if(save){e.preventDefault();e.stopImmediatePropagation();" +
+            "var on=!!document.getElementById('reminderEnabledToggle')?.checked;" +
+            "var move=document.getElementById('moveReminderTime')?.value||'16:30',relax=document.getElementById('relaxReminderTime')?.value||'21:00',close=document.getElementById('closeReminderTime')?.value||'22:30';" +
+            "try{localStorage.setItem('mijnPersoonlijkeAppRemindersV1',JSON.stringify({enabled:on,moveTime:move,relaxTime:relax,closeTime:close,subscribed:false}));}catch(_){}" +
+            "AndroidWidgetBridge.setCoreReminders(on,move,relax,close);nativeReminderPatch();return;}" +
+            "var test=e.target.closest&&e.target.closest('#testReminderButton');if(test){e.preventDefault();e.stopImmediatePropagation();AndroidWidgetBridge.testNativeNotification();return;}" +
+            "var mic=e.target.closest&&e.target.closest('#dumpMicButton');if(mic){e.preventDefault();e.stopImmediatePropagation();AndroidWidgetBridge.startSpeech();return;}" +
+            "var fs=e.target.closest&&e.target.closest('#focusStartButton');if(fs){var txt=(fs.textContent||'').toLowerCase();if(txt.indexOf('start')>=0){var sec=parseClock(document.getElementById('focusClockText')?.textContent);if(sec>0)AndroidWidgetBridge.scheduleFocus(sec);}else{AndroidWidgetBridge.cancelFocus();}return;}" +
+            "if(e.target.closest&&e.target.closest('[data-focus-duration],#customFocusButton,[data-focus-done],#closeDayButton'))AndroidWidgetBridge.cancelFocus();" +
+            "},true);" +
+            "nativeReminderPatch();" +
+            "var hint=document.getElementById('speechHint');if(hint)hint.textContent='Tik om te spreken, of typ hieronder.';" +
+            "})();";
+        try { webView.evaluateJavascript(js, null); } catch (Exception ignored) {}
+    }
+
+    private void startSpeechRecognition() {
+        try {
+            Intent i = new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            i.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            i.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "nl-NL");
+            i.putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Zeg je gedachte");
+            startActivityForResult(i, SPEECH_REQUEST);
+        } catch (Exception e) {
+            Toast.makeText(this, "Spraakherkenning is niet beschikbaar op deze telefoon.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void deliverSpeechResult(String text) {
+        if (webView == null) return;
+        String safe = JSONObject.quote(text == null ? "" : text);
+        String js = "(function(){var input=document.getElementById('dumpTextInput');if(input)input.value=" + safe + ";" +
+                "if(" + safe + "){document.getElementById('addDumpButton')?.click();}" +
+                "var hint=document.getElementById('speechHint');if(hint)hint.textContent='Tik om te spreken, of typ hieronder.';})();";
+        try { webView.evaluateJavascript(js, null); } catch (Exception ignored) {}
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION);
+        }
+    }
+
+    private int[] parseHourMinute(String value, int defHour, int defMinute) {
+        try {
+            String[] p = value.split(":");
+            int h = Integer.parseInt(p[0]), m = Integer.parseInt(p[1]);
+            if (h >= 0 && h <= 23 && m >= 0 && m <= 59) return new int[]{h,m};
+        } catch (Exception ignored) {}
+        return new int[]{defHour,defMinute};
     }
 
     private void requestCalendarIfNeeded() {
@@ -300,6 +382,11 @@ public class MainActivity extends Activity {
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == CALENDAR_PERMISSION) { injectCalendarCache(); syncWidget(); }
+        if (requestCode == NOTIFICATION_PERMISSION && grantResults.length > 0) {
+            Toast.makeText(this,
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED ? "Meldingen toegestaan." : "Meldingen niet toegestaan.",
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override protected void onResume() { super.onResume(); if (webView != null && imported()) startSync(); }
@@ -311,6 +398,52 @@ public class MainActivity extends Activity {
     private final class Bridge {
         @JavascriptInterface public void update(String stateJson, String calendarJson, String liveHouseholdJson) {
             SnapshotStore.updateFromWebState(getApplicationContext(), stateJson, calendarJson, liveHouseholdJson);
+        }
+
+        @JavascriptInterface public void setCoreReminders(boolean enabled, String move, String relax, String close) {
+            runOnUiThread(() -> {
+                requestNotificationPermissionIfNeeded();
+                if (!enabled) {
+                    NativeAlarmScheduler.cancel(getApplicationContext(), "core-move");
+                    NativeAlarmScheduler.cancel(getApplicationContext(), "core-relax");
+                    NativeAlarmScheduler.cancel(getApplicationContext(), "core-close");
+                    Toast.makeText(MainActivity.this, "Herinneringen staan uit.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                int[] a = parseHourMinute(move,16,30), b = parseHourMinute(relax,21,0), d = parseHourMinute(close,22,30);
+                NativeAlarmScheduler.scheduleDaily(getApplicationContext(),"core-move","Bewegen","Tijd voor je beweegmoment.",a[0],a[1],"today");
+                NativeAlarmScheduler.scheduleDaily(getApplicationContext(),"core-relax","Bewust ontspannen","Tijd voor een rustig moment.",b[0],b[1],"today");
+                NativeAlarmScheduler.scheduleDaily(getApplicationContext(),"core-close","Dag afsluiten","Tijd om je dag rustig af te ronden.",d[0],d[1],"today");
+                Toast.makeText(MainActivity.this, "Android-herinneringen opgeslagen.", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        @JavascriptInterface public void testNativeNotification() {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    requestNotificationPermissionIfNeeded();
+                    Toast.makeText(MainActivity.this, "Sta meldingen toe en tik daarna nog één keer op Test melding.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                NativeAlarmScheduler.schedule(getApplicationContext(),"test-" + System.currentTimeMillis(),"Testmelding","Dit is een test van Mijn dag.",System.currentTimeMillis()+1800L,"today");
+                Toast.makeText(MainActivity.this, "Testmelding komt zo.", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        @JavascriptInterface public void scheduleFocus(int seconds) {
+            int safe = Math.max(1, Math.min(6 * 60 * 60, seconds));
+            runOnUiThread(() -> {
+                requestNotificationPermissionIfNeeded();
+                NativeAlarmScheduler.schedule(getApplicationContext(),"focus-active","Focus klaar","Je focusblok is afgelopen.",System.currentTimeMillis()+safe*1000L,"focus");
+            });
+        }
+
+        @JavascriptInterface public void cancelFocus() {
+            NativeAlarmScheduler.cancel(getApplicationContext(),"focus-active");
+        }
+
+        @JavascriptInterface public void startSpeech() {
+            runOnUiThread(MainActivity.this::startSpeechRecognition);
         }
     }
 }
