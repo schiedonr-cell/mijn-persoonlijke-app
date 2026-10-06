@@ -43,6 +43,7 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         ComponentName component = new ComponentName(context, TodayWidgetProvider.class);
         int[] ids = manager.getAppWidgetIds(component);
         for (int id : ids) updateOne(context, manager, id);
+        TodayGridWidgetProvider.refreshAll(context);
     }
 
     private static void updateOne(Context context, AppWidgetManager manager, int id) {
