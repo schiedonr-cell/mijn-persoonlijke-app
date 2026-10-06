@@ -20,12 +20,19 @@ final class WidgetStyle {
     static final int BG_BLACK = Color.rgb(17, 19, 18);
     static final int BG_GREEN = Color.rgb(48, 67, 57);
     static final int BG_BLUE_GREY = Color.rgb(52, 62, 72);
+    static final int BG_PETROL = Color.rgb(31, 69, 72);
+    static final int BG_NAVY = Color.rgb(35, 48, 68);
+    static final int BG_WARM_BROWN = Color.rgb(72, 57, 49);
     static final int BG_LIGHT = Color.rgb(242, 242, 236);
 
     static final int ACCENT_GREEN = Color.rgb(131, 181, 146);
     static final int ACCENT_BLUE = Color.rgb(126, 170, 207);
+    static final int ACCENT_TEAL = Color.rgb(101, 190, 186);
     static final int ACCENT_PURPLE = Color.rgb(177, 148, 201);
     static final int ACCENT_SAND = Color.rgb(210, 176, 126);
+    static final int ACCENT_GOLD = Color.rgb(224, 184, 92);
+    static final int ACCENT_TERRACOTTA = Color.rgb(207, 132, 103);
+    static final int ACCENT_PINK = Color.rgb(218, 149, 177);
 
     static final int ICON_SMALL = 32;
     static final int ICON_MEDIUM = 44;
@@ -54,20 +61,13 @@ final class WidgetStyle {
     static int transparency(Context context) {
         SharedPreferences p = prefs(context);
         if (p.contains(KEY_TRANSPARENCY)) return clampPercent(p.getInt(KEY_TRANSPARENCY, 75));
-        // The old screen was labelled "Transparantie" but stored this value as opacity.
-        // Treat that stored number as the transparency percentage the user actually selected.
         if (p.contains(KEY_OLD_OPACITY)) return clampPercent(p.getInt(KEY_OLD_OPACITY, 75));
         String old = p.getString("style", "light");
         return "transparent".equals(old) ? 60 : 0;
     }
 
-    static String textMode(Context context) {
-        return prefs(context).getString(KEY_TEXT, TEXT_AUTO);
-    }
-
-    static int accent(Context context) {
-        return prefs(context).getInt(KEY_ACCENT, ACCENT_GREEN);
-    }
+    static String textMode(Context context) { return prefs(context).getString(KEY_TEXT, TEXT_AUTO); }
+    static int accent(Context context) { return prefs(context).getInt(KEY_ACCENT, ACCENT_GREEN); }
 
     static int iconSize(Context context) {
         int value = prefs(context).getInt(KEY_ICON_SIZE, ICON_LARGE);
@@ -103,7 +103,6 @@ final class WidgetStyle {
         setRoundedBackground(v, R.id.widget_root, root,
                 lightText ? R.drawable.widget_bg_dark : (transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
         setText(v, R.id.widget_title, text);
-
         int[] neutral = new int[]{R.id.btn_today, R.id.btn_food, R.id.btn_projects, R.id.btn_notes};
         for (int id : neutral) {
             setRoundedBackground(v, id, button,
@@ -120,23 +119,15 @@ final class WidgetStyle {
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
         int muted = lightText ? Color.rgb(202, 208, 203) : Color.rgb(83, 91, 84);
         int accent = accent(context);
-        int divider = Color.argb(lightText ? 110 : 85,
-                Color.red(accent), Color.green(accent), Color.blue(accent));
+        int divider = Color.argb(lightText ? 110 : 85, Color.red(accent), Color.green(accent), Color.blue(accent));
 
-        setRoundedBackground(v, R.id.today_root, withOpacity(base, opacity),
-                lightText ? R.drawable.widget_bg_dark : (transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
+        applyOutlinedPanel(v, R.id.today_root, R.id.today_panel, base, opacity, transparency);
         setText(v, R.id.today_title, text);
         setText(v, R.id.today_subtitle, muted);
         setBackgroundColor(v, R.id.today_divider, divider);
 
-        int[] rows = new int[]{
-                R.id.today_row_1, R.id.today_row_2, R.id.today_row_3, R.id.today_row_4,
-                R.id.today_row_5, R.id.today_row_6, R.id.today_row_7
-        };
-        int[] times = new int[]{
-                R.id.today_time_1, R.id.today_time_2, R.id.today_time_3, R.id.today_time_4,
-                R.id.today_time_5, R.id.today_time_6, R.id.today_time_7
-        };
+        int[] rows = new int[]{R.id.today_row_1, R.id.today_row_2, R.id.today_row_3, R.id.today_row_4, R.id.today_row_5, R.id.today_row_6, R.id.today_row_7};
+        int[] times = new int[]{R.id.today_time_1, R.id.today_time_2, R.id.today_time_3, R.id.today_time_4, R.id.today_time_5, R.id.today_time_6, R.id.today_time_7};
         for (int id : rows) setText(v, id, text);
         for (int id : times) setText(v, id, accent);
         setText(v, R.id.today_empty, muted);
@@ -150,11 +141,16 @@ final class WidgetStyle {
         boolean lightText = useLightText(context, base);
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
 
-        setRoundedBackground(v, R.id.focus_root, withOpacity(base, opacity),
-                lightText ? R.drawable.widget_bg_dark : (transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
+        applyOutlinedPanel(v, R.id.focus_root, R.id.focus_panel, base, opacity, transparency);
         setText(v, R.id.focus_icon, accent(context));
         setText(v, R.id.focus_title, text);
         try { v.setTextViewTextSize(R.id.focus_icon, TypedValue.COMPLEX_UNIT_SP, iconSize(context)); } catch (Exception ignored) {}
+    }
+
+    private static void applyOutlinedPanel(RemoteViews v, int outerId, int panelId, int base, int opacity, int transparency) {
+        try { v.setInt(outerId, "setBackgroundResource", transparency >= 75 ? R.drawable.widget_bg_outline : R.drawable.widget_bg_clear); } catch (Exception ignored) {}
+        setRoundedBackground(v, panelId, withOpacity(base, opacity),
+                transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg);
     }
 
     static void refreshAll(Context context) {
@@ -165,13 +161,8 @@ final class WidgetStyle {
         refresh(context, FocusWidgetProvider.class);
     }
 
-    private static SharedPreferences prefs(Context context) {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-    }
-
-    private static int clampPercent(int value) {
-        return Math.max(0, Math.min(100, value));
-    }
+    private static SharedPreferences prefs(Context context) { return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
+    private static int clampPercent(int value) { return Math.max(0, Math.min(100, value)); }
 
     private static boolean useLightText(Context context, int background) {
         String mode = textMode(context);
@@ -182,8 +173,7 @@ final class WidgetStyle {
 
     private static int withOpacity(int color, int opacity) {
         int safeOpacity = clampPercent(opacity);
-        return Color.argb(Math.round(255f * safeOpacity / 100f),
-                Color.red(color), Color.green(color), Color.blue(color));
+        return Color.argb(Math.round(255f * safeOpacity / 100f), Color.red(color), Color.green(color), Color.blue(color));
     }
 
     private static int blend(int color, int target, float amount) {
@@ -210,17 +200,10 @@ final class WidgetStyle {
     private static void setRoundedBackground(RemoteViews v, int id, int color, int fallbackDrawable) {
         try {
             v.setInt(id, "setBackgroundResource", fallbackDrawable);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                v.setColorStateList(id, "setBackgroundTintList", ColorStateList.valueOf(color));
-            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) v.setColorStateList(id, "setBackgroundTintList", ColorStateList.valueOf(color));
         } catch (Exception ignored) {}
     }
 
-    private static void setBackgroundColor(RemoteViews v, int id, int color) {
-        try { v.setInt(id, "setBackgroundColor", color); } catch (Exception ignored) {}
-    }
-
-    private static void setText(RemoteViews v, int id, int color) {
-        try { v.setTextColor(id, color); } catch (Exception ignored) {}
-    }
+    private static void setBackgroundColor(RemoteViews v, int id, int color) { try { v.setInt(id, "setBackgroundColor", color); } catch (Exception ignored) {} }
+    private static void setText(RemoteViews v, int id, int color) { try { v.setTextColor(id, color); } catch (Exception ignored) {} }
 }
