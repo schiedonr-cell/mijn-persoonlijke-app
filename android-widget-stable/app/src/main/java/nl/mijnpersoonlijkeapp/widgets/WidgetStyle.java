@@ -120,11 +120,24 @@ final class WidgetStyle {
         setText(v, R.id.today_more, accent);
     }
 
+    static void applyFocus(RemoteViews v, Context context) {
+        int base = background(context);
+        int opacity = opacity(context);
+        boolean lightText = useLightText(context, base);
+        int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
+
+        setRoundedBackground(v, R.id.focus_root, withOpacity(base, opacity),
+                lightText ? R.drawable.widget_bg_dark : (opacity < 90 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
+        setText(v, R.id.focus_icon, accent(context));
+        setText(v, R.id.focus_title, text);
+    }
+
     static void refreshAll(Context context) {
         refresh(context, SmallWidgetProvider.class);
         refresh(context, MediumWidgetProvider.class);
         refresh(context, LargeWidgetProvider.class);
         refresh(context, TodayWidgetProvider.class);
+        refresh(context, FocusWidgetProvider.class);
     }
 
     private static SharedPreferences prefs(Context context) {
