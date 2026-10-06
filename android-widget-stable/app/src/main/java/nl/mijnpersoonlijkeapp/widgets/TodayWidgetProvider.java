@@ -74,7 +74,10 @@ public class TodayWidgetProvider extends AppWidgetProvider {
                 String kind = row == null ? "" : row.optString("kind", "");
                 String text = row == null ? "" : row.optString("text", "");
                 String time = row == null ? "" : row.optString("time", "");
-                v.setTextViewText(TIME_IDS[i], time);
+                String cleanTime = time == null ? "" : time.trim();
+
+                v.setTextViewText(TIME_IDS[i], cleanTime);
+                v.setViewVisibility(TIME_IDS[i], cleanTime.isEmpty() ? View.GONE : View.VISIBLE);
                 v.setTextViewText(ROW_IDS[i], pictogram(kind, text) + "  " + text);
                 v.setViewVisibility(ROW_BOX_IDS[i], View.VISIBLE);
             } else {
