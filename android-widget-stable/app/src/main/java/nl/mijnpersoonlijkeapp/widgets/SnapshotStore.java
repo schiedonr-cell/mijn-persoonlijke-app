@@ -38,6 +38,7 @@ final class SnapshotStore {
             if (!text.equals(old)) {
                 prefs.edit().putString(KEY, text).apply();
                 TodayWidgetProvider.refreshAll(context);
+                TodayGridWidgetProvider.refreshAll(context);
             }
         } catch (Exception ignored) {}
     }
