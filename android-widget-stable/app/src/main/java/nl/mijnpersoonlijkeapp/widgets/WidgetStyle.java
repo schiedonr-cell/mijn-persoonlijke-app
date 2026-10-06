@@ -8,7 +8,7 @@ import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Build;
-import android.util.TypedValue;
+import android.view.View;
 import android.widget.RemoteViews;
 
 final class WidgetStyle {
@@ -140,11 +140,23 @@ final class WidgetStyle {
         int opacity = 100 - transparency;
         boolean lightText = useLightText(context, base);
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
+        int accent = accent(context);
 
         applyOutlinedPanel(v, R.id.focus_root, R.id.focus_panel, base, opacity, transparency);
-        setText(v, R.id.focus_icon, accent(context));
         setText(v, R.id.focus_title, text);
-        try { v.setTextViewTextSize(R.id.focus_icon, TypedValue.COMPLEX_UNIT_SP, iconSize(context)); } catch (Exception ignored) {}
+
+        int[] iconIds = new int[]{R.id.focus_icon_small, R.id.focus_icon_medium, R.id.focus_icon_large, R.id.focus_icon_xlarge};
+        for (int id : iconIds) {
+            try { v.setViewVisibility(id, View.GONE); } catch (Exception ignored) {}
+            try { v.setInt(id, "setColorFilter", accent); } catch (Exception ignored) {}
+        }
+        int selectedId = R.id.focus_icon_large;
+        int size = iconSize(context);
+        if (size <= ICON_SMALL) selectedId = R.id.focus_icon_small;
+        else if (size <= ICON_MEDIUM) selectedId = R.id.focus_icon_medium;
+        else if (size <= ICON_LARGE) selectedId = R.id.focus_icon_large;
+        else selectedId = R.id.focus_icon_xlarge;
+        try { v.setViewVisibility(selectedId, View.VISIBLE); } catch (Exception ignored) {}
     }
 
     private static void applyOutlinedPanel(RemoteViews v, int outerId, int panelId, int base, int opacity, int transparency) {
