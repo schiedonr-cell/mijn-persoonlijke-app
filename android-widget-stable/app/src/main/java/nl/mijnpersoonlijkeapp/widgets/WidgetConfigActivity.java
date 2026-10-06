@@ -41,8 +41,7 @@ public class WidgetConfigActivity extends Activity {
         scroll.addView(root);
 
         root.addView(heading("Widgetstijl", 27));
-
-        TextView info = text("Kies kleur, transparantie, tekst, accent en pictogramgrootte. Deze stijl geldt voor je Mijn dag-widgets.", 14, Color.rgb(92,100,92));
+        TextView info = text("Kies kleur, transparantie, tekst, accent en pictogramgrootte. Bij 75–100% transparantie blijft alleen een subtiele donkere rand zichtbaar.", 14, Color.rgb(92,100,92));
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         infoLp.setMargins(0, dp(8), 0, dp(18));
         root.addView(info, infoLp);
@@ -58,6 +57,9 @@ public class WidgetConfigActivity extends Activity {
         root.addView(option("Zwart", () -> selectBackground(WidgetStyle.BG_BLACK)));
         root.addView(option("Donkergroen", () -> selectBackground(WidgetStyle.BG_GREEN)));
         root.addView(option("Blauwgrijs", () -> selectBackground(WidgetStyle.BG_BLUE_GREY)));
+        root.addView(option("Petrol", () -> selectBackground(WidgetStyle.BG_PETROL)));
+        root.addView(option("Nachtblauw", () -> selectBackground(WidgetStyle.BG_NAVY)));
+        root.addView(option("Warmbruin", () -> selectBackground(WidgetStyle.BG_WARM_BROWN)));
         root.addView(option("Licht", () -> selectBackground(WidgetStyle.BG_LIGHT)));
 
         section(root, "Transparantie");
@@ -71,11 +73,6 @@ public class WidgetConfigActivity extends Activity {
         transparencyRow2.addView(compact("100%", () -> selectTransparency(100)));
         root.addView(transparencyRow2);
 
-        TextView transHint = text("100% = volledig doorzichtig. 25% = achtergrond nog duidelijk zichtbaar.", 12, Color.rgb(92,100,92));
-        LinearLayout.LayoutParams thp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        thp.setMargins(0, dp(6), 0, 0);
-        root.addView(transHint, thp);
-
         section(root, "Tekstkleur");
         LinearLayout textRow = row();
         textRow.addView(compact("Automatisch", () -> selectText(WidgetStyle.TEXT_AUTO)));
@@ -86,8 +83,12 @@ public class WidgetConfigActivity extends Activity {
         section(root, "Accentkleur");
         root.addView(option("Groen", () -> selectAccent(WidgetStyle.ACCENT_GREEN)));
         root.addView(option("Blauw", () -> selectAccent(WidgetStyle.ACCENT_BLUE)));
+        root.addView(option("Petrol / teal", () -> selectAccent(WidgetStyle.ACCENT_TEAL)));
         root.addView(option("Paars", () -> selectAccent(WidgetStyle.ACCENT_PURPLE)));
         root.addView(option("Zand", () -> selectAccent(WidgetStyle.ACCENT_SAND)));
+        root.addView(option("Goud", () -> selectAccent(WidgetStyle.ACCENT_GOLD)));
+        root.addView(option("Terracotta", () -> selectAccent(WidgetStyle.ACCENT_TERRACOTTA)));
+        root.addView(option("Roze", () -> selectAccent(WidgetStyle.ACCENT_PINK)));
 
         section(root, "Pictogramgrootte");
         LinearLayout iconRow = row();
@@ -150,14 +151,7 @@ public class WidgetConfigActivity extends Activity {
     }
 
     private TextView heading(String value, int size) { return text(value, size, Color.rgb(32,37,31)); }
-
-    private TextView text(String value, int size, int color) {
-        TextView t = new TextView(this);
-        t.setText(value);
-        t.setTextSize(size);
-        t.setTextColor(color);
-        return t;
-    }
+    private TextView text(String value, int size, int color) { TextView t = new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color); return t; }
 
     private void selectBackground(int value) { selectedBackground = value; updateSummary(); }
     private void selectTransparency(int value) { selectedTransparency = value; updateSummary(); }
@@ -175,14 +169,21 @@ public class WidgetConfigActivity extends Activity {
         if (color == WidgetStyle.BG_BLACK) return "zwart";
         if (color == WidgetStyle.BG_GREEN) return "donkergroen";
         if (color == WidgetStyle.BG_BLUE_GREY) return "blauwgrijs";
+        if (color == WidgetStyle.BG_PETROL) return "petrol";
+        if (color == WidgetStyle.BG_NAVY) return "nachtblauw";
+        if (color == WidgetStyle.BG_WARM_BROWN) return "warmbruin";
         if (color == WidgetStyle.BG_LIGHT) return "licht";
         return "antraciet";
     }
 
     private String accentName(int color) {
         if (color == WidgetStyle.ACCENT_BLUE) return "blauw";
+        if (color == WidgetStyle.ACCENT_TEAL) return "petrol/teal";
         if (color == WidgetStyle.ACCENT_PURPLE) return "paars";
         if (color == WidgetStyle.ACCENT_SAND) return "zand";
+        if (color == WidgetStyle.ACCENT_GOLD) return "goud";
+        if (color == WidgetStyle.ACCENT_TERRACOTTA) return "terracotta";
+        if (color == WidgetStyle.ACCENT_PINK) return "roze";
         return "groen";
     }
 
