@@ -34,6 +34,24 @@ final class WidgetStyle {
     static final int ACCENT_TERRACOTTA = Color.rgb(207, 132, 103);
     static final int ACCENT_PINK = Color.rgb(218, 149, 177);
 
+    static final int ACCENT_WHITE = Color.rgb(248, 249, 247);
+    static final int ACCENT_CREAM = Color.rgb(244, 235, 210);
+    static final int ACCENT_LIGHT_GREY = Color.rgb(205, 208, 207);
+    static final int ACCENT_DARK_GREY = Color.rgb(84, 88, 87);
+    static final int ACCENT_BLACK = Color.rgb(28, 29, 29);
+    static final int ACCENT_LIGHT_BLUE = Color.rgb(150, 196, 230);
+    static final int ACCENT_MINT = Color.rgb(145, 208, 178);
+    static final int ACCENT_SAGE = Color.rgb(154, 174, 143);
+    static final int ACCENT_MAUVE = Color.rgb(179, 137, 161);
+    static final int ACCENT_CHAMPAGNE_GOLD = Color.rgb(226, 202, 151);
+    static final int ACCENT_CLASSIC_GOLD = Color.rgb(212, 175, 55);
+    static final int ACCENT_OLD_GOLD = Color.rgb(184, 149, 62);
+    static final int ACCENT_ROSE_GOLD = Color.rgb(198, 143, 125);
+    static final int ACCENT_RED = Color.rgb(224, 72, 72);
+    static final int ACCENT_DEEP_RED = Color.rgb(176, 55, 55);
+    static final int ACCENT_BORDEAUX = Color.rgb(122, 45, 62);
+    static final int ACCENT_CORAL = Color.rgb(224, 108, 92);
+
     static final int ICON_SMALL = 32;
     static final int ICON_MEDIUM = 44;
     static final int ICON_LARGE = 56;
