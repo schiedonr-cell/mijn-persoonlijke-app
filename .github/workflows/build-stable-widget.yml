@@ -23,11 +23,25 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Reuse Android debug signing key
+      - name: Reuse Android widget signing key
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: mijn-dag-widget-debug-keystore-v1
+          path: android-widget-stable/.signing/debug.keystore
+          key: mijn-dag-widget-signing-key-v2
+      - name: Create signing key when missing
+        run: |
+          mkdir -p android-widget-stable/.signing
+          if [ ! -f android-widget-stable/.signing/debug.keystore ]; then
+            keytool -genkeypair \
+              -keystore android-widget-stable/.signing/debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000
+          fi
       - name: Prepare Android SDK
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
