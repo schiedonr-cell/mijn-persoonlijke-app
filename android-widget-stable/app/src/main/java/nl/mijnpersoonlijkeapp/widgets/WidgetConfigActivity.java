@@ -18,6 +18,7 @@ public class WidgetConfigActivity extends Activity {
     private int selectedTransparency;
     private String selectedTextMode;
     private int selectedAccent;
+    private int selectedBorder;
     private int selectedIconSize;
     private TextView summary;
 
@@ -31,6 +32,7 @@ public class WidgetConfigActivity extends Activity {
         selectedTransparency = WidgetStyle.transparency(this);
         selectedTextMode = WidgetStyle.textMode(this);
         selectedAccent = WidgetStyle.accent(this);
+        selectedBorder = WidgetStyle.border(this);
         selectedIconSize = WidgetStyle.iconSize(this);
 
         ScrollView scroll = new ScrollView(this);
@@ -41,7 +43,7 @@ public class WidgetConfigActivity extends Activity {
         scroll.addView(root);
 
         root.addView(heading("Widgetstijl", 27));
-        TextView info = text("Kies kleur, transparantie, tekst, accent en pictogramgrootte. Bij 75–100% transparantie blijft alleen een subtiele donkere rand zichtbaar.", 14, Color.rgb(92,100,92));
+        TextView info = text("Kies kleur, transparantie, tekst, pictogrammen, rand en pictogramgrootte.", 14, Color.rgb(92,100,92));
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         infoLp.setMargins(0, dp(8), 0, dp(18));
         root.addView(info, infoLp);
@@ -80,32 +82,12 @@ public class WidgetConfigActivity extends Activity {
         textRow.addView(compact("Donker", () -> selectText(WidgetStyle.TEXT_DARK)));
         root.addView(textRow);
 
-        section(root, "Accentkleur");
-        root.addView(option("Groen", () -> selectAccent(WidgetStyle.ACCENT_GREEN)));
-        root.addView(option("Blauw", () -> selectAccent(WidgetStyle.ACCENT_BLUE)));
-        root.addView(option("Lichtblauw", () -> selectAccent(WidgetStyle.ACCENT_LIGHT_BLUE)));
-        root.addView(option("Petrol / teal", () -> selectAccent(WidgetStyle.ACCENT_TEAL)));
-        root.addView(option("Mint", () -> selectAccent(WidgetStyle.ACCENT_MINT)));
-        root.addView(option("Saliegroen", () -> selectAccent(WidgetStyle.ACCENT_SAGE)));
-        root.addView(option("Paars", () -> selectAccent(WidgetStyle.ACCENT_PURPLE)));
-        root.addView(option("Mauve", () -> selectAccent(WidgetStyle.ACCENT_MAUVE)));
-        root.addView(option("Roze", () -> selectAccent(WidgetStyle.ACCENT_PINK)));
-        root.addView(option("Zand", () -> selectAccent(WidgetStyle.ACCENT_SAND)));
-        root.addView(option("Terracotta", () -> selectAccent(WidgetStyle.ACCENT_TERRACOTTA)));
-        root.addView(option("Crème", () -> selectAccent(WidgetStyle.ACCENT_CREAM)));
-        root.addView(option("Wit", () -> selectAccent(WidgetStyle.ACCENT_WHITE)));
-        root.addView(option("Lichtgrijs", () -> selectAccent(WidgetStyle.ACCENT_LIGHT_GREY)));
-        root.addView(option("Donkergrijs", () -> selectAccent(WidgetStyle.ACCENT_DARK_GREY)));
-        root.addView(option("Zwart", () -> selectAccent(WidgetStyle.ACCENT_BLACK)));
-        root.addView(option("Goud (zacht)", () -> selectAccent(WidgetStyle.ACCENT_GOLD)));
-        root.addView(option("Champagnegoud", () -> selectAccent(WidgetStyle.ACCENT_CHAMPAGNE_GOLD)));
-        root.addView(option("Klassiek goud", () -> selectAccent(WidgetStyle.ACCENT_CLASSIC_GOLD)));
-        root.addView(option("Oud goud", () -> selectAccent(WidgetStyle.ACCENT_OLD_GOLD)));
-        root.addView(option("Roségoud", () -> selectAccent(WidgetStyle.ACCENT_ROSE_GOLD)));
-        root.addView(option("Rood", () -> selectAccent(WidgetStyle.ACCENT_RED)));
-        root.addView(option("Dieprood", () -> selectAccent(WidgetStyle.ACCENT_DEEP_RED)));
-        root.addView(option("Bordeaux", () -> selectAccent(WidgetStyle.ACCENT_BORDEAUX)));
-        root.addView(option("Koraalrood", () -> selectAccent(WidgetStyle.ACCENT_CORAL)));
+        section(root, "Pictogram-/accentkleur");
+        addColorOptions(root, false);
+
+        section(root, "Randkleur");
+        root.addView(option("Zelfde als pictogramkleur", () -> selectBorder(WidgetStyle.BORDER_MATCH_ACCENT)));
+        addColorOptions(root, true);
 
         section(root, "Pictogramgrootte");
         LinearLayout iconRow = row();
@@ -127,6 +109,38 @@ public class WidgetConfigActivity extends Activity {
         root.addView(save, saveLp);
 
         setContentView(scroll);
+    }
+
+    private void addColorOptions(LinearLayout root, boolean border) {
+        addColor(root, border, "Groen", WidgetStyle.ACCENT_GREEN);
+        addColor(root, border, "Blauw", WidgetStyle.ACCENT_BLUE);
+        addColor(root, border, "Lichtblauw", WidgetStyle.ACCENT_LIGHT_BLUE);
+        addColor(root, border, "Petrol / teal", WidgetStyle.ACCENT_TEAL);
+        addColor(root, border, "Mint", WidgetStyle.ACCENT_MINT);
+        addColor(root, border, "Saliegroen", WidgetStyle.ACCENT_SAGE);
+        addColor(root, border, "Paars", WidgetStyle.ACCENT_PURPLE);
+        addColor(root, border, "Mauve", WidgetStyle.ACCENT_MAUVE);
+        addColor(root, border, "Roze", WidgetStyle.ACCENT_PINK);
+        addColor(root, border, "Zand", WidgetStyle.ACCENT_SAND);
+        addColor(root, border, "Terracotta", WidgetStyle.ACCENT_TERRACOTTA);
+        addColor(root, border, "Crème", WidgetStyle.ACCENT_CREAM);
+        addColor(root, border, "Wit", WidgetStyle.ACCENT_WHITE);
+        addColor(root, border, "Lichtgrijs", WidgetStyle.ACCENT_LIGHT_GREY);
+        addColor(root, border, "Donkergrijs", WidgetStyle.ACCENT_DARK_GREY);
+        addColor(root, border, "Zwart", WidgetStyle.ACCENT_BLACK);
+        addColor(root, border, "Goud (zacht)", WidgetStyle.ACCENT_GOLD);
+        addColor(root, border, "Champagnegoud", WidgetStyle.ACCENT_CHAMPAGNE_GOLD);
+        addColor(root, border, "Klassiek goud", WidgetStyle.ACCENT_CLASSIC_GOLD);
+        addColor(root, border, "Oud goud", WidgetStyle.ACCENT_OLD_GOLD);
+        addColor(root, border, "Roségoud", WidgetStyle.ACCENT_ROSE_GOLD);
+        addColor(root, border, "Rood", WidgetStyle.ACCENT_RED);
+        addColor(root, border, "Dieprood", WidgetStyle.ACCENT_DEEP_RED);
+        addColor(root, border, "Bordeaux", WidgetStyle.ACCENT_BORDEAUX);
+        addColor(root, border, "Koraalrood", WidgetStyle.ACCENT_CORAL);
+    }
+
+    private void addColor(LinearLayout root, boolean border, String name, int value) {
+        root.addView(option(name, () -> { if (border) selectBorder(value); else selectAccent(value); }));
     }
 
     private void section(LinearLayout root, String label) {
@@ -174,12 +188,14 @@ public class WidgetConfigActivity extends Activity {
     private void selectTransparency(int value) { selectedTransparency = value; updateSummary(); }
     private void selectText(String value) { selectedTextMode = value; updateSummary(); }
     private void selectAccent(int value) { selectedAccent = value; updateSummary(); }
+    private void selectBorder(int value) { selectedBorder = value; updateSummary(); }
     private void selectIconSize(int value) { selectedIconSize = value; updateSummary(); }
 
     private void updateSummary() {
         if (summary == null) return;
         String textName = WidgetStyle.TEXT_AUTO.equals(selectedTextMode) ? "automatisch" : (WidgetStyle.TEXT_LIGHT.equals(selectedTextMode) ? "licht" : "donker");
-        summary.setText("Gekozen: " + backgroundName(selectedBackground) + " · " + selectedTransparency + "% transparant · tekst " + textName + " · " + accentName(selectedAccent) + " · pictogram " + iconName(selectedIconSize));
+        String borderName = selectedBorder == WidgetStyle.BORDER_MATCH_ACCENT ? "zelfde als pictogram" : accentName(selectedBorder);
+        summary.setText("Gekozen: " + backgroundName(selectedBackground) + " · " + selectedTransparency + "% transparant · tekst " + textName + " · pictogram " + accentName(selectedAccent) + " · rand " + borderName + " · grootte " + iconName(selectedIconSize));
     }
 
     private String backgroundName(int color) {
@@ -229,7 +245,7 @@ public class WidgetConfigActivity extends Activity {
     }
 
     private void save() {
-        WidgetStyle.setOptions(this, selectedBackground, selectedTransparency, selectedTextMode, selectedAccent, selectedIconSize);
+        WidgetStyle.setOptions(this, selectedBackground, selectedTransparency, selectedTextMode, selectedAccent, selectedBorder, selectedIconSize);
         Intent result = new Intent();
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
         setResult(RESULT_OK, result);
