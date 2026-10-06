@@ -17,8 +17,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 12
-        versionName 'mijn-dag-1.4-vakken-refresh'
+        versionCode 13
+        versionName 'mijn-dag-1.5-huishouden-sync'
     }
 
     buildTypes {
