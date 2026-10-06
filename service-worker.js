@@ -1,5 +1,5 @@
-const CACHE_NAME='mijn-persoonlijke-app-v1-7-13-household-widget';
-const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js','./recipes-extra-1.js','./recipes-extra-2.js','./recipes-extra-3.js','./recipes-extra-4.js'];
+const CACHE_NAME='mijn-persoonlijke-app-v1-7-14-notes-inbox';
+const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js','./notes.js','./recipes-extra-1.js','./recipes-extra-2.js','./recipes-extra-3.js','./recipes-extra-4.js'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)));
@@ -185,6 +185,7 @@ async function enhanceHtml(response){
   if(!type.includes('text/html'))return response;
   let html=applyDailyFixes(await response.text());
   if(!html.includes('calendar.js'))html=html.replace(/<\/body>/i,'  <script src="./calendar.js"></script>\n</body>');
+  if(!html.includes('notes.js'))html=html.replace(/<\/body>/i,'  <script src="./notes.js"></script>\n</body>');
   const headers=new Headers(response.headers);
   headers.delete('content-length');
   headers.set('content-type','text/html; charset=utf-8');
