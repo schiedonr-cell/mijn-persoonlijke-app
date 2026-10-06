@@ -199,6 +199,7 @@ final class WidgetStyle {
         refresh(context, MediumWidgetProvider.class);
         refresh(context, LargeWidgetProvider.class);
         refresh(context, TodayWidgetProvider.class);
+        refresh(context, TodayGridWidgetProvider.class);
         refresh(context, FocusWidgetProvider.class);
         refresh(context, FoodWidgetProvider.class);
         refresh(context, NotesWidgetProvider.class);
