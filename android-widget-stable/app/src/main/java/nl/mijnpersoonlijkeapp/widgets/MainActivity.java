@@ -445,5 +445,20 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void startSpeech() {
             runOnUiThread(MainActivity.this::startSpeechRecognition);
         }
+
+        @JavascriptInterface public void scheduleReminder(String id, String title, String body, long triggerAt, String target) {
+            runOnUiThread(() -> {
+                requestNotificationPermissionIfNeeded();
+                NativeAlarmScheduler.schedule(getApplicationContext(), id, title, body, triggerAt, target);
+            });
+        }
+
+        @JavascriptInterface public void cancelReminder(String id) {
+            NativeAlarmScheduler.cancel(getApplicationContext(), id);
+        }
+
+        @JavascriptInterface public boolean nativeRemindersAvailable() {
+            return true;
+        }
     }
 }
