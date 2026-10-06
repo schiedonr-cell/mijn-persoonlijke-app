@@ -1,6 +1,7 @@
 package nl.mijnpersoonlijkeapp.widgets;
 
 import android.Manifest;
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -15,8 +16,6 @@ import android.os.Build;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
-
-import androidx.core.app.NotificationCompat;
 
 public class ReminderReceiver extends BroadcastReceiver {
     static final String CHANNEL_ID = "mijn_dag_alarms";
@@ -34,7 +33,7 @@ public class ReminderReceiver extends BroadcastReceiver {
 
         if (Build.VERSION.SDK_INT >= 33 &&
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            if (id != null) NativeAlarmScheduler.markFired(context, id);
+            NativeAlarmScheduler.handleFired(context, id);
             return;
         }
 
@@ -46,23 +45,25 @@ public class ReminderReceiver extends BroadcastReceiver {
         PendingIntent content = PendingIntent.getActivity(context,
                 id == null ? 71 : (id.hashCode() & 0x7fffffff), open, flags);
 
-        NotificationCompat.Builder b = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+        Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ? new Notification.Builder(context, CHANNEL_ID)
+                : new Notification.Builder(context);
+        b.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setContentTitle(title)
                 .setContentText(body)
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setStyle(new Notification.BigTextStyle().bigText(body))
+                .setPriority(Notification.PRIORITY_MAX)
+                .setCategory(Notification.CATEGORY_ALARM)
                 .setAutoCancel(true)
                 .setContentIntent(content)
-                .setDefaults(NotificationCompat.DEFAULT_ALL)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                .setDefaults(Notification.DEFAULT_ALL)
+                .setVisibility(Notification.VISIBILITY_PUBLIC);
 
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.notify(id == null ? 71 : (id.hashCode() & 0x7fffffff), b.build());
 
         vibrate(context);
-        if (id != null) NativeAlarmScheduler.markFired(context, id);
+        NativeAlarmScheduler.handleFired(context, id);
     }
 
     static void ensureChannel(Context context) {
@@ -81,7 +82,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build();
         channel.setSound(sound, attrs);
-        channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
+        channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         nm.createNotificationChannel(channel);
     }
 
