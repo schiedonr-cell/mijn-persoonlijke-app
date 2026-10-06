@@ -52,6 +52,8 @@ final class WidgetStyle {
     static final int ACCENT_BORDEAUX = Color.rgb(122, 45, 62);
     static final int ACCENT_CORAL = Color.rgb(224, 108, 92);
 
+    static final int BORDER_MATCH_ACCENT = 1;
+
     static final int ICON_SMALL = 32;
     static final int ICON_MEDIUM = 44;
     static final int ICON_LARGE = 56;
@@ -63,6 +65,7 @@ final class WidgetStyle {
     private static final String KEY_TRANSPARENCY = "background_transparency_v2";
     private static final String KEY_TEXT = "text_mode";
     private static final String KEY_ACCENT = "accent_color";
+    private static final String KEY_BORDER = "border_color_v1";
     private static final String KEY_ICON_SIZE = "icon_size_sp";
 
     private WidgetStyle() {}
@@ -86,6 +89,11 @@ final class WidgetStyle {
 
     static String textMode(Context context) { return prefs(context).getString(KEY_TEXT, TEXT_AUTO); }
     static int accent(Context context) { return prefs(context).getInt(KEY_ACCENT, ACCENT_GREEN); }
+    static int border(Context context) { return prefs(context).getInt(KEY_BORDER, BORDER_MATCH_ACCENT); }
+    static int borderColor(Context context) {
+        int value = border(context);
+        return value == BORDER_MATCH_ACCENT ? accent(context) : value;
+    }
 
     static int iconSize(Context context) {
         int value = prefs(context).getInt(KEY_ICON_SIZE, ICON_LARGE);
@@ -95,13 +103,14 @@ final class WidgetStyle {
         return ICON_XLARGE;
     }
 
-    static void setOptions(Context context, int background, int transparency, String textMode, int accent, int iconSize) {
+    static void setOptions(Context context, int background, int transparency, String textMode, int accent, int border, int iconSize) {
         if (!TEXT_LIGHT.equals(textMode) && !TEXT_DARK.equals(textMode)) textMode = TEXT_AUTO;
         prefs(context).edit()
                 .putInt(KEY_BG, background)
                 .putInt(KEY_TRANSPARENCY, clampPercent(transparency))
                 .putString(KEY_TEXT, textMode)
                 .putInt(KEY_ACCENT, accent)
+                .putInt(KEY_BORDER, border)
                 .putInt(KEY_ICON_SIZE, iconSize)
                 .apply();
         refreshAll(context);
@@ -139,7 +148,7 @@ final class WidgetStyle {
         int accent = accent(context);
         int divider = Color.argb(lightText ? 110 : 85, Color.red(accent), Color.green(accent), Color.blue(accent));
 
-        applyOutlinedPanel(v, R.id.today_root, R.id.today_panel, base, opacity, transparency);
+        applyOutlinedPanel(v, context, R.id.today_root, R.id.today_panel, base, opacity, transparency);
         setText(v, R.id.today_title, text);
         setText(v, R.id.today_subtitle, muted);
         setBackgroundColor(v, R.id.today_divider, divider);
@@ -190,7 +199,7 @@ final class WidgetStyle {
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
         int accent = accent(context);
 
-        applyOutlinedPanel(v, rootId, panelId, base, opacity, transparency);
+        applyOutlinedPanel(v, context, rootId, panelId, base, opacity, transparency);
         setText(v, titleId, text);
 
         for (int id : iconIds) {
@@ -206,8 +215,13 @@ final class WidgetStyle {
         try { v.setViewVisibility(iconIds[selectedIndex], View.VISIBLE); } catch (Exception ignored) {}
     }
 
-    private static void applyOutlinedPanel(RemoteViews v, int outerId, int panelId, int base, int opacity, int transparency) {
-        try { v.setInt(outerId, "setBackgroundResource", transparency >= 75 ? R.drawable.widget_bg_outline : R.drawable.widget_bg_clear); } catch (Exception ignored) {}
+    private static void applyOutlinedPanel(RemoteViews v, Context context, int outerId, int panelId, int base, int opacity, int transparency) {
+        try {
+            v.setInt(outerId, "setBackgroundResource", transparency >= 75 ? R.drawable.widget_bg_outline : R.drawable.widget_bg_clear);
+            if (transparency >= 75 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                v.setColorStateList(outerId, "setBackgroundTintList", ColorStateList.valueOf(borderColor(context)));
+            }
+        } catch (Exception ignored) {}
         setRoundedBackground(v, panelId, withOpacity(base, opacity),
                 transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg);
     }
