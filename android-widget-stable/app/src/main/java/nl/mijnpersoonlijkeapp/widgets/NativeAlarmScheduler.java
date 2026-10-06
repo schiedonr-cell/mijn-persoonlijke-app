@@ -9,6 +9,7 @@ import android.os.Build;
 
 import org.json.JSONObject;
 
+import java.util.Calendar;
 import java.util.Iterator;
 
 final class NativeAlarmScheduler {
@@ -18,9 +19,23 @@ final class NativeAlarmScheduler {
     private NativeAlarmScheduler() {}
 
     static void schedule(Context context, String id, String title, String body, long triggerAt, String target) {
+        scheduleInternal(context, id, title, body, Math.max(System.currentTimeMillis() + 1000L, triggerAt), target, false, -1, -1);
+    }
+
+    static void scheduleDaily(Context context, String id, String title, String body, int hour, int minute, String target) {
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.HOUR_OF_DAY, Math.max(0, Math.min(23, hour)));
+        c.set(Calendar.MINUTE, Math.max(0, Math.min(59, minute)));
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        if (c.getTimeInMillis() <= System.currentTimeMillis() + 1000L) c.add(Calendar.DAY_OF_YEAR, 1);
+        scheduleInternal(context, id, title, body, c.getTimeInMillis(), target, true, hour, minute);
+    }
+
+    private static void scheduleInternal(Context context, String id, String title, String body, long at, String target,
+                                         boolean repeatDaily, int hour, int minute) {
         if (id == null || id.trim().isEmpty()) return;
-        long at = Math.max(System.currentTimeMillis() + 1000L, triggerAt);
-        save(context, id, title, body, at, target);
+        save(context, id, title, body, at, target, repeatDaily, hour, minute);
 
         AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarm == null) return;
@@ -58,18 +73,30 @@ final class NativeAlarmScheduler {
             String id = keys.next();
             JSONObject item = items.optJSONObject(id);
             if (item == null) continue;
-            long at = item.optLong("at", 0L);
-            if (at <= now) continue;
-            schedule(context, id,
-                    item.optString("title", "Herinnering"),
-                    item.optString("body", ""),
-                    at,
-                    item.optString("target", "today"));
+            boolean daily = item.optBoolean("repeatDaily", false);
+            if (daily) {
+                scheduleDaily(context, id, item.optString("title", "Herinnering"),
+                        item.optString("body", ""), item.optInt("hour", 9), item.optInt("minute", 0),
+                        item.optString("target", "today"));
+            } else {
+                long at = item.optLong("at", 0L);
+                if (at > now) schedule(context, id, item.optString("title", "Herinnering"),
+                        item.optString("body", ""), at, item.optString("target", "today"));
+                else remove(context, id);
+            }
         }
     }
 
-    static void markFired(Context context, String id) {
-        remove(context, id);
+    static void handleFired(Context context, String id) {
+        if (id == null) return;
+        JSONObject item = load(context).optJSONObject(id);
+        if (item != null && item.optBoolean("repeatDaily", false)) {
+            scheduleDaily(context, id, item.optString("title", "Herinnering"),
+                    item.optString("body", ""), item.optInt("hour", 9), item.optInt("minute", 0),
+                    item.optString("target", "today"));
+        } else {
+            remove(context, id);
+        }
     }
 
     private static PendingIntent pendingIntent(Context context, String id, String title, String body, String target) {
@@ -88,7 +115,8 @@ final class NativeAlarmScheduler {
         return id.hashCode() & 0x7fffffff;
     }
 
-    private static void save(Context context, String id, String title, String body, long at, String target) {
+    private static void save(Context context, String id, String title, String body, long at, String target,
+                             boolean repeatDaily, int hour, int minute) {
         try {
             JSONObject items = load(context);
             JSONObject item = new JSONObject();
@@ -96,6 +124,11 @@ final class NativeAlarmScheduler {
             item.put("body", body == null ? "" : body);
             item.put("at", at);
             item.put("target", target == null ? "today" : target);
+            item.put("repeatDaily", repeatDaily);
+            if (repeatDaily) {
+                item.put("hour", hour);
+                item.put("minute", minute);
+            }
             items.put(id, item);
             prefs(context).edit().putString(KEY_ITEMS, items.toString()).apply();
         } catch (Exception ignored) {}
