@@ -27,11 +27,11 @@ final class SnapshotStore {
 
     private SnapshotStore() {}
 
-    static void updateFromWebState(Context context, String stateJson, String calendarJson) {
+    static void updateFromWebState(Context context, String stateJson, String calendarJson, String liveHouseholdJson) {
         if (stateJson == null || stateJson.trim().isEmpty()) return;
         try {
             JSONObject state = new JSONObject(stateJson);
-            JSONObject snapshot = build(context, state, calendarJson);
+            JSONObject snapshot = build(context, state, calendarJson, liveHouseholdJson);
             String text = snapshot.toString();
             SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
             String old = prefs.getString(KEY, "");
@@ -56,7 +56,7 @@ final class SnapshotStore {
         return LocalDate.now().toString();
     }
 
-    private static JSONObject build(Context context, JSONObject state, String calendarJson) throws Exception {
+    private static JSONObject build(Context context, JSONObject state, String calendarJson, String liveHouseholdJson) throws Exception {
         String today = todayKey();
         int energy = clamp(state.optInt("energy", 2));
         JSONObject energyHistory = state.optJSONObject("energyHistory");
@@ -64,7 +64,7 @@ final class SnapshotStore {
 
         JSONArray rows = new JSONArray();
         addRoutines(rows, state, today);
-        addHousehold(rows, state, today, energy);
+        if (!addLiveHousehold(rows, liveHouseholdJson)) addHousehold(rows, state, today, energy);
         addTasks(rows, state, today, energy);
         addAgenda(rows, context, calendarJson, today);
 
@@ -89,6 +89,21 @@ final class SnapshotStore {
             row.put("time", time == null ? "" : time.trim());
             rows.put(row);
         } catch (Exception ignored) {}
+    }
+
+    private static boolean addLiveHousehold(JSONArray rows, String liveHouseholdJson) {
+        if (liveHouseholdJson == null || liveHouseholdJson.trim().isEmpty()) return false;
+        try {
+            JSONArray items = new JSONArray(liveHouseholdJson);
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject item = items.optJSONObject(i);
+                if (item == null) continue;
+                addRow(rows, "Huis", item.optString("name", "Huishouden"));
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static void addRoutines(JSONArray rows, JSONObject state, String today) {
