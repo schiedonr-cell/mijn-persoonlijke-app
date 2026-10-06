@@ -94,3 +94,11 @@ function ensureLatestServiceWorker(){
 function boot(){style();readToken();ensure();ensureLatestServiceWorker();keepWeekRecipesFresh();if(valid()){renderConnected();load();}else renderDisconnected();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
+
+(()=>{
+  if(document.querySelector('script[data-notes-integration]'))return;
+  const script=document.createElement('script');
+  script.src='./notes.js?v=1';
+  script.dataset.notesIntegration='1';
+  document.body.appendChild(script);
+})();
