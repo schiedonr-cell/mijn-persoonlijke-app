@@ -15,9 +15,10 @@ import android.widget.TextView;
 public class WidgetConfigActivity extends Activity {
     private int appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
     private int selectedBackground;
-    private int selectedOpacity;
+    private int selectedTransparency;
     private String selectedTextMode;
     private int selectedAccent;
+    private int selectedIconSize;
     private TextView summary;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
@@ -27,9 +28,10 @@ public class WidgetConfigActivity extends Activity {
         if (intent != null) appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
 
         selectedBackground = WidgetStyle.background(this);
-        selectedOpacity = WidgetStyle.opacity(this);
+        selectedTransparency = WidgetStyle.transparency(this);
         selectedTextMode = WidgetStyle.textMode(this);
         selectedAccent = WidgetStyle.accent(this);
+        selectedIconSize = WidgetStyle.iconSize(this);
 
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
@@ -38,10 +40,9 @@ public class WidgetConfigActivity extends Activity {
         root.setBackgroundColor(Color.rgb(245,245,239));
         scroll.addView(root);
 
-        TextView title = heading("Widgetstijl", 27);
-        root.addView(title);
+        root.addView(heading("Widgetstijl", 27));
 
-        TextView info = text("Kies kleur, transparantie, tekst en accent. Deze stijl geldt voor je Mijn dag-widgets.", 14, Color.rgb(92,100,92));
+        TextView info = text("Kies kleur, transparantie, tekst, accent en pictogramgrootte. Deze stijl geldt voor je Mijn dag-widgets.", 14, Color.rgb(92,100,92));
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         infoLp.setMargins(0, dp(8), 0, dp(18));
         root.addView(info, infoLp);
@@ -60,12 +61,20 @@ public class WidgetConfigActivity extends Activity {
         root.addView(option("Licht", () -> selectBackground(WidgetStyle.BG_LIGHT)));
 
         section(root, "Transparantie");
-        LinearLayout opacityRow = row();
-        opacityRow.addView(compact("20%", () -> selectOpacity(20)));
-        opacityRow.addView(compact("50%", () -> selectOpacity(50)));
-        opacityRow.addView(compact("80%", () -> selectOpacity(80)));
-        opacityRow.addView(compact("100%", () -> selectOpacity(100)));
-        root.addView(opacityRow);
+        LinearLayout transparencyRow1 = row();
+        transparencyRow1.addView(compact("25%", () -> selectTransparency(25)));
+        transparencyRow1.addView(compact("50%", () -> selectTransparency(50)));
+        transparencyRow1.addView(compact("75%", () -> selectTransparency(75)));
+        root.addView(transparencyRow1);
+        LinearLayout transparencyRow2 = row();
+        transparencyRow2.addView(compact("90%", () -> selectTransparency(90)));
+        transparencyRow2.addView(compact("100%", () -> selectTransparency(100)));
+        root.addView(transparencyRow2);
+
+        TextView transHint = text("100% = volledig doorzichtig. 25% = achtergrond nog duidelijk zichtbaar.", 12, Color.rgb(92,100,92));
+        LinearLayout.LayoutParams thp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        thp.setMargins(0, dp(6), 0, 0);
+        root.addView(transHint, thp);
 
         section(root, "Tekstkleur");
         LinearLayout textRow = row();
@@ -79,6 +88,14 @@ public class WidgetConfigActivity extends Activity {
         root.addView(option("Blauw", () -> selectAccent(WidgetStyle.ACCENT_BLUE)));
         root.addView(option("Paars", () -> selectAccent(WidgetStyle.ACCENT_PURPLE)));
         root.addView(option("Zand", () -> selectAccent(WidgetStyle.ACCENT_SAND)));
+
+        section(root, "Pictogramgrootte");
+        LinearLayout iconRow = row();
+        iconRow.addView(compact("Klein", () -> selectIconSize(WidgetStyle.ICON_SMALL)));
+        iconRow.addView(compact("Middel", () -> selectIconSize(WidgetStyle.ICON_MEDIUM)));
+        iconRow.addView(compact("Groot", () -> selectIconSize(WidgetStyle.ICON_LARGE)));
+        iconRow.addView(compact("XL", () -> selectIconSize(WidgetStyle.ICON_XLARGE)));
+        root.addView(iconRow);
 
         Button save = new Button(this);
         save.setText("Opslaan");
@@ -120,7 +137,7 @@ public class WidgetConfigActivity extends Activity {
         b.setTextSize(13);
         b.setOnClickListener(v -> action.run());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(50), 1f);
-        lp.setMargins(dp(3), 0, dp(3), 0);
+        lp.setMargins(dp(3), dp(3), dp(3), dp(3));
         b.setLayoutParams(lp);
         return b;
     }
@@ -132,9 +149,7 @@ public class WidgetConfigActivity extends Activity {
         return row;
     }
 
-    private TextView heading(String value, int size) {
-        return text(value, size, Color.rgb(32,37,31));
-    }
+    private TextView heading(String value, int size) { return text(value, size, Color.rgb(32,37,31)); }
 
     private TextView text(String value, int size, int color) {
         TextView t = new TextView(this);
@@ -145,14 +160,15 @@ public class WidgetConfigActivity extends Activity {
     }
 
     private void selectBackground(int value) { selectedBackground = value; updateSummary(); }
-    private void selectOpacity(int value) { selectedOpacity = value; updateSummary(); }
+    private void selectTransparency(int value) { selectedTransparency = value; updateSummary(); }
     private void selectText(String value) { selectedTextMode = value; updateSummary(); }
     private void selectAccent(int value) { selectedAccent = value; updateSummary(); }
+    private void selectIconSize(int value) { selectedIconSize = value; updateSummary(); }
 
     private void updateSummary() {
         if (summary == null) return;
         String textName = WidgetStyle.TEXT_AUTO.equals(selectedTextMode) ? "automatisch" : (WidgetStyle.TEXT_LIGHT.equals(selectedTextMode) ? "licht" : "donker");
-        summary.setText("Gekozen: " + backgroundName(selectedBackground) + " · " + selectedOpacity + "% · tekst " + textName + " · " + accentName(selectedAccent));
+        summary.setText("Gekozen: " + backgroundName(selectedBackground) + " · " + selectedTransparency + "% transparant · tekst " + textName + " · " + accentName(selectedAccent) + " · pictogram " + iconName(selectedIconSize));
     }
 
     private String backgroundName(int color) {
@@ -170,8 +186,15 @@ public class WidgetConfigActivity extends Activity {
         return "groen";
     }
 
+    private String iconName(int value) {
+        if (value <= WidgetStyle.ICON_SMALL) return "klein";
+        if (value <= WidgetStyle.ICON_MEDIUM) return "middel";
+        if (value <= WidgetStyle.ICON_LARGE) return "groot";
+        return "XL";
+    }
+
     private void save() {
-        WidgetStyle.setOptions(this, selectedBackground, selectedOpacity, selectedTextMode, selectedAccent);
+        WidgetStyle.setOptions(this, selectedBackground, selectedTransparency, selectedTextMode, selectedAccent, selectedIconSize);
         Intent result = new Intent();
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
         setResult(RESULT_OK, result);
