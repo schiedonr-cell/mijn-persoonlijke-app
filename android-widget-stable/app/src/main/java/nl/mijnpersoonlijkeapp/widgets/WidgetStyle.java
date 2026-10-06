@@ -152,6 +152,18 @@ final class WidgetStyle {
                 new int[]{R.id.notes_icon_small, R.id.notes_icon_medium, R.id.notes_icon_large, R.id.notes_icon_xlarge});
     }
 
+    static void applyShortcutRow(RemoteViews v, Context context) {
+        applyTile(v, context,
+                R.id.row_focus_root, R.id.row_focus_panel, R.id.row_focus_title,
+                new int[]{R.id.row_focus_icon_small, R.id.row_focus_icon_medium, R.id.row_focus_icon_large, R.id.row_focus_icon_xlarge});
+        applyTile(v, context,
+                R.id.row_food_root, R.id.row_food_panel, R.id.row_food_title,
+                new int[]{R.id.row_food_icon_small, R.id.row_food_icon_medium, R.id.row_food_icon_large, R.id.row_food_icon_xlarge});
+        applyTile(v, context,
+                R.id.row_notes_root, R.id.row_notes_panel, R.id.row_notes_title,
+                new int[]{R.id.row_notes_icon_small, R.id.row_notes_icon_medium, R.id.row_notes_icon_large, R.id.row_notes_icon_xlarge});
+    }
+
     private static void applyTile(RemoteViews v, Context context, int rootId, int panelId, int titleId, int[] iconIds) {
         int base = background(context);
         int transparency = transparency(context);
@@ -190,6 +202,7 @@ final class WidgetStyle {
         refresh(context, FocusWidgetProvider.class);
         refresh(context, FoodWidgetProvider.class);
         refresh(context, NotesWidgetProvider.class);
+        refresh(context, ShortcutRowWidgetProvider.class);
     }
 
     private static SharedPreferences prefs(Context context) { return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
