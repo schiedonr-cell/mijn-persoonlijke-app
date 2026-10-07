@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 37
-        versionName 'mijn-dag-3.9-dagblokken-direct'
+        versionCode 38
+        versionName 'mijn-dag-4.0-tijden-alarmen'
     }
 
     buildTypes {
