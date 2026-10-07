@@ -402,6 +402,30 @@ public class MainActivity extends Activity {
             SnapshotStore.updateFromWebState(getApplicationContext(), stateJson, calendarJson, liveHouseholdJson);
         }
 
+        @JavascriptInterface public String getGoogleCalendars() {
+            try { return CalendarData.calendars(getApplicationContext()).toString(); }
+            catch (Exception e) { return "[]"; }
+        }
+
+        @JavascriptInterface public String getSelectedGoogleCalendarIds() {
+            try { return CalendarData.selectedIdsJson(getApplicationContext()).toString(); }
+            catch (Exception e) { return "[]"; }
+        }
+
+        @JavascriptInterface public String getTodayGoogleCalendarEvents() {
+            try { return CalendarData.todayEvents(getApplicationContext()).toString(); }
+            catch (Exception e) { return "[]"; }
+        }
+
+        @JavascriptInterface public void setSelectedGoogleCalendarIds(String json) {
+            CalendarData.setSelectedIds(getApplicationContext(), json);
+            runOnUiThread(() -> {
+                injectCalendarCache();
+                syncWidget();
+                Toast.makeText(MainActivity.this, "Agenda-keuze opgeslagen.", Toast.LENGTH_SHORT).show();
+            });
+        }
+
         @JavascriptInterface public void setCoreReminders(boolean enabled, String move, String relax, String close) {
             runOnUiThread(() -> {
                 requestNotificationPermissionIfNeeded();
