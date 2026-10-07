@@ -56,6 +56,7 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         RemoteViews v = new RemoteViews(context.getPackageName(), R.layout.widget_today);
         WidgetStyle.applyToday(v, context, id);
         v.setOnClickPendingIntent(R.id.today_root, WidgetLinks.open(context, "today", 201));
+        v.setOnClickPendingIntent(R.id.today_home, WidgetLinks.open(context, "home", 202));
         v.setTextViewText(R.id.today_subtitle, friendlyDate());
         v.setViewVisibility(R.id.today_more, View.GONE);
 
