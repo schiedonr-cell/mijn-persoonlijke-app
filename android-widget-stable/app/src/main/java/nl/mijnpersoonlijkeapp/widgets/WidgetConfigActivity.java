@@ -86,6 +86,7 @@ public class WidgetConfigActivity extends Activity {
         addColorOptions(root, false);
 
         section(root, "Randkleur");
+        root.addView(option("Geen rand", () -> selectBorder(WidgetStyle.BORDER_NONE)));
         root.addView(option("Zelfde als pictogramkleur", () -> selectBorder(WidgetStyle.BORDER_MATCH_ACCENT)));
         addColorOptions(root, true);
 
@@ -194,7 +195,7 @@ public class WidgetConfigActivity extends Activity {
     private void updateSummary() {
         if (summary == null) return;
         String textName = WidgetStyle.TEXT_AUTO.equals(selectedTextMode) ? "automatisch" : (WidgetStyle.TEXT_LIGHT.equals(selectedTextMode) ? "licht" : "donker");
-        String borderName = selectedBorder == WidgetStyle.BORDER_MATCH_ACCENT ? "zelfde als pictogram" : accentName(selectedBorder);
+        String borderName = selectedBorder == WidgetStyle.BORDER_NONE ? "geen rand" : (selectedBorder == WidgetStyle.BORDER_MATCH_ACCENT ? "zelfde als pictogram" : accentName(selectedBorder));
         summary.setText("Gekozen: " + backgroundName(selectedBackground) + " · " + selectedTransparency + "% transparant · tekst " + textName + " · pictogram " + accentName(selectedAccent) + " · rand " + borderName + " · grootte " + iconName(selectedIconSize));
     }
 
