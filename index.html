@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
-  <!-- Mijn persoonlijke app v1.7.3 tijden-alarmen -->
+  <!-- Mijn persoonlijke app v1.7.4 routines-flat-home-widget -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -866,27 +866,11 @@
 
             <div class="section-card basis-card today-section-card" id="todayRoutinesBlock">
               <div class="section-heading">
-                <div class="today-block-title"><div class="today-block-icon">↻</div><div><h3 style="margin-bottom:3px;">Routines</h3><span class="small-muted">Je vaste routines, beweging en ontspanning bij elkaar.</span></div></div>
-                <div class="basis-head-actions"><button class="progress-overview-button" id="openProgressButton">Voortgang</button><button class="mini-button accent" id="addHabitButton">+ Nieuw</button></div>
+                <div class="today-block-title"><div class="today-block-icon">↻</div><div><h3 style="margin-bottom:3px;">Routines</h3><span class="small-muted">Al je routines in één overzicht.</span></div></div>
+                <div class="basis-head-actions"><span class="basis-progress" id="basisProgress">0 / 0</span><button class="progress-overview-button" id="openProgressButton">Voortgang</button><button class="mini-button accent" id="addHabitButton">+ Nieuw</button></div>
               </div>
-
-              <div class="routine-subsection" id="todayRoutineMain">
-                <div class="routine-subheading"><strong>Vaste routines</strong><span class="basis-progress" id="basisProgress">0 / 0</span></div>
-                <div class="basis-list" id="habitList"></div>
-                <div id="completedHabitsWrap"></div>
-              </div>
-
-              <div class="routine-subsection" id="todayMovementBlock">
-                <div class="routine-subheading"><strong>Beweging</strong><span class="basis-progress" id="movementProgress">0 / 1</span></div>
-                <div class="basis-list" id="movementList"></div>
-                <div id="completedMovementWrap"></div>
-              </div>
-
-              <div class="routine-subsection" id="todayRelaxBlock">
-                <div class="routine-subheading"><strong>Ontspanning</strong><span class="basis-progress" id="relaxProgress">0 / 1</span></div>
-                <div class="basis-list" id="relaxList"></div>
-                <div id="completedRelaxWrap"></div>
-              </div>
+              <div class="basis-list" id="habitList"></div>
+              <div id="completedHabitsWrap"></div>
             </div>
 
             <div class="section-card household-card today-section-card" id="todayHouseholdBlock">
@@ -1494,19 +1478,19 @@
       const todayTargets={
         'today-tasks':'todayTasksBlock',
         'today-routines':'todayRoutinesBlock',
-        'today-movement':'todayMovementBlock',
-        'today-relax':'todayRelaxBlock',
+        'today-movement':'todayRoutinesBlock',
+        'today-relax':'todayRoutinesBlock',
         'today-household':'todayHouseholdBlock',
         'today-agenda':'todayAgendaBlock',
         'routine':'todayRoutinesBlock',
-        'movement':'todayMovementBlock',
-        'relax':'todayRelaxBlock',
+        'movement':'todayRoutinesBlock',
+        'relax':'todayRoutinesBlock',
         'household':'todayHouseholdBlock',
         'agenda':'todayAgendaBlock'
       };
       if(todayTargets[target]){openTodaySection(todayTargets[target]);return;}
       if(target==='notes-list'||target==='note-new'){showView('notes');return;}
-      if(['today','food','projects','notes'].includes(target))showView(target);
+      if(['home','today','food','projects','notes'].includes(target))showView(target);
     }catch{}
   }
   function showToast(message){ const el=document.getElementById('toast'); el.textContent=message; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2100); }
@@ -1679,12 +1663,7 @@
     if(wrap)wrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(h=>completedHabitHtml(h,today)).join('')}</div></details>`:'';
   }
   function renderDailyBasis(){
-    const movement=state.habits.filter(h=>h.id==='basis-move');
-    const relax=state.habits.filter(h=>h.id==='basis-relax');
-    const routines=state.habits.filter(h=>h.id!=='basis-move'&&h.id!=='basis-relax');
-    renderHabitGroup('habitList','completedHabitsWrap','basisProgress',routines,'Alle routines zijn voor vandaag afgerond.');
-    renderHabitGroup('movementList','completedMovementWrap','movementProgress',movement,'Beweging is voor vandaag afgerond.');
-    renderHabitGroup('relaxList','completedRelaxWrap','relaxProgress',relax,'Ontspanning is voor vandaag afgerond.');
+    renderHabitGroup('habitList','completedHabitsWrap','basisProgress',state.habits,'Alle routines zijn voor vandaag afgerond.');
   }
   function householdLimit(){ return Math.max(1,Math.min(3,Number(state.energy)||1)); }
   function householdEffortLabel(n){ return ({1:'Licht',2:'Normaal',3:'Meer energie'})[Number(n)]||'Licht'; }
