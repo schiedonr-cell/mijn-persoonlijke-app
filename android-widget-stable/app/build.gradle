@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 35
-        versionName 'mijn-dag-3.7-inbox-outline'
+        versionCode 36
+        versionName 'mijn-dag-3.8-compact-vandaag'
     }
 
     buildTypes {
