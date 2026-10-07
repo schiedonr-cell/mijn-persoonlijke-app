@@ -246,6 +246,12 @@ final class WidgetStyle {
                 new int[]{R.id.notes_icon_small, R.id.notes_icon_medium, R.id.notes_icon_large, R.id.notes_icon_xlarge});
     }
 
+    static void applyInbox(RemoteViews v, Context context, int appWidgetId) {
+        applyTile(v, context, appWidgetId,
+                R.id.inbox_root, R.id.inbox_panel, R.id.inbox_title,
+                new int[]{R.id.inbox_icon_small, R.id.inbox_icon_medium, R.id.inbox_icon_large, R.id.inbox_icon_xlarge});
+    }
+
     static void applyCategory(RemoteViews v, Context context, int appWidgetId) {
         int base = background(context, appWidgetId);
         int transparency = transparency(context, appWidgetId);
