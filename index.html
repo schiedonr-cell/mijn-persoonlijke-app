@@ -1723,7 +1723,14 @@
   }
   function renderTodayAgenda(){
     const list=document.getElementById('todayAgendaList');if(!list)return;
-    const events=todayAgendaCache().filter(e=>e&&e.status!=='cancelled').slice(0,3);
+    let events=todayAgendaCache();
+    try{
+      if(window.AndroidWidgetBridge&&typeof AndroidWidgetBridge.getTodayGoogleCalendarEvents==='function'){
+        const nativeEvents=JSON.parse(AndroidWidgetBridge.getTodayGoogleCalendarEvents()||'[]');
+        if(Array.isArray(nativeEvents))events=nativeEvents;
+      }
+    }catch{}
+    events=(Array.isArray(events)?events:[]).filter(e=>e&&e.status!=='cancelled').slice(0,3);
     list.innerHTML=events.length?events.map(e=>`<div class="today-agenda-item"><div class="today-agenda-time">${escapeHtml(todayAgendaMeta(e))}</div><div class="today-agenda-name">${escapeHtml(e.summary||'Afspraak')}</div></div>`).join(''):`<div class="empty-state">Geen afspraken geladen.</div>`;
   }
 
