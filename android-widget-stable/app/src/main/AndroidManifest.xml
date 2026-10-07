@@ -100,10 +100,38 @@
         </receiver>
         <receiver
             android:name=".NotesWidgetProvider"
-            android:label="Notitie"
+            android:label="Notities"
             android:exported="true">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_notes_info" />
+        </receiver>
+        <receiver
+            android:name=".DumpWidgetProvider"
+            android:label="Dump"
+            android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_dump_info" />
+        </receiver>
+        <receiver
+            android:name=".TasksWidgetProvider"
+            android:label="Taken"
+            android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_tasks_info" />
+        </receiver>
+        <receiver
+            android:name=".ProjectsWidgetProvider"
+            android:label="Projecten"
+            android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_projects_info" />
+        </receiver>
+        <receiver
+            android:name=".NewNoteWidgetProvider"
+            android:label="Nieuwe notitie"
+            android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_new_note_info" />
         </receiver>
         <receiver
             android:name=".ShortcutRowWidgetProvider"
