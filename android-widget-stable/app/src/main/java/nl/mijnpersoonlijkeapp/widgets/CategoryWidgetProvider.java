@@ -16,7 +16,9 @@ import java.util.List;
 abstract class CategoryWidgetProvider extends AppWidgetProvider {
     private static final int[] ROW_IDS = {
             R.id.category_row_1, R.id.category_row_2, R.id.category_row_3,
-            R.id.category_row_4, R.id.category_row_5, R.id.category_row_6
+            R.id.category_row_4, R.id.category_row_5, R.id.category_row_6,
+            R.id.category_row_7, R.id.category_row_8, R.id.category_row_9,
+            R.id.category_row_10, R.id.category_row_11, R.id.category_row_12
     };
 
     abstract String kind();
@@ -46,13 +48,13 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         JSONObject snapshot = SnapshotStore.read(context);
         JSONArray rows = snapshot.optJSONArray("rows");
         if (!SnapshotStore.todayKey().equals(snapshot.optString("date", "")) || rows == null) {
-            fill(v, new ArrayList<>(), visibleRowsForHeight(manager, id), "Open Mijn dag");
+            fill(v, new ArrayList<>(), ROW_IDS.length, "Open Mijn dag");
             manager.updateAppWidget(id, v);
             return;
         }
 
         List<JSONObject> items = collect(rows, kind());
-        fill(v, items, visibleRowsForHeight(manager, id), emptyText());
+        fill(v, items, ROW_IDS.length, emptyText());
         manager.updateAppWidget(id, v);
     }
 
@@ -90,16 +92,4 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         }
     }
 
-    private int visibleRowsForHeight(AppWidgetManager manager, int id) {
-        try {
-            int height = manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110);
-            if (height < 80) return 0;
-            if (height < 115) return 1;
-            if (height < 150) return 2;
-            if (height < 185) return 3;
-            if (height < 220) return 4;
-            if (height < 255) return 5;
-        } catch (Exception ignored) {}
-        return 6;
-    }
 }
