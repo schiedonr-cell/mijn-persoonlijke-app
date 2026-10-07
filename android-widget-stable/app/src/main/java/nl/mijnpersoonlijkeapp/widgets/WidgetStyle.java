@@ -148,7 +148,8 @@ final class WidgetStyle {
         int accent = accent(context);
         int divider = Color.argb(lightText ? 110 : 85, Color.red(accent), Color.green(accent), Color.blue(accent));
 
-        applyOutlinedPanel(v, context, R.id.today_root, R.id.today_panel, base, opacity, transparency);
+        try { v.setInt(R.id.today_root, "setBackgroundResource", R.drawable.widget_bg_clear); } catch (Exception ignored) {}
+        applyOutlinedPanel(v, context, R.id.today_box, R.id.today_panel, base, opacity, transparency);
         setText(v, R.id.today_title, text);
         setText(v, R.id.today_subtitle, muted);
         setBackgroundColor(v, R.id.today_divider, divider);
@@ -192,7 +193,7 @@ final class WidgetStyle {
         setText(v, R.id.category_title, text);
         setText(v, R.id.category_arrow, muted);
         setText(v, R.id.category_more, accent);
-        for (int id : new int[]{R.id.category_row_1,R.id.category_row_2,R.id.category_row_3,R.id.category_row_4,R.id.category_row_5,R.id.category_row_6}) setText(v,id,text);
+        for (int id : new int[]{R.id.category_row_1,R.id.category_row_2,R.id.category_row_3,R.id.category_row_4,R.id.category_row_5,R.id.category_row_6,R.id.category_row_7,R.id.category_row_8,R.id.category_row_9,R.id.category_row_10,R.id.category_row_11,R.id.category_row_12}) setText(v,id,text);
         try { v.setInt(R.id.category_icon, "setColorFilter", accent); } catch (Exception ignored) {}
     }
 
