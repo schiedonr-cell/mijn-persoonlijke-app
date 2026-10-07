@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Set;
 
 final class SnapshotStore {
@@ -249,15 +250,39 @@ final class SnapshotStore {
             JSONObject start = event.optJSONObject("start");
             JSONObject end = event.optJSONObject("end");
             if (start == null) return "";
-            if (!start.optString("date", "").isEmpty() && start.optString("dateTime", "").isEmpty()) return "Hele dag";
-            String startText = start.optString("dateTime", "");
-            if (startText.isEmpty()) return "";
+
             ZoneId zone = ZoneId.systemDefault();
-            String a = OffsetDateTime.parse(startText).atZoneSameInstant(zone).format(DateTimeFormatter.ofPattern("HH:mm"));
-            String endText = end == null ? "" : end.optString("dateTime", "");
-            if (endText.isEmpty()) return a;
-            String b = OffsetDateTime.parse(endText).atZoneSameInstant(zone).format(DateTimeFormatter.ofPattern("HH:mm"));
-            return a + "–" + b;
+            LocalDate today = LocalDate.now(zone);
+            LocalDate eventDay;
+            String time = "";
+
+            String dateOnly = start.optString("date", "");
+            String startText = start.optString("dateTime", "");
+            if (!dateOnly.isEmpty() && startText.isEmpty()) {
+                eventDay = LocalDate.parse(dateOnly);
+                time = "Hele dag";
+            } else {
+                if (startText.isEmpty()) return "";
+                OffsetDateTime parsedStart = OffsetDateTime.parse(startText);
+                eventDay = parsedStart.atZoneSameInstant(zone).toLocalDate();
+                String a = parsedStart.atZoneSameInstant(zone).format(DateTimeFormatter.ofPattern("HH:mm"));
+                String endText = end == null ? "" : end.optString("dateTime", "");
+                if (endText.isEmpty()) {
+                    time = a;
+                } else {
+                    String b = OffsetDateTime.parse(endText).atZoneSameInstant(zone).format(DateTimeFormatter.ofPattern("HH:mm"));
+                    time = a + "–" + b;
+                }
+            }
+
+            long days = ChronoUnit.DAYS.between(today, eventDay);
+            String dayLabel;
+            if (days == 0) dayLabel = "Vandaag";
+            else if (days == 1) dayLabel = "Morgen";
+            else if (days == 2) dayLabel = "Overmorgen";
+            else dayLabel = eventDay.format(DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("nl-NL")));
+
+            return time.isEmpty() ? dayLabel : dayLabel + " · " + time;
         } catch (Exception ignored) {
             return "";
         }
