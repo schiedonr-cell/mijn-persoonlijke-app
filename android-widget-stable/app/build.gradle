@@ -17,8 +17,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 24
-        versionName 'mijn-dag-2.6-strakke-widget-hoogte'
+        versionCode 25
+        versionName 'mijn-dag-2.7-inhoud-bepaalt-hoogte'
     }
 
     buildTypes {
