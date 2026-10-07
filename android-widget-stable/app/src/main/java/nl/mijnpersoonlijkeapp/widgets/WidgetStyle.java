@@ -153,8 +153,8 @@ final class WidgetStyle {
         setText(v, R.id.today_subtitle, muted);
         setBackgroundColor(v, R.id.today_divider, divider);
 
-        int[] rows = new int[]{R.id.today_row_1, R.id.today_row_2, R.id.today_row_3, R.id.today_row_4, R.id.today_row_5, R.id.today_row_6, R.id.today_row_7};
-        int[] times = new int[]{R.id.today_time_1, R.id.today_time_2, R.id.today_time_3, R.id.today_time_4, R.id.today_time_5, R.id.today_time_6, R.id.today_time_7};
+        int[] rows = new int[]{R.id.today_row_1, R.id.today_row_2, R.id.today_row_3, R.id.today_row_4, R.id.today_row_5, R.id.today_row_6, R.id.today_row_7, R.id.today_row_8, R.id.today_row_9, R.id.today_row_10, R.id.today_row_11, R.id.today_row_12};
+        int[] times = new int[]{R.id.today_time_1, R.id.today_time_2, R.id.today_time_3, R.id.today_time_4, R.id.today_time_5, R.id.today_time_6, R.id.today_time_7, R.id.today_time_8, R.id.today_time_9, R.id.today_time_10, R.id.today_time_11, R.id.today_time_12};
         for (int id : rows) setText(v, id, text);
         for (int id : times) setText(v, id, accent);
         setText(v, R.id.today_empty, muted);
