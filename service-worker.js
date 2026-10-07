@@ -1,4 +1,4 @@
-const CACHE_NAME='mijn-persoonlijke-app-v1-7-18-google-calendar-selection';
+const CACHE_NAME='mijn-persoonlijke-app-v1-7-19-three-upcoming-appointments';
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js','./notes.js','./recipes-extra-1.js','./recipes-extra-2.js','./recipes-extra-3.js','./recipes-extra-4.js'];
 
 self.addEventListener('install',event=>{
