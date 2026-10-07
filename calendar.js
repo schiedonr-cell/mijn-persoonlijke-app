@@ -41,14 +41,16 @@ const icon='<svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hid
 function ensure(){const area=document.getElementById('dayOpenArea');if(!area)return null;let card=document.getElementById('calendarTodayCard');if(!card){card=document.createElement('div');card.id='calendarTodayCard';card.className='section-card calendar-card';area.prepend(card);}return card;}
 function head(action,sub='Google Agenda · alleen-lezen'){return `<div class="calendar-heading"><div class="calendar-title-wrap"><div class="calendar-icon">${icon}</div><div><h3>Afspraken</h3><p class="calendar-sub">${sub}</p></div></div>${action}</div>`;}
 function time(e){if(e?.start?.date&&!e?.start?.dateTime)return'Hele dag';if(!e?.start?.dateTime)return'';const f=new Intl.DateTimeFormat('nl-NL',{hour:'2-digit',minute:'2-digit'}),a=new Date(e.start.dateTime),b=e.end?.dateTime?new Date(e.end.dateTime):null;return b?`${f.format(a)}–${f.format(b)}`:f.format(a);}
-function itemsHtml(items){const v=(items||[]).filter(e=>e.status!=='cancelled');return v.length?v.map(e=>`<div class="calendar-event"><div class="calendar-time">${esc(time(e))}</div><div><div class="calendar-event-title">${esc(e.summary||'Afspraak')}</div>${e.location?`<div class="calendar-event-location">${esc(e.location)}</div>`:''}</div></div>`).join(''):'<div class="calendar-empty">Geen afspraken voor vandaag.</div>';}
+function eventDate(e){if(e?.start?.date)return new Date(e.start.date+'T12:00:00');if(e?.start?.dateTime)return new Date(e.start.dateTime);return null;}
+function eventDayLabel(e){const d=eventDate(e);if(!d)return'';const today=new Date();today.setHours(0,0,0,0);const x=new Date(d);x.setHours(0,0,0,0);const diff=Math.round((x-today)/86400000);if(diff===0)return'Vandaag';if(diff===1)return'Morgen';if(diff===2)return'Overmorgen';return new Intl.DateTimeFormat('nl-NL',{weekday:'short',day:'numeric',month:'short'}).format(d);}
+function itemsHtml(items){const v=(items||[]).filter(e=>e.status!=='cancelled').slice(0,3);return v.length?v.map(e=>`<div class="calendar-event"><div class="calendar-time"><div>${esc(eventDayLabel(e))}</div><div>${esc(time(e))}</div></div><div><div class="calendar-event-title">${esc(e.summary||'Afspraak')}</div>${e.location?`<div class="calendar-event-location">${esc(e.location)}</div>`:''}</div></div>`).join(''):'<div class="calendar-empty">Geen afspraken in de komende 3 dagen.</div>';}
 function refreshNativeCalendar(){
-  const items=nativeTodayEvents();saveEvents(items);show(items);
+  const items=nativeTodayEvents().slice(0,3);saveEvents(items);show(items);
   const note=document.getElementById('calendarNativeNote');if(note)note.textContent=`Bijgewerkt om ${new Intl.DateTimeFormat('nl-NL',{hour:'2-digit',minute:'2-digit'}).format(new Date())}.`;
 }
 function renderNativeCalendar(){
   const c=ensure();if(!c)return;
-  c.innerHTML=head('<div class="calendar-actions"><button class="calendar-choose" id="calendarChooseButton" type="button">Agenda’s kiezen</button><button class="calendar-refresh" id="calendarRefreshButton" type="button" aria-label="Agenda vernieuwen">↻</button></div>','Google Agenda op deze telefoon · alleen-lezen')+
+  c.innerHTML=head('<div class="calendar-actions"><button class="calendar-choose" id="calendarChooseButton" type="button">Agenda’s kiezen</button><button class="calendar-refresh" id="calendarRefreshButton" type="button" aria-label="Agenda vernieuwen">↻</button></div>','Komende 3 dagen · maximaal 3 afspraken')+
     '<div class="calendar-list" id="calendarEventList"><div class="calendar-message">Afspraken laden…</div></div><div class="calendar-note" id="calendarNativeNote">Alleen de gekozen Google-agenda’s worden getoond.</div>';
   document.getElementById('calendarChooseButton')?.addEventListener('click',openNativeCalendarPicker);
   document.getElementById('calendarRefreshButton')?.addEventListener('click',refreshNativeCalendar);
