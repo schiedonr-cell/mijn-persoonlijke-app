@@ -4,13 +4,21 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="1dp"
-    android:background="@drawable/widget_bg_outline">
+    android:gravity="top"
+    android:background="@drawable/widget_bg_clear">
+
+    <LinearLayout
+        android:id="@+id/today_box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="1dp"
+        android:background="@drawable/widget_bg_outline">
 
     <LinearLayout
         android:id="@+id/today_panel"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="13dp"
         android:background="@drawable/widget_bg">
@@ -120,5 +128,6 @@
             android:textStyle="bold"
             android:textColor="#45624D"
             android:visibility="gone" />
+    </LinearLayout>
     </LinearLayout>
 </LinearLayout>
