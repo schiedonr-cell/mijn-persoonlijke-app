@@ -235,7 +235,7 @@ function bind(view){
 
 function handleWidgetOpen(){
   try{
-    const params=new URLSearchParams(location.search);if(params.get('open')!=='notes')return;
+    const params=new URLSearchParams(location.search);if(params.get('open')!=='note-new')return;
     const token=`${location.pathname}${location.search}`;
     if(sessionStorage.getItem(WIDGET_SESSION_KEY)===token)return;
     sessionStorage.setItem(WIDGET_SESSION_KEY,token);
