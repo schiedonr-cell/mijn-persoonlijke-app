@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/shortcut_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="1dp"
+    android:background="@drawable/widget_bg_outline">
+    <FrameLayout
+        android:id="@+id/shortcut_panel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="8dp"
+        android:background="@drawable/widget_bg">
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:gravity="center">
+            <TextView
+                android:id="@+id/shortcut_icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="•"
+                android:textSize="34sp"
+                android:includeFontPadding="false"
+                android:gravity="center" />
+            <TextView
+                android:id="@+id/shortcut_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Snelkoppeling"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:gravity="center" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>
