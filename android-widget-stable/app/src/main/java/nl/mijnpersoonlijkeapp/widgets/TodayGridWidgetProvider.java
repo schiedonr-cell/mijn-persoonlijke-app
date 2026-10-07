@@ -41,10 +41,10 @@ public class TodayGridWidgetProvider extends AppWidgetProvider {
         v.setTextViewText(R.id.grid_date, friendlyDate());
 
         v.setOnClickPendingIntent(R.id.grid_header, WidgetLinks.open(context, "today", 410));
-        v.setOnClickPendingIntent(R.id.grid_agenda, WidgetLinks.open(context, "today", 411));
-        v.setOnClickPendingIntent(R.id.grid_tasks, WidgetLinks.open(context, "today", 412));
-        v.setOnClickPendingIntent(R.id.grid_routines, WidgetLinks.open(context, "today", 413));
-        v.setOnClickPendingIntent(R.id.grid_household, WidgetLinks.open(context, "today", 414));
+        v.setOnClickPendingIntent(R.id.grid_agenda, WidgetLinks.open(context, "today-agenda", 411));
+        v.setOnClickPendingIntent(R.id.grid_tasks, WidgetLinks.open(context, "today-tasks", 412));
+        v.setOnClickPendingIntent(R.id.grid_routines, WidgetLinks.open(context, "today-routines", 413));
+        v.setOnClickPendingIntent(R.id.grid_household, WidgetLinks.open(context, "today-household", 414));
 
         JSONObject snapshot = SnapshotStore.read(context);
         JSONArray rows = snapshot.optJSONArray("rows");
