@@ -273,6 +273,7 @@ final class WidgetStyle {
         applyOutlinedPanel(v, context, appWidgetId, R.id.shortcut_root, R.id.shortcut_panel, base, opacity, transparency);
         setText(v, R.id.shortcut_title, text);
         setText(v, R.id.shortcut_icon, accent);
+        try { v.setInt(R.id.shortcut_icon_image, "setColorFilter", accent); } catch (Exception ignored) {}
     }
 
     static void applyShortcutRow(RemoteViews v, Context context, int appWidgetId) {
