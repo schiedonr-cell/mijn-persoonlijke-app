@@ -187,7 +187,8 @@ final class WidgetStyle {
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
         int muted = lightText ? Color.rgb(202, 208, 203) : Color.rgb(83, 91, 84);
         int accent = accent(context);
-        applyOutlinedPanel(v, context, R.id.category_root, R.id.category_panel, base, opacity, transparency);
+        try { v.setInt(R.id.category_root, "setBackgroundResource", R.drawable.widget_bg_clear); } catch (Exception ignored) {}
+        applyOutlinedPanel(v, context, R.id.category_box, R.id.category_panel, base, opacity, transparency);
         setText(v, R.id.category_title, text);
         setText(v, R.id.category_arrow, muted);
         setText(v, R.id.category_more, accent);
