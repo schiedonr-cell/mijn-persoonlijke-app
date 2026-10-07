@@ -1396,6 +1396,9 @@
       const target=new URLSearchParams(window.location.search).get('open');
       if(!target)return;
       if(target==='focus'){showView('today');setDailyTab('focus');return;}
+      if(target==='dump'){showView('today');setDailyTab('dump');return;}
+      if(target==='tasks'){showView('today');setDailyTab('tasks');return;}
+      if(target==='notes-list'||target==='note-new'){showView('notes');return;}
       if(['today','food','projects','notes'].includes(target))showView(target);
     }catch{}
   }
