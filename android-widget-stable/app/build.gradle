@@ -17,8 +17,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 26
-        versionName 'mijn-dag-2.8-eenduidig-bewerken'
+        versionCode 27
+        versionName 'mijn-dag-2.9-bewerkacties-fix'
     }
 
     buildTypes {
