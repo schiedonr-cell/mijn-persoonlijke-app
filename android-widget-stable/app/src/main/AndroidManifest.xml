@@ -85,6 +85,34 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_grid_info" />
         </receiver>
         <receiver
+            android:name=".AgendaWidgetProvider"
+            android:label="Agenda"
+            android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_agenda_info" />
+        </receiver>
+        <receiver
+            android:name=".TodayTasksWidgetProvider"
+            android:label="Taken – vandaag"
+            android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_tasks_info" />
+        </receiver>
+        <receiver
+            android:name=".RoutinesWidgetProvider"
+            android:label="Routines"
+            android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_routines_info" />
+        </receiver>
+        <receiver
+            android:name=".HouseholdWidgetProvider"
+            android:label="Huishouden"
+            android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_household_info" />
+        </receiver>
+        <receiver
             android:name=".FocusWidgetProvider"
             android:label="Focus"
             android:exported="true">
