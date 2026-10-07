@@ -18,15 +18,18 @@ import java.util.Locale;
 public class TodayWidgetProvider extends AppWidgetProvider {
     private static final int[] ROW_BOX_IDS = new int[]{
             R.id.today_row_box_1, R.id.today_row_box_2, R.id.today_row_box_3, R.id.today_row_box_4,
-            R.id.today_row_box_5, R.id.today_row_box_6, R.id.today_row_box_7
+            R.id.today_row_box_5, R.id.today_row_box_6, R.id.today_row_box_7, R.id.today_row_box_8,
+            R.id.today_row_box_9, R.id.today_row_box_10, R.id.today_row_box_11, R.id.today_row_box_12
     };
     private static final int[] TIME_IDS = new int[]{
             R.id.today_time_1, R.id.today_time_2, R.id.today_time_3, R.id.today_time_4,
-            R.id.today_time_5, R.id.today_time_6, R.id.today_time_7
+            R.id.today_time_5, R.id.today_time_6, R.id.today_time_7, R.id.today_time_8,
+            R.id.today_time_9, R.id.today_time_10, R.id.today_time_11, R.id.today_time_12
     };
     private static final int[] ROW_IDS = new int[]{
             R.id.today_row_1, R.id.today_row_2, R.id.today_row_3, R.id.today_row_4,
-            R.id.today_row_5, R.id.today_row_6, R.id.today_row_7
+            R.id.today_row_5, R.id.today_row_6, R.id.today_row_7, R.id.today_row_8,
+            R.id.today_row_9, R.id.today_row_10, R.id.today_row_11, R.id.today_row_12
     };
 
     @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
@@ -110,8 +113,13 @@ public class TodayWidgetProvider extends AppWidgetProvider {
             if (height < 225) return 4;
             if (height < 275) return 5;
             if (height < 325) return 6;
+            if (height < 375) return 7;
+            if (height < 425) return 8;
+            if (height < 475) return 9;
+            if (height < 525) return 10;
+            if (height < 575) return 11;
         } catch (Exception ignored) {}
-        return 7;
+        return 12;
     }
 
     private static String pictogram(String kind, String text) {
