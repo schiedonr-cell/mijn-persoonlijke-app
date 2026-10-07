@@ -179,6 +179,18 @@ final class WidgetStyle {
                 new int[]{R.id.notes_icon_small, R.id.notes_icon_medium, R.id.notes_icon_large, R.id.notes_icon_xlarge});
     }
 
+    static void applySimpleShortcut(RemoteViews v, Context context) {
+        int base = background(context);
+        int transparency = transparency(context);
+        int opacity = 100 - transparency;
+        boolean lightText = useLightText(context, base);
+        int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
+        int accent = accent(context);
+        applyOutlinedPanel(v, context, R.id.shortcut_root, R.id.shortcut_panel, base, opacity, transparency);
+        setText(v, R.id.shortcut_title, text);
+        setText(v, R.id.shortcut_icon, accent);
+    }
+
     static void applyShortcutRow(RemoteViews v, Context context) {
         applyTile(v, context,
                 R.id.row_focus_root, R.id.row_focus_panel, R.id.row_focus_title,
@@ -236,6 +248,10 @@ final class WidgetStyle {
         refresh(context, FoodWidgetProvider.class);
         refresh(context, NotesWidgetProvider.class);
         refresh(context, ShortcutRowWidgetProvider.class);
+        refresh(context, DumpWidgetProvider.class);
+        refresh(context, TasksWidgetProvider.class);
+        refresh(context, ProjectsWidgetProvider.class);
+        refresh(context, NewNoteWidgetProvider.class);
     }
 
     private static SharedPreferences prefs(Context context) { return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
