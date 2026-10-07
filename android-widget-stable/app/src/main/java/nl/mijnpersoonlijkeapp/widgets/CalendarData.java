@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.provider.CalendarContract;
@@ -15,15 +16,86 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 final class CalendarData {
+    private static final String PREFS = "native_calendar_settings";
+    private static final String KEY_SELECTED = "selected_google_calendar_ids";
+    private static final String KEY_INITIALIZED = "calendar_selection_initialized";
+
     private CalendarData() {}
+
+    static JSONArray calendars(Context context) {
+        JSONArray out = new JSONArray();
+        if (context.checkSelfPermission(Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) return out;
+
+        String[] projection = new String[]{
+                CalendarContract.Calendars._ID,
+                CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+                CalendarContract.Calendars.ACCOUNT_NAME,
+                CalendarContract.Calendars.ACCOUNT_TYPE,
+                CalendarContract.Calendars.VISIBLE
+        };
+
+        try (Cursor cursor = context.getContentResolver().query(
+                CalendarContract.Calendars.CONTENT_URI,
+                projection,
+                null,
+                null,
+                CalendarContract.Calendars.ACCOUNT_NAME + " ASC, " + CalendarContract.Calendars.CALENDAR_DISPLAY_NAME + " ASC"
+        )) {
+            if (cursor == null) return out;
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(0);
+                String name = cursor.getString(1);
+                String account = cursor.getString(2);
+                String type = cursor.getString(3);
+                boolean visible = cursor.getInt(4) != 0;
+                if (!isGoogle(type)) continue;
+
+                JSONObject item = new JSONObject();
+                item.put("id", id);
+                item.put("name", name == null || name.trim().isEmpty() ? "Google Agenda" : name.trim());
+                item.put("account", account == null ? "" : account.trim());
+                item.put("visible", visible);
+                out.put(item);
+            }
+        } catch (Exception ignored) {}
+        ensureDefaultSelection(context, out);
+        return out;
+    }
+
+    static JSONArray selectedIdsJson(Context context) {
+        JSONArray out = new JSONArray();
+        for (Long id : selectedIds(context)) out.put(id);
+        return out;
+    }
+
+    static void setSelectedIds(Context context, String json) {
+        try {
+            JSONArray input = new JSONArray(json == null ? "[]" : json);
+            JSONArray clean = new JSONArray();
+            for (int i = 0; i < input.length(); i++) {
+                long id = input.optLong(i, -1);
+                if (id >= 0) clean.put(id);
+            }
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                    .putString(KEY_SELECTED, clean.toString())
+                    .putBoolean(KEY_INITIALIZED, true)
+                    .apply();
+        } catch (Exception ignored) {}
+    }
 
     static JSONArray todayEvents(Context context) {
         JSONArray out = new JSONArray();
-        if (context.checkSelfPermission(Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
-            return out;
-        }
+        if (context.checkSelfPermission(Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) return out;
+
+        // Ensures Google calendars are discovered and first-use defaults are created.
+        calendars(context);
+        Set<Long> selected = selectedIds(context);
+        if (selected.isEmpty()) return out;
+
         ZoneId zone = ZoneId.systemDefault();
         LocalDate day = LocalDate.now(zone);
         long begin = day.atStartOfDay(zone).toInstant().toEpochMilli();
@@ -34,7 +106,8 @@ final class CalendarData {
                 CalendarContract.Instances.BEGIN,
                 CalendarContract.Instances.END,
                 CalendarContract.Instances.EVENT_LOCATION,
-                CalendarContract.Instances.ALL_DAY
+                CalendarContract.Instances.ALL_DAY,
+                CalendarContract.Instances.CALENDAR_ID
         };
 
         ContentResolver resolver = context.getContentResolver();
@@ -51,6 +124,9 @@ final class CalendarData {
         )) {
             if (cursor == null) return out;
             while (cursor.moveToNext()) {
+                long calendarId = cursor.getLong(5);
+                if (!selected.contains(calendarId)) continue;
+
                 String title = cursor.getString(0);
                 long startMs = cursor.getLong(1);
                 long endMs = cursor.getLong(2);
@@ -59,6 +135,7 @@ final class CalendarData {
 
                 JSONObject event = new JSONObject();
                 event.put("summary", title == null || title.trim().isEmpty() ? "Afspraak" : title.trim());
+                event.put("calendarId", calendarId);
                 if (location != null && !location.trim().isEmpty()) event.put("location", location.trim());
 
                 JSONObject start = new JSONObject();
@@ -78,5 +155,39 @@ final class CalendarData {
             }
         } catch (Exception ignored) {}
         return out;
+    }
+
+    private static boolean isGoogle(String type) {
+        if (type == null) return false;
+        String value = type.toLowerCase();
+        return value.contains("google");
+    }
+
+    private static void ensureDefaultSelection(Context context, JSONArray available) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (prefs.getBoolean(KEY_INITIALIZED, false)) return;
+
+        JSONArray defaults = new JSONArray();
+        for (int i = 0; i < available.length(); i++) {
+            JSONObject item = available.optJSONObject(i);
+            if (item != null && item.optBoolean("visible", true)) defaults.put(item.optLong("id"));
+        }
+        prefs.edit()
+                .putString(KEY_SELECTED, defaults.toString())
+                .putBoolean(KEY_INITIALIZED, true)
+                .apply();
+    }
+
+    private static Set<Long> selectedIds(Context context) {
+        Set<Long> ids = new HashSet<>();
+        try {
+            String raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_SELECTED, "[]");
+            JSONArray arr = new JSONArray(raw == null ? "[]" : raw);
+            for (int i = 0; i < arr.length(); i++) {
+                long id = arr.optLong(i, -1);
+                if (id >= 0) ids.add(id);
+            }
+        } catch (Exception ignored) {}
+        return ids;
     }
 }
