@@ -37,7 +37,7 @@ public class TodayGridWidgetProvider extends AppWidgetProvider {
 
     private static void updateOne(Context context, AppWidgetManager manager, int id) {
         RemoteViews v = new RemoteViews(context.getPackageName(), R.layout.widget_today_grid);
-        applyStyle(v, context);
+        applyStyle(v, context, id);
         v.setTextViewText(R.id.grid_date, friendlyDate());
 
         v.setOnClickPendingIntent(R.id.grid_header, WidgetLinks.open(context, "today", 410));
@@ -120,15 +120,15 @@ public class TodayGridWidgetProvider extends AppWidgetProvider {
         v.setViewVisibility(R.id.grid_household_more, View.GONE);
     }
 
-    private static void applyStyle(RemoteViews v, Context context) {
-        int base = WidgetStyle.background(context);
-        int transparency = WidgetStyle.transparency(context);
+    private static void applyStyle(RemoteViews v, Context context, int appWidgetId) {
+        int base = WidgetStyle.background(context, appWidgetId);
+        int transparency = WidgetStyle.transparency(context, appWidgetId);
         int opacity = Math.max(0, Math.min(100, 100 - transparency));
-        String mode = WidgetStyle.textMode(context);
+        String mode = WidgetStyle.textMode(context, appWidgetId);
         boolean light = WidgetStyle.TEXT_LIGHT.equals(mode) || (!WidgetStyle.TEXT_DARK.equals(mode) && Color.luminance(base) < 0.43);
         int text = light ? Color.rgb(248,249,247) : Color.rgb(31,36,32);
         int muted = light ? Color.rgb(202,208,203) : Color.rgb(83,91,84);
-        int accent = WidgetStyle.accent(context);
+        int accent = WidgetStyle.accent(context, appWidgetId);
         int panelColor = Color.argb(Math.round(255f * opacity / 100f), Color.red(base), Color.green(base), Color.blue(base));
         int cardOpacity = opacity == 0 ? 0 : Math.min(100, opacity + 8);
         int cardColor = Color.argb(Math.round(255f * cardOpacity / 100f), Color.red(base), Color.green(base), Color.blue(base));
@@ -136,7 +136,7 @@ public class TodayGridWidgetProvider extends AppWidgetProvider {
         try {
             v.setInt(R.id.grid_root, "setBackgroundResource", transparency >= 75 ? R.drawable.widget_bg_outline : R.drawable.widget_bg_clear);
             if (transparency >= 75 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                v.setColorStateList(R.id.grid_root, "setBackgroundTintList", ColorStateList.valueOf(WidgetStyle.borderColor(context)));
+                v.setColorStateList(R.id.grid_root, "setBackgroundTintList", ColorStateList.valueOf(WidgetStyle.borderColor(context, appWidgetId)));
             }
         } catch (Exception ignored) {}
         tintBackground(v, R.id.grid_panel, panelColor, transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg);
