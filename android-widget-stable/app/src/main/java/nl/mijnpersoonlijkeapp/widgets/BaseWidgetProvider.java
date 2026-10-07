@@ -11,7 +11,7 @@ abstract class BaseWidgetProvider extends AppWidgetProvider {
     @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
         for (int id : ids) {
             RemoteViews v = new RemoteViews(context.getPackageName(), layoutId());
-            WidgetStyle.applyQuick(v, context);
+            WidgetStyle.applyQuick(v, context, id);
             bind(v, context);
             manager.updateAppWidget(id, v);
         }
