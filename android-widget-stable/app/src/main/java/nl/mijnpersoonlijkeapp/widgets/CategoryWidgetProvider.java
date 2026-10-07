@@ -42,7 +42,7 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         RemoteViews v = new RemoteViews(context.getPackageName(), R.layout.widget_category);
         v.setTextViewText(R.id.category_title, title());
         v.setImageViewResource(R.id.category_icon, iconRes());
-        WidgetStyle.applyCategory(v, context);
+        WidgetStyle.applyCategory(v, context, id);
         v.setOnClickPendingIntent(R.id.category_root, WidgetLinks.open(context, target(), requestCode()));
 
         JSONObject snapshot = SnapshotStore.read(context);
