@@ -479,6 +479,25 @@ public class MainActivity extends Activity {
             });
         }
 
+        @JavascriptInterface public void scheduleDailyItemReminder(String id, String title, String body, String time, String target, boolean doneToday) {
+            runOnUiThread(() -> {
+                requestNotificationPermissionIfNeeded();
+                if (doneToday) {
+                    NativeAlarmScheduler.cancel(getApplicationContext(), id);
+                    return;
+                }
+                int[] hm = parseHourMinute(time, 9, 0);
+                NativeAlarmScheduler.scheduleDaily(getApplicationContext(), id, title, body, hm[0], hm[1], target);
+            });
+        }
+
+        @JavascriptInterface public void scheduleEveryDaysReminder(String id, String title, String body, long firstAt, int everyDays, String target) {
+            runOnUiThread(() -> {
+                requestNotificationPermissionIfNeeded();
+                NativeAlarmScheduler.scheduleEveryDays(getApplicationContext(), id, title, body, firstAt, everyDays, target);
+            });
+        }
+
         @JavascriptInterface public void cancelReminder(String id) {
             NativeAlarmScheduler.cancel(getApplicationContext(), id);
         }
