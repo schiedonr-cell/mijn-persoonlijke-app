@@ -11,6 +11,7 @@ let searchTerm='';
 let editingNoteId=null;
 let editingFolderId=null;
 let editorSnapshot='';
+let actionNoteId=null;
 
 const esc=value=>String(value??'').replace(/[&<>\'\"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 const uid=prefix=>`${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
