@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="90dp" android:minHeight="72dp"
+    android:initialLayout="@layout/widget_category"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:updatePeriodMillis="1800000"
+    android:configure="nl.mijnpersoonlijkeapp.widgets.WidgetConfigActivity"
+    android:widgetFeatures="reconfigurable" />
