@@ -52,6 +52,7 @@ final class WidgetStyle {
     static final int ACCENT_BORDEAUX = Color.rgb(122, 45, 62);
     static final int ACCENT_CORAL = Color.rgb(224, 108, 92);
 
+    static final int BORDER_NONE = 0;
     static final int BORDER_MATCH_ACCENT = 1;
 
     static final int ICON_SMALL = 32;
@@ -92,7 +93,7 @@ final class WidgetStyle {
     static int border(Context context) { return prefs(context).getInt(KEY_BORDER, BORDER_MATCH_ACCENT); }
     static int borderColor(Context context) {
         int value = border(context);
-        return value == BORDER_MATCH_ACCENT ? accent(context) : value;
+        return value == BORDER_NONE ? Color.TRANSPARENT : (value == BORDER_MATCH_ACCENT ? accent(context) : value);
     }
 
     static int iconSize(Context context) {
@@ -138,7 +139,7 @@ final class WidgetStyle {
 
     static int borderColor(Context context, int appWidgetId) {
         int value = border(context, appWidgetId);
-        return value == BORDER_MATCH_ACCENT ? accent(context, appWidgetId) : value;
+        return value == BORDER_NONE ? Color.TRANSPARENT : (value == BORDER_MATCH_ACCENT ? accent(context, appWidgetId) : value);
     }
 
     static int iconSize(Context context, int appWidgetId) {
@@ -312,9 +313,11 @@ final class WidgetStyle {
 
     private static void applyOutlinedPanel(RemoteViews v, Context context, int appWidgetId, int outerId, int panelId, int base, int opacity, int transparency) {
         try {
-            v.setInt(outerId, "setBackgroundResource", transparency >= 75 ? R.drawable.widget_bg_outline : R.drawable.widget_bg_clear);
-            if (transparency >= 75 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                v.setColorStateList(outerId, "setBackgroundTintList", ColorStateList.valueOf(borderColor(context, appWidgetId)));
+            boolean showOutline = border(context, appWidgetId) != BORDER_NONE && transparency >= 75;
+            v.setInt(outerId, "setBackgroundResource", showOutline ? R.drawable.widget_bg_outline : R.drawable.widget_bg_clear);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                v.setColorStateList(outerId, "setBackgroundTintList",
+                        ColorStateList.valueOf(showOutline ? borderColor(context, appWidgetId) : Color.TRANSPARENT));
             }
         } catch (Exception ignored) {}
         setRoundedBackground(v, panelId, withOpacity(base, opacity),
