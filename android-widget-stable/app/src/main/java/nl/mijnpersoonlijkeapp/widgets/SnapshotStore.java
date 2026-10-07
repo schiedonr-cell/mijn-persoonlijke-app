@@ -39,8 +39,23 @@ final class SnapshotStore {
                 prefs.edit().putString(KEY, text).apply();
                 TodayWidgetProvider.refreshAll(context);
                 TodayGridWidgetProvider.refreshAll(context);
+                refreshCategoryWidgets(context);
             }
         } catch (Exception ignored) {}
+    }
+
+    private static void refreshCategoryWidgets(Context context) {
+        android.appwidget.AppWidgetManager manager = android.appwidget.AppWidgetManager.getInstance(context);
+        Class<?>[] providers = new Class<?>[]{AgendaWidgetProvider.class, TodayTasksWidgetProvider.class, RoutinesWidgetProvider.class, HouseholdWidgetProvider.class};
+        for (Class<?> provider : providers) {
+            android.content.ComponentName component = new android.content.ComponentName(context, provider);
+            int[] ids = manager.getAppWidgetIds(component);
+            if (ids == null || ids.length == 0) continue;
+            android.content.Intent intent = new android.content.Intent(context, provider);
+            intent.setAction(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+            intent.putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, ids);
+            context.sendBroadcast(intent);
+        }
     }
 
     static JSONObject read(Context context) {
