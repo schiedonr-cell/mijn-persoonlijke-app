@@ -69,7 +69,7 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         }
 
         int count = rows.length();
-        int limit = Math.min(ROW_IDS.length, visibleRowsForHeight(manager, id));
+        int limit = ROW_IDS.length;
         int visible = Math.min(count, limit);
 
         for (int i = 0; i < ROW_IDS.length; i++) {
@@ -103,23 +103,6 @@ public class TodayWidgetProvider extends AppWidgetProvider {
             v.setViewVisibility(R.id.today_more, View.GONE);
         }
         manager.updateAppWidget(id, v);
-    }
-
-    private static int visibleRowsForHeight(AppWidgetManager manager, int id) {
-        try {
-            Bundle options = manager.getAppWidgetOptions(id);
-            int height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 240);
-            if (height < 175) return 3;
-            if (height < 225) return 4;
-            if (height < 275) return 5;
-            if (height < 325) return 6;
-            if (height < 375) return 7;
-            if (height < 425) return 8;
-            if (height < 475) return 9;
-            if (height < 525) return 10;
-            if (height < 575) return 11;
-        } catch (Exception ignored) {}
-        return 12;
     }
 
     private static String pictogram(String kind, String text) {
