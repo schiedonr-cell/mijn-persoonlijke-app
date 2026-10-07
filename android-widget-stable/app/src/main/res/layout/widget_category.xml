@@ -10,7 +10,7 @@
     <LinearLayout
         android:id="@+id/category_box"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical"
         android:padding="1dp"
         android:background="@drawable/widget_bg_outline">
@@ -18,7 +18,7 @@
         <LinearLayout
             android:id="@+id/category_panel"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:orientation="vertical"
             android:padding="10dp"
             android:background="@drawable/widget_bg">
