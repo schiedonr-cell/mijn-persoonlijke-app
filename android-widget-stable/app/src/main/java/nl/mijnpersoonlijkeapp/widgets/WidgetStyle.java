@@ -218,6 +218,7 @@ final class WidgetStyle {
         applyOutlinedPanel(v, context, appWidgetId, R.id.today_box, R.id.today_panel, base, opacity, transparency);
         setText(v, R.id.today_title, text);
         setText(v, R.id.today_subtitle, muted);
+        setText(v, R.id.today_home, accent);
         setBackgroundColor(v, R.id.today_divider, divider);
 
         int[] rows = new int[]{R.id.today_row_1, R.id.today_row_2, R.id.today_row_3, R.id.today_row_4, R.id.today_row_5, R.id.today_row_6, R.id.today_row_7, R.id.today_row_8, R.id.today_row_9, R.id.today_row_10, R.id.today_row_11, R.id.today_row_12};
