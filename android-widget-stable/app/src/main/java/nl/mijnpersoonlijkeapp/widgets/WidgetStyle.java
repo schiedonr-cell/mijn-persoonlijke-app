@@ -179,6 +179,22 @@ final class WidgetStyle {
                 new int[]{R.id.notes_icon_small, R.id.notes_icon_medium, R.id.notes_icon_large, R.id.notes_icon_xlarge});
     }
 
+    static void applyCategory(RemoteViews v, Context context) {
+        int base = background(context);
+        int transparency = transparency(context);
+        int opacity = 100 - transparency;
+        boolean lightText = useLightText(context, base);
+        int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
+        int muted = lightText ? Color.rgb(202, 208, 203) : Color.rgb(83, 91, 84);
+        int accent = accent(context);
+        applyOutlinedPanel(v, context, R.id.category_root, R.id.category_panel, base, opacity, transparency);
+        setText(v, R.id.category_title, text);
+        setText(v, R.id.category_arrow, muted);
+        setText(v, R.id.category_more, accent);
+        for (int id : new int[]{R.id.category_row_1,R.id.category_row_2,R.id.category_row_3,R.id.category_row_4,R.id.category_row_5,R.id.category_row_6}) setText(v,id,text);
+        try { v.setInt(R.id.category_icon, "setColorFilter", accent); } catch (Exception ignored) {}
+    }
+
     static void applySimpleShortcut(RemoteViews v, Context context) {
         int base = background(context);
         int transparency = transparency(context);
@@ -252,6 +268,10 @@ final class WidgetStyle {
         refresh(context, TasksWidgetProvider.class);
         refresh(context, ProjectsWidgetProvider.class);
         refresh(context, NewNoteWidgetProvider.class);
+        refresh(context, AgendaWidgetProvider.class);
+        refresh(context, TodayTasksWidgetProvider.class);
+        refresh(context, RoutinesWidgetProvider.class);
+        refresh(context, HouseholdWidgetProvider.class);
     }
 
     private static SharedPreferences prefs(Context context) { return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
