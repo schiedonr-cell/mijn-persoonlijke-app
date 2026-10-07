@@ -21,7 +21,7 @@ public class TodayWidgetProvider extends AppWidgetProvider {
             R.id.today_row_box_5, R.id.today_row_box_6, R.id.today_row_box_7, R.id.today_row_box_8,
             R.id.today_row_box_9, R.id.today_row_box_10, R.id.today_row_box_11, R.id.today_row_box_12
     };
-    private static final int[] TIME_IDS = new int[]{
+    private static final int[] LABEL_IDS = new int[]{
             R.id.today_time_1, R.id.today_time_2, R.id.today_time_3, R.id.today_time_4,
             R.id.today_time_5, R.id.today_time_6, R.id.today_time_7, R.id.today_time_8,
             R.id.today_time_9, R.id.today_time_10, R.id.today_time_11, R.id.today_time_12
@@ -31,6 +31,9 @@ public class TodayWidgetProvider extends AppWidgetProvider {
             R.id.today_row_5, R.id.today_row_6, R.id.today_row_7, R.id.today_row_8,
             R.id.today_row_9, R.id.today_row_10, R.id.today_row_11, R.id.today_row_12
     };
+
+    private static final String[] SUMMARY_KINDS = new String[]{"Taak", "Routine", "Huis", "Agenda"};
+    private static final String[] SUMMARY_LABELS = new String[]{"Taak", "Routine", "Huis", "Agenda"};
 
     @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
         for (int id : ids) updateOne(context, manager, id);
@@ -54,78 +57,59 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         WidgetStyle.applyToday(v, context, id);
         v.setOnClickPendingIntent(R.id.today_root, WidgetLinks.open(context, "today", 201));
         v.setTextViewText(R.id.today_subtitle, friendlyDate());
+        v.setViewVisibility(R.id.today_more, View.GONE);
 
         JSONObject snapshot = SnapshotStore.read(context);
         String date = snapshot.optString("date", "");
         JSONArray rows = snapshot.optJSONArray("rows");
 
         if (!SnapshotStore.todayKey().equals(date) || rows == null) {
+            hideRows(v);
             v.setViewVisibility(R.id.today_empty, View.VISIBLE);
             v.setTextViewText(R.id.today_empty, "Open Mijn dag om het overzicht te vernieuwen.");
-            v.setViewVisibility(R.id.today_more, View.GONE);
-            hideRows(v);
             manager.updateAppWidget(id, v);
             return;
         }
 
-        int count = rows.length();
-        int limit = ROW_IDS.length;
-        int visible = Math.min(count, limit);
+        hideRows(v);
+        int visible = 0;
 
-        for (int i = 0; i < ROW_IDS.length; i++) {
-            if (i < visible) {
-                JSONObject row = rows.optJSONObject(i);
-                String kind = row == null ? "" : row.optString("kind", "");
-                String text = row == null ? "" : row.optString("text", "");
-                String time = row == null ? "" : row.optString("time", "");
-                String cleanTime = time == null ? "" : time.trim();
+        for (int k = 0; k < SUMMARY_KINDS.length && visible < 4; k++) {
+            JSONObject row = firstOfKind(rows, SUMMARY_KINDS[k]);
+            if (row == null) continue;
 
-                v.setTextViewText(TIME_IDS[i], cleanTime);
-                v.setViewVisibility(TIME_IDS[i], cleanTime.isEmpty() ? View.GONE : View.VISIBLE);
-                v.setTextViewText(ROW_IDS[i], pictogram(kind, text) + "  " + text);
-                v.setViewVisibility(ROW_BOX_IDS[i], View.VISIBLE);
-            } else {
-                v.setViewVisibility(ROW_BOX_IDS[i], View.GONE);
+            String text = row.optString("text", "").trim();
+            if (text.isEmpty()) continue;
+
+            String line = text;
+            if ("Agenda".equals(SUMMARY_KINDS[k])) {
+                String time = row.optString("time", "").trim();
+                if (!time.isEmpty()) line = time + "  " + text;
             }
+
+            v.setTextViewText(LABEL_IDS[visible], SUMMARY_LABELS[k]);
+            v.setViewVisibility(LABEL_IDS[visible], View.VISIBLE);
+            v.setTextViewText(ROW_IDS[visible], line);
+            v.setViewVisibility(ROW_BOX_IDS[visible], View.VISIBLE);
+            visible++;
         }
 
-        if (count == 0) {
+        if (visible == 0) {
             v.setViewVisibility(R.id.today_empty, View.VISIBLE);
             v.setTextViewText(R.id.today_empty, "Alles klaar voor vandaag.");
         } else {
             v.setViewVisibility(R.id.today_empty, View.GONE);
         }
 
-        if (count > visible) {
-            v.setViewVisibility(R.id.today_more, View.VISIBLE);
-            v.setTextViewText(R.id.today_more, "+ " + (count - visible) + " meer");
-        } else {
-            v.setViewVisibility(R.id.today_more, View.GONE);
-        }
         manager.updateAppWidget(id, v);
     }
 
-    private static String pictogram(String kind, String text) {
-        String s = text == null ? "" : text.toLowerCase(new Locale("nl", "NL"));
-        if (s.contains("ochtend")) return "☀️";
-        if (s.contains("wandelen") || s.contains("wandeling") || s.contains("lopen")) return "🚶";
-        if (s.contains("lunch") || s.contains("eten")) return "🍴";
-        if (s.contains("boodschap")) return "🛒";
-        if (s.contains("ontspan") || s.contains("rustmoment") || s.contains("rust")) return "🍃";
-        if (s.contains("avond") || s.contains("dag afsluiten")) return "🌙";
-        if (s.contains("medic")) return "💊";
-        if (s.contains("mail") || s.contains("e-mail")) return "✉️";
-        if (s.contains("robotstofzuiger") || s.contains("robot")) return "🤖";
-        if (s.contains("stofzuig") || s.contains("vloer")) return "🧹";
-        if (s.contains("was ") || s.contains("wasgoed") || s.contains("was opruimen")) return "🧺";
-        if (s.contains("toilet") || s.contains("badkamer") || s.contains("schoonmaak")) return "🧽";
-        if (s.contains("keuken")) return "🏠";
-        if (s.contains("financi") || s.contains("rekening") || s.contains("bank")) return "💳";
-        if ("Agenda".equals(kind)) return "📅";
-        if ("Routine".equals(kind)) return "🔄";
-        if ("Huis".equals(kind)) return "🏠";
-        if ("Taak".equals(kind)) return "⭐";
-        return "•";
+    private static JSONObject firstOfKind(JSONArray rows, String kind) {
+        for (int i = 0; i < rows.length(); i++) {
+            JSONObject row = rows.optJSONObject(i);
+            if (row != null && kind.equals(row.optString("kind", ""))) return row;
+        }
+        return null;
     }
 
     private static String friendlyDate() {
