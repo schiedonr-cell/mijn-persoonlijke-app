@@ -20,6 +20,7 @@ public class WidgetConfigActivity extends Activity {
     private int selectedAccent;
     private int selectedBorder;
     private int selectedIconSize;
+    private boolean selectedShowName;
     private TextView summary;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
@@ -34,6 +35,7 @@ public class WidgetConfigActivity extends Activity {
         selectedAccent = WidgetStyle.accent(this, appWidgetId);
         selectedBorder = WidgetStyle.border(this, appWidgetId);
         selectedIconSize = WidgetStyle.iconSize(this, appWidgetId);
+        selectedShowName = WidgetStyle.showName(this, appWidgetId);
 
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
@@ -97,6 +99,12 @@ public class WidgetConfigActivity extends Activity {
         iconRow.addView(compact("Groot", () -> selectIconSize(WidgetStyle.ICON_LARGE)));
         iconRow.addView(compact("XL", () -> selectIconSize(WidgetStyle.ICON_XLARGE)));
         root.addView(iconRow);
+
+        section(root, "Naam bij widget");
+        LinearLayout nameRow = row();
+        nameRow.addView(compact("Tonen", () -> selectShowName(true)));
+        nameRow.addView(compact("Verbergen", () -> selectShowName(false)));
+        root.addView(nameRow);
 
         Button save = new Button(this);
         save.setText("Opslaan");
@@ -191,12 +199,13 @@ public class WidgetConfigActivity extends Activity {
     private void selectAccent(int value) { selectedAccent = value; updateSummary(); }
     private void selectBorder(int value) { selectedBorder = value; updateSummary(); }
     private void selectIconSize(int value) { selectedIconSize = value; updateSummary(); }
+    private void selectShowName(boolean value) { selectedShowName = value; updateSummary(); }
 
     private void updateSummary() {
         if (summary == null) return;
         String textName = WidgetStyle.TEXT_AUTO.equals(selectedTextMode) ? "automatisch" : (WidgetStyle.TEXT_LIGHT.equals(selectedTextMode) ? "licht" : "donker");
         String borderName = selectedBorder == WidgetStyle.BORDER_NONE ? "geen rand" : (selectedBorder == WidgetStyle.BORDER_MATCH_ACCENT ? "zelfde als pictogram" : accentName(selectedBorder));
-        summary.setText("Gekozen: " + backgroundName(selectedBackground) + " · " + selectedTransparency + "% transparant · tekst " + textName + " · pictogram " + accentName(selectedAccent) + " · rand " + borderName + " · grootte " + iconName(selectedIconSize));
+        summary.setText("Gekozen: " + backgroundName(selectedBackground) + " · " + selectedTransparency + "% transparant · tekst " + textName + " · pictogram " + accentName(selectedAccent) + " · rand " + borderName + " · grootte " + iconName(selectedIconSize) + " · naam " + (selectedShowName ? "tonen" : "verbergen"));
     }
 
     private String backgroundName(int color) {
@@ -246,7 +255,7 @@ public class WidgetConfigActivity extends Activity {
     }
 
     private void save() {
-        WidgetStyle.setOptions(this, appWidgetId, selectedBackground, selectedTransparency, selectedTextMode, selectedAccent, selectedBorder, selectedIconSize);
+        WidgetStyle.setOptions(this, appWidgetId, selectedBackground, selectedTransparency, selectedTextMode, selectedAccent, selectedBorder, selectedIconSize, selectedShowName);
         Intent result = new Intent();
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
         setResult(RESULT_OK, result);
