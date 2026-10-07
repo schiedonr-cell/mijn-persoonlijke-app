@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
-  <!-- Mijn persoonlijke app v1.7.1 -->
+  <!-- Mijn persoonlijke app v1.7.2 dagblokken -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -391,6 +391,24 @@
     .home-card.notes-card .icon-wrap { background: #e7e5dc; color: #625f53; }
 
     .today-shell { padding-bottom: 112px; }
+    .today-section-card { scroll-margin-top: 18px; }
+    .today-section-card.deep-linked {
+      box-shadow: 0 0 0 3px var(--accent-soft), 0 8px 24px rgba(34,42,34,.08);
+    }
+    .today-block-icon {
+      width: 36px; height: 36px; flex: 0 0 36px;
+      display: grid; place-items: center;
+      border-radius: 12px; background: var(--accent-soft); color: var(--accent-strong);
+      font-size: 18px;
+    }
+    .today-block-title { display:flex; align-items:center; gap:10px; min-width:0; }
+    .today-agenda-list { display:grid; gap:9px; }
+    .today-agenda-item {
+      border:1px solid var(--line); border-radius:16px; background:#fff;
+      padding:11px 12px; display:grid; gap:3px;
+    }
+    .today-agenda-time { color:var(--accent-strong); font-size:12px; font-weight:850; }
+    .today-agenda-name { font-weight:800; line-height:1.3; }
     .daily-panel { display: none; }
     .daily-panel.active { display: block; animation: fadeIn .18s ease; }
     .daily-nav {
@@ -831,20 +849,47 @@
               </div>
             </div>
 
-            <div class="section-card basis-card">
+            <div class="section-card today-section-card" id="todayTasksBlock">
               <div class="section-heading">
-                <div><h3 style="margin-bottom:3px;">Dagankers</h3><span class="small-muted">Vier vaste momenten. Bewegen en ontspannen blijven flexibel.</span></div>
+                <div class="today-block-title"><div class="today-block-icon">✓</div><div><h3 style="margin-bottom:3px;">Taken</h3><span class="small-muted">Je belangrijkste gewone taken van vandaag.</span></div></div>
+                <span class="small-muted" id="taskCounter">0 / 2</span>
+              </div>
+              <div class="task-list" id="taskList"></div>
+              <button class="primary-button" id="addTaskButton">+ Taak toevoegen</button>
+              <div class="limit-note" id="taskLimitNote"></div>
+            </div>
+
+            <div class="section-card basis-card today-section-card" id="todayRoutinesBlock">
+              <div class="section-heading">
+                <div class="today-block-title"><div class="today-block-icon">↻</div><div><h3 style="margin-bottom:3px;">Routines</h3><span class="small-muted">Je vaste dagankers, los van bewegen en ontspannen.</span></div></div>
                 <div class="basis-head-actions"><span class="basis-progress" id="basisProgress">0 / 0</span><button class="progress-overview-button" id="openProgressButton">Voortgang</button><button class="mini-button accent" id="addHabitButton">+ Nieuw</button></div>
               </div>
               <div class="basis-list" id="habitList"></div>
               <div id="completedHabitsWrap"></div>
-              <p class="basis-note">Je dagenergie geeft alleen advies. Bij bewegen en ontspannen mag je altijd klein, normaal of groot kiezen; de kleine versie telt volledig mee.</p>
               <button class="secondary-button reminder-open-button" id="openReminderButton" type="button">🔔 Herinneringen</button>
             </div>
 
-            <div class="section-card household-card">
+            <div class="section-card basis-card today-section-card" id="todayMovementBlock">
               <div class="section-heading">
-                <div><h3 style="margin-bottom:3px;">Huishouden</h3><span class="small-muted">Kleine terugkerende klusjes zodat niets zich opstapelt.</span></div>
+                <div class="today-block-title"><div class="today-block-icon">↗</div><div><h3 style="margin-bottom:3px;">Beweging</h3><span class="small-muted">Na de lunch. Kies de versie die vandaag haalbaar is.</span></div></div>
+                <span class="basis-progress" id="movementProgress">0 / 1</span>
+              </div>
+              <div class="basis-list" id="movementList"></div>
+              <div id="completedMovementWrap"></div>
+            </div>
+
+            <div class="section-card basis-card today-section-card" id="todayRelaxBlock">
+              <div class="section-heading">
+                <div class="today-block-title"><div class="today-block-icon">◌</div><div><h3 style="margin-bottom:3px;">Ontspanning</h3><span class="small-muted">Bewust afschakelen, zonder dat het een taaklijst wordt.</span></div></div>
+                <span class="basis-progress" id="relaxProgress">0 / 1</span>
+              </div>
+              <div class="basis-list" id="relaxList"></div>
+              <div id="completedRelaxWrap"></div>
+            </div>
+
+            <div class="section-card household-card today-section-card" id="todayHouseholdBlock">
+              <div class="section-heading">
+                <div class="today-block-title"><div class="today-block-icon">⌂</div><div><h3 style="margin-bottom:3px;">Huishouden</h3><span class="small-muted">Kleine terugkerende klusjes zodat niets zich opstapelt.</span></div></div>
                 <div class="household-head-actions"><span class="basis-progress" id="householdCounter">0 / 2</span><button class="mini-button" id="manageHouseholdButton">Beheer</button><button class="mini-button accent" id="addHouseholdButton">+ Nieuw</button></div>
               </div>
               <div class="household-list" id="householdList"></div>
@@ -852,15 +897,13 @@
               <p class="basis-note" id="householdNote">Je energieniveau bepaalt hoeveel klusjes vandaag worden getoond.</p>
             </div>
 
-            <div class="section-card">
+            <div class="section-card today-section-card" id="todayAgendaBlock">
               <div class="section-heading">
-                <div><h3 style="margin-bottom:3px;">Taken</h3><span class="small-muted">Je belangrijkste gewone taken van vandaag.</span></div>
-                <span class="small-muted" id="taskCounter">0 / 2</span>
+                <div class="today-block-title"><div class="today-block-icon">▣</div><div><h3 style="margin-bottom:3px;">Agenda</h3><span class="small-muted">Je eerstvolgende afspraken.</span></div></div>
               </div>
-              <div class="task-list" id="taskList"></div>
-              <button class="primary-button" id="addTaskButton">+ Taak toevoegen</button>
-              <div class="limit-note" id="taskLimitNote"></div>
+              <div class="today-agenda-list" id="todayAgendaList"></div>
             </div>
+          </div>
           </div>
         </div>
 
@@ -1415,6 +1458,18 @@
   function saveState(){ try { const s=structuredClone(state); s.tasks=s.tasks.map(t=>({...t,running:false})); s.focus.running=false; localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {} }
 
   function showView(name){ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===name)); window.scrollTo({top:0,behavior:'instant'}); if(name==='today'){ setDailyTab(dailyTab); renderToday(); } if(name==='food'){ setFoodTab(foodTab); renderFoodAll(); } if(name==='projects')renderProjects(); if(name==='notes')renderNotes(); }
+  function openTodaySection(sectionId){
+    showView('today');
+    setDailyTab('start');
+    renderToday();
+    setTimeout(()=>{
+      const section=document.getElementById(sectionId);
+      if(!section)return;
+      section.scrollIntoView({behavior:'auto',block:'start'});
+      section.classList.add('deep-linked');
+      setTimeout(()=>section.classList.remove('deep-linked'),1100);
+    },70);
+  }
   function openWidgetTargetFromUrl(){
     try{
       const target=new URLSearchParams(window.location.search).get('open');
@@ -1422,6 +1477,20 @@
       if(target==='focus'){showView('today');setDailyTab('focus');return;}
       if(target==='dump'){showView('today');setDailyTab('dump');return;}
       if(target==='tasks'){showView('today');setDailyTab('tasks');return;}
+      const todayTargets={
+        'today-tasks':'todayTasksBlock',
+        'today-routines':'todayRoutinesBlock',
+        'today-movement':'todayMovementBlock',
+        'today-relax':'todayRelaxBlock',
+        'today-household':'todayHouseholdBlock',
+        'today-agenda':'todayAgendaBlock',
+        'routine':'todayRoutinesBlock',
+        'movement':'todayMovementBlock',
+        'relax':'todayRelaxBlock',
+        'household':'todayHouseholdBlock',
+        'agenda':'todayAgendaBlock'
+      };
+      if(todayTargets[target]){openTodaySection(todayTargets[target]);return;}
       if(target==='notes-list'||target==='note-new'){showView('notes');return;}
       if(['today','food','projects','notes'].includes(target))showView(target);
     }catch{}
@@ -1579,13 +1648,28 @@
     const note=selected===recommended?`${energyLabel(recommended)}: deze versie is je advies. Je mag altijd wisselen.`:`${energyLabel(recommended)} gaf versie ${habitVersionShort(recommended).toLowerCase()} als advies; je kiest nu ${habitVersionShort(selected).toLowerCase()}.`;
     return `<div class="habit-version-prompt">Welke versie past nu?</div><div class="habit-version-grid">${buttons}</div><div class="basis-detail">${escapeHtml(level.detail||'Kies wat nu haalbaar is.')}</div><div class="habit-choice-note">${escapeHtml(note)}</div>`;
   }
+  function dailyHabitCard(h,today){
+    return `<div class="basis-item"><input class="check" type="checkbox" data-habit-check="${h.id}" aria-label="${escapeHtml(h.name)} afvinken"/><div class="basis-copy">${h.anchor?`<div class="basis-anchor">${escapeHtml(h.anchor)}</div>`:''}<div class="basis-name">${escapeHtml(h.name)}</div>${h.energyAdaptive?renderHabitVersionChoices(h,today):`<div class="basis-detail">${escapeHtml(h.description||'Iedere dag dezelfde versie.')}</div>`}</div><div class="focus-item-actions"><button class="focus-list-button" data-focus-habit="${h.id}">Focus</button><button class="basis-options" data-item-action="habit|${h.id}" aria-label="Bewerken en opties">•••</button></div></div>`;
+  }
+  function completedHabitHtml(h,today){
+    const v=Number(h.versionHistory?.[today]||0),level=v?habitLevel(h,v):null,meta=[h.anchor,h.energyAdaptive&&v?habitVersionLabel(v):'',level?.minimum||''].filter(Boolean).join(' · ');
+    return `<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(h.name)}</div>${meta?`<div class="completed-habit-meta">${escapeHtml(meta)}</div>`:''}</div><button class="habit-undo-button" data-habit-undo="${h.id}">Ongedaan</button></div>`;
+  }
+  function renderHabitGroup(listId,completedId,progressId,habits,emptyText){
+    const today=localDateKey(),active=habits.filter(h=>!h.history?.[today]),completed=habits.filter(h=>Boolean(h.history?.[today]));
+    const progress=document.getElementById(progressId);if(progress)progress.textContent=`${completed.length} / ${habits.length}`;
+    const list=document.getElementById(listId);
+    if(list)list.innerHTML=active.length?active.map(h=>dailyHabitCard(h,today)).join(''):`<div class="empty-state">${escapeHtml(emptyText)}</div>`;
+    const wrap=document.getElementById(completedId);
+    if(wrap)wrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(h=>completedHabitHtml(h,today)).join('')}</div></details>`:'';
+  }
   function renderDailyBasis(){
-    const today=localDateKey(),completed=state.habits.filter(h=>Boolean(h.history?.[today])),active=state.habits.filter(h=>!h.history?.[today]),done=completed.length;
-    const progress=document.getElementById('basisProgress');if(progress)progress.textContent=`${done} / ${state.habits.length}`;
-    const list=document.getElementById('habitList');if(!list)return;
-    list.innerHTML=active.length?active.map(h=>`<div class="basis-item"><input class="check" type="checkbox" data-habit-check="${h.id}" aria-label="${escapeHtml(h.name)} afvinken"/><div class="basis-copy">${h.anchor?`<div class="basis-anchor">${escapeHtml(h.anchor)}</div>`:''}<div class="basis-name">${escapeHtml(h.name)}</div>${h.energyAdaptive?renderHabitVersionChoices(h,today):`<div class="basis-detail">${escapeHtml(h.description||'Iedere dag dezelfde versie.')}</div>`}</div><div class="focus-item-actions"><button class="focus-list-button" data-focus-habit="${h.id}">Focus</button><button class="basis-options" data-item-action="habit|${h.id}" aria-label="Bewerken en opties">•••</button></div></div>`).join(''):`<div class="empty-state">Alle dagankers zijn voor vandaag afgerond.</div>`;
-    const completedWrap=document.getElementById('completedHabitsWrap');if(!completedWrap)return;
-    completedWrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(h=>{const v=Number(h.versionHistory?.[today]||0),level=v?habitLevel(h,v):null,meta=[h.anchor,h.energyAdaptive&&v?habitVersionLabel(v):'',level?.minimum||''].filter(Boolean).join(' · ');return `<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(h.name)}</div>${meta?`<div class="completed-habit-meta">${escapeHtml(meta)}</div>`:''}</div><button class="habit-undo-button" data-habit-undo="${h.id}">Ongedaan</button></div>`;}).join('')}</div></details>`:'';
+    const movement=state.habits.filter(h=>h.id==='basis-move');
+    const relax=state.habits.filter(h=>h.id==='basis-relax');
+    const routines=state.habits.filter(h=>h.id!=='basis-move'&&h.id!=='basis-relax');
+    renderHabitGroup('habitList','completedHabitsWrap','basisProgress',routines,'Alle routines zijn voor vandaag afgerond.');
+    renderHabitGroup('movementList','completedMovementWrap','movementProgress',movement,'Beweging is voor vandaag afgerond.');
+    renderHabitGroup('relaxList','completedRelaxWrap','relaxProgress',relax,'Ontspanning is voor vandaag afgerond.');
   }
   function householdLimit(){ return Math.max(1,Math.min(3,Number(state.energy)||1)); }
   function householdEffortLabel(n){ return ({1:'Licht',2:'Normaal',3:'Meer energie'})[Number(n)]||'Licht'; }
@@ -1620,6 +1704,29 @@
     </div>`;
   }
 
+  function todayAgendaCache(){
+    try{
+      const cache=JSON.parse(localStorage.getItem('mijnPersoonlijkeAppCalendarEventsV1')||'{}');
+      return Array.isArray(cache.items)?cache.items:[];
+    }catch{return [];}
+  }
+  function todayAgendaMeta(event){
+    try{
+      const start=event?.start||{},dateOnly=start.date||'',dateTime=start.dateTime||'';
+      let d=null,time='';
+      if(dateTime){d=new Date(dateTime);time=d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});}
+      else if(dateOnly){d=new Date(dateOnly+'T12:00:00');time='Hele dag';}
+      if(!d||Number.isNaN(d.getTime()))return '';
+      const date=d.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','');
+      return date+(time?' · '+time:'');
+    }catch{return '';}
+  }
+  function renderTodayAgenda(){
+    const list=document.getElementById('todayAgendaList');if(!list)return;
+    const events=todayAgendaCache().filter(e=>e&&e.status!=='cancelled').slice(0,3);
+    list.innerHTML=events.length?events.map(e=>`<div class="today-agenda-item"><div class="today-agenda-time">${escapeHtml(todayAgendaMeta(e))}</div><div class="today-agenda-name">${escapeHtml(e.summary||'Afspraak')}</div></div>`).join(''):`<div class="empty-state">Geen afspraken geladen.</div>`;
+  }
+
   function renderToday(){
     ensureDailyState();
     document.querySelectorAll('.energy-btn').forEach(btn=>btn.classList.toggle('selected',Number(btn.dataset.energy)===Number(state.energy)));
@@ -1633,6 +1740,7 @@
     document.getElementById('taskCounter').textContent=`${planned.length} / ${limit}`;
     document.getElementById('taskLimitNote').textContent=planned.length>=limit?`Je dag zit op maximaal ${limit} belangrijke ${limit===1?'taak':'taken'}.`:`Nog ${limit-planned.length} ${limit-planned.length===1?'plek':'plekken'} beschikbaar.`;
     document.getElementById('taskList').innerHTML=planned.length?planned.map(t=>renderTaskCard(t)).join(''):`<div class="empty-state">Nog geen belangrijke taak voor vandaag.</div>`;
+    renderTodayAgenda();
     saveState();
   }
   function openHabitHistory(id){
