@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
-  <!-- Mijn persoonlijke app v1.7.2 dagblokken -->
+  <!-- Mijn persoonlijke app v1.7.3 tijden-alarmen -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -402,6 +402,11 @@
       font-size: 18px;
     }
     .today-block-title { display:flex; align-items:center; gap:10px; min-width:0; }
+    .routine-subsection { padding-top:14px; margin-top:14px; border-top:1px solid var(--line); scroll-margin-top:18px; }
+    .routine-subsection:first-of-type { padding-top:0; margin-top:0; border-top:0; }
+    .routine-subheading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px; }
+    .routine-subheading strong { font-size:14px; color:var(--accent-strong); }
+    .timed-meta { display:inline-flex; align-items:center; gap:5px; color:var(--accent-strong); font-size:12px; font-weight:850; }
     .today-agenda-list { display:grid; gap:9px; }
     .today-agenda-item {
       border:1px solid var(--line); border-radius:16px; background:#fff;
@@ -861,30 +866,27 @@
 
             <div class="section-card basis-card today-section-card" id="todayRoutinesBlock">
               <div class="section-heading">
-                <div class="today-block-title"><div class="today-block-icon">↻</div><div><h3 style="margin-bottom:3px;">Routines</h3><span class="small-muted">Je vaste dagankers, los van bewegen en ontspannen.</span></div></div>
-                <div class="basis-head-actions"><span class="basis-progress" id="basisProgress">0 / 0</span><button class="progress-overview-button" id="openProgressButton">Voortgang</button><button class="mini-button accent" id="addHabitButton">+ Nieuw</button></div>
+                <div class="today-block-title"><div class="today-block-icon">↻</div><div><h3 style="margin-bottom:3px;">Routines</h3><span class="small-muted">Je vaste routines, beweging en ontspanning bij elkaar.</span></div></div>
+                <div class="basis-head-actions"><button class="progress-overview-button" id="openProgressButton">Voortgang</button><button class="mini-button accent" id="addHabitButton">+ Nieuw</button></div>
               </div>
-              <div class="basis-list" id="habitList"></div>
-              <div id="completedHabitsWrap"></div>
-              <button class="secondary-button reminder-open-button" id="openReminderButton" type="button">🔔 Herinneringen</button>
-            </div>
 
-            <div class="section-card basis-card today-section-card" id="todayMovementBlock">
-              <div class="section-heading">
-                <div class="today-block-title"><div class="today-block-icon">↗</div><div><h3 style="margin-bottom:3px;">Beweging</h3><span class="small-muted">Na de lunch. Kies de versie die vandaag haalbaar is.</span></div></div>
-                <span class="basis-progress" id="movementProgress">0 / 1</span>
+              <div class="routine-subsection" id="todayRoutineMain">
+                <div class="routine-subheading"><strong>Vaste routines</strong><span class="basis-progress" id="basisProgress">0 / 0</span></div>
+                <div class="basis-list" id="habitList"></div>
+                <div id="completedHabitsWrap"></div>
               </div>
-              <div class="basis-list" id="movementList"></div>
-              <div id="completedMovementWrap"></div>
-            </div>
 
-            <div class="section-card basis-card today-section-card" id="todayRelaxBlock">
-              <div class="section-heading">
-                <div class="today-block-title"><div class="today-block-icon">◌</div><div><h3 style="margin-bottom:3px;">Ontspanning</h3><span class="small-muted">Bewust afschakelen, zonder dat het een taaklijst wordt.</span></div></div>
-                <span class="basis-progress" id="relaxProgress">0 / 1</span>
+              <div class="routine-subsection" id="todayMovementBlock">
+                <div class="routine-subheading"><strong>Beweging</strong><span class="basis-progress" id="movementProgress">0 / 1</span></div>
+                <div class="basis-list" id="movementList"></div>
+                <div id="completedMovementWrap"></div>
               </div>
-              <div class="basis-list" id="relaxList"></div>
-              <div id="completedRelaxWrap"></div>
+
+              <div class="routine-subsection" id="todayRelaxBlock">
+                <div class="routine-subheading"><strong>Ontspanning</strong><span class="basis-progress" id="relaxProgress">0 / 1</span></div>
+                <div class="basis-list" id="relaxList"></div>
+                <div id="completedRelaxWrap"></div>
+              </div>
             </div>
 
             <div class="section-card household-card today-section-card" id="todayHouseholdBlock">
@@ -1064,6 +1066,10 @@
         <label class="field-label" for="taskDeadline">Deadline <span style="font-weight:600;color:var(--muted);">(optioneel)</span></label>
         <input class="text-input" type="date" id="taskDeadline" />
         <div class="spacer-14"></div>
+        <label class="field-label" for="taskTime">Tijd <span style="font-weight:600;color:var(--muted);">(optioneel)</span></label>
+        <input class="text-input" type="time" id="taskTime" />
+        <label class="habit-energy-toggle" style="margin-top:12px;"><div><strong>Alarm op deze tijd</strong><span>Gebruikt hetzelfde Android-alarmgeluid als Focus.</span></div><input class="switch-check" type="checkbox" id="taskAlarmEnabled" /></label>
+        <div class="spacer-14"></div>
         <label class="field-label">Kleine stappen</label>
         <textarea id="taskSubtasks" hidden aria-hidden="true"></textarea>
         <div class="task-step-editor" id="taskStepEditor"></div>
@@ -1075,6 +1081,10 @@
       </div>
       <div id="habitOptions" style="display:none;">
         <div class="spacer-14"></div>
+        <div class="field-row">
+          <div><label class="field-label" for="habitTime">Tijd <span style="font-weight:600;color:var(--muted);">(optioneel)</span></label><input class="text-input" type="time" id="habitTime" /></div>
+          <div><label class="field-label">Alarm</label><label class="habit-energy-toggle" style="min-height:52px;"><div><strong>Aan</strong><span>Dagelijks op deze tijd.</span></div><input class="switch-check" type="checkbox" id="habitAlarmEnabled" /></label></div>
+        </div>
         <label class="habit-energy-toggle"><div><strong>Aanpassen aan mijn energie</strong><span>Aan: aparte tekst voor lage, normale en hoge energie. Uit: iedere dag dezelfde omschrijving.</span></div><input class="switch-check" type="checkbox" id="habitEnergyAdaptive" /></label>
         <div id="habitStaticOptions" style="margin-top:12px;">
           <label class="field-label" for="habitDescription">Korte omschrijving</label>
@@ -1090,6 +1100,10 @@
         <div class="spacer-14"></div>
         <label class="field-label" for="householdDescription">Korte omschrijving</label>
         <textarea class="text-input textarea-input" id="householdDescription" placeholder="Bijv. Zelf de robot starten als ik erbij ben."></textarea>
+        <div class="field-row" style="margin-top:12px;">
+          <div><label class="field-label" for="householdTime">Tijd <span style="font-weight:600;color:var(--muted);">(optioneel)</span></label><input class="text-input" type="time" id="householdTime" /></div>
+          <div><label class="field-label">Alarm</label><label class="habit-energy-toggle" style="min-height:52px;"><div><strong>Aan</strong><span>Op de dag dat de klus aan de beurt is.</span></div><input class="switch-check" type="checkbox" id="householdAlarmEnabled" /></label></div>
+        </div>
         <div class="field-row" style="margin-top:12px;">
           <div><label class="field-label" for="householdEffort">Zwaarte</label><select class="text-input select-input" id="householdEffort"><option value="1">Licht</option><option value="2">Normaal</option><option value="3">Meer energie</option></select></div>
           <div><label class="field-label" for="householdFrequency">Herhalen</label><select class="text-input select-input" id="householdFrequency"><option value="1">Dagelijks</option><option value="2">Om de 2 dagen</option><option value="3">Om de 3 dagen</option><option value="4">Om de 4 dagen</option><option value="5">Om de 5 dagen</option><option value="7">Wekelijks</option><option value="14">Om de 2 weken</option><option value="28">Elke 4 weken</option><option value="30">Maandelijks</option><option value="custom">Zelf kiezen…</option></select></div>
@@ -1359,18 +1373,18 @@
   function normalizeTask(task) {
     return {
       id: task.id || uid('task'), name: task.name || 'Taak', done: Boolean(task.done), elapsed: Number(task.elapsed || 0), running: false,
-      deadline: task.deadline || '', createdAt: task.createdAt || Date.now(), completedAt: task.completedAt || null,
+      deadline: task.deadline || '', time: typeof task.time==='string'?task.time:'', alarmEnabled:Boolean(task.alarmEnabled), createdAt: task.createdAt || Date.now(), completedAt: task.completedAt || null,
       paused: Boolean(task.paused), deferUntil: task.deferUntil || '',
       bucket: ['A','B','C','D','inbox'].includes(task.bucket) ? task.bucket : 'inbox',
       reminders: Array.isArray(task.reminders) ? task.reminders.map(x=>({id:x.id||uid('rem'),at:Number(x.at||0)})).filter(x=>x.at>0) : [],
       subtasks: Array.isArray(task.subtasks) ? task.subtasks.map(st => typeof st === 'string' ? {id:uid('sub'),name:st,done:false} : {id:st.id||uid('sub'),name:st.name||'Stap',done:Boolean(st.done)}) : []
     };
   }
-  function normalizeHouseholdTask(t){ return {id:t.id||uid('house'),name:t.name||'Huishoudklus',description:t.description||'',effort:Math.min(3,Math.max(1,Number(t.effort||1))),frequency:Math.max(1,Number(t.frequency||1)),fixedReminder:t.fixedReminder===true||(t.fixedReminder==null&&t.id==='house-robot'),history:(t.history&&typeof t.history==='object')?t.history:{},paused:Boolean(t.paused),deferUntil:t.deferUntil||'',reminders:Array.isArray(t.reminders)?t.reminders.map(x=>({id:x.id||uid('rem'),at:Number(x.at||0)})).filter(x=>x.at>0):[]}; }
+  function normalizeHouseholdTask(t){ return {id:t.id||uid('house'),name:t.name||'Huishoudklus',description:t.description||'',effort:Math.min(3,Math.max(1,Number(t.effort||1))),frequency:Math.max(1,Number(t.frequency||1)),fixedReminder:t.fixedReminder===true||(t.fixedReminder==null&&t.id==='house-robot'),time:typeof t.time==='string'?t.time:'',alarmEnabled:Boolean(t.alarmEnabled),history:(t.history&&typeof t.history==='object')?t.history:{},paused:Boolean(t.paused),deferUntil:t.deferUntil||'',reminders:Array.isArray(t.reminders)?t.reminders.map(x=>({id:x.id||uid('rem'),at:Number(x.at||0)})).filter(x=>x.at>0):[]}; }
   function normalizeLevels(levels){
     const out={}; for(const n of [1,2,3]){const x=levels?.[n]||levels?.[String(n)]||{};out[n]={minimum:x.minimum||'',detail:x.detail||''};} return out;
   }
-  function normalizeHabit(h) { return { id:h.id||uid('habit'), name:h.name||'Gewoonte', anchor:h.anchor||'', description:h.description||'', energyAdaptive:Boolean(h.energyAdaptive), levels:normalizeLevels(h.levels), history:(h.history && typeof h.history==='object')?h.history:{}, versionHistory:(h.versionHistory&&typeof h.versionHistory==='object')?h.versionHistory:{}, startedOn:typeof h.startedOn==='string'?h.startedOn:'', reminders:Array.isArray(h.reminders)?h.reminders.map(x=>({id:x.id||uid('rem'),at:Number(x.at||0)})).filter(x=>x.at>0):[] }; }
+  function normalizeHabit(h) { return { id:h.id||uid('habit'), name:h.name||'Gewoonte', anchor:h.anchor||'', description:h.description||'', time:typeof h.time==='string'?h.time:'', alarmEnabled:Boolean(h.alarmEnabled), energyAdaptive:Boolean(h.energyAdaptive), levels:normalizeLevels(h.levels), history:(h.history && typeof h.history==='object')?h.history:{}, versionHistory:(h.versionHistory&&typeof h.versionHistory==='object')?h.versionHistory:{}, startedOn:typeof h.startedOn==='string'?h.startedOn:'', reminders:Array.isArray(h.reminders)?h.reminders.map(x=>({id:x.id||uid('rem'),at:Number(x.at||0)})).filter(x=>x.at>0):[] }; }
   function migrateUnifiedHabits(saved){
     let old=Array.isArray(saved.habits)?saved.habits.map(normalizeHabit):[];
     if(!old.length&&Array.isArray(saved.routines)){const today=localDateKey();old=saved.routines.map(r=>normalizeHabit({id:r.id||uid('habit'),name:r.name||'Gewoonte',description:'',history:(saved.routineDate===today&&r.done)?{[today]:true}:{}}));}
@@ -1649,10 +1663,11 @@
     return `<div class="habit-version-prompt">Welke versie past nu?</div><div class="habit-version-grid">${buttons}</div><div class="basis-detail">${escapeHtml(level.detail||'Kies wat nu haalbaar is.')}</div><div class="habit-choice-note">${escapeHtml(note)}</div>`;
   }
   function dailyHabitCard(h,today){
-    return `<div class="basis-item"><input class="check" type="checkbox" data-habit-check="${h.id}" aria-label="${escapeHtml(h.name)} afvinken"/><div class="basis-copy">${h.anchor?`<div class="basis-anchor">${escapeHtml(h.anchor)}</div>`:''}<div class="basis-name">${escapeHtml(h.name)}</div>${h.energyAdaptive?renderHabitVersionChoices(h,today):`<div class="basis-detail">${escapeHtml(h.description||'Iedere dag dezelfde versie.')}</div>`}</div><div class="focus-item-actions"><button class="focus-list-button" data-focus-habit="${h.id}">Focus</button><button class="basis-options" data-item-action="habit|${h.id}" aria-label="Bewerken en opties">•••</button></div></div>`;
+    const top=[h.time?`⏰ ${h.time}`:'',h.anchor||''].filter(Boolean).join(' · ');
+    return `<div class="basis-item"><input class="check" type="checkbox" data-habit-check="${h.id}" aria-label="${escapeHtml(h.name)} afvinken"/><div class="basis-copy">${top?`<div class="basis-anchor">${escapeHtml(top)}</div>`:''}<div class="basis-name">${escapeHtml(h.name)}</div>${h.energyAdaptive?renderHabitVersionChoices(h,today):`<div class="basis-detail">${escapeHtml(h.description||'Iedere dag dezelfde versie.')}</div>`}</div><div class="focus-item-actions"><button class="focus-list-button" data-focus-habit="${h.id}">Focus</button><button class="basis-options" data-item-action="habit|${h.id}" aria-label="Bewerken en opties">•••</button></div></div>`;
   }
   function completedHabitHtml(h,today){
-    const v=Number(h.versionHistory?.[today]||0),level=v?habitLevel(h,v):null,meta=[h.anchor,h.energyAdaptive&&v?habitVersionLabel(v):'',level?.minimum||''].filter(Boolean).join(' · ');
+    const v=Number(h.versionHistory?.[today]||0),level=v?habitLevel(h,v):null,meta=[h.time?`⏰ ${h.time}`:'',h.anchor,h.energyAdaptive&&v?habitVersionLabel(v):'',level?.minimum||''].filter(Boolean).join(' · ');
     return `<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(h.name)}</div>${meta?`<div class="completed-habit-meta">${escapeHtml(meta)}</div>`:''}</div><button class="habit-undo-button" data-habit-undo="${h.id}">Ongedaan</button></div>`;
   }
   function renderHabitGroup(listId,completedId,progressId,habits,emptyText){
@@ -1680,7 +1695,7 @@
   function householdIsDue(t){ const today=localDateKey(); if(t.paused)return false; if(t.deferUntil&&t.deferUntil>today)return false; if(householdDoneToday(t))return false; const last=householdLastDone(t); if(!last)return true; return dateDiffDays(today,last)>=Number(t.frequency||1); }
   function householdPriority(t){ const last=householdLastDone(t); if(!last)return 999; return dateDiffDays(localDateKey(),last)-Number(t.frequency||1); }
   function householdVisibleToday(){ const energy=Number(state.energy)||1,limit=householdLimit(); const fixed=state.householdTasks.filter(t=>t.fixedReminder&&(householdDoneToday(t)||householdIsDue(t))); const doneToday=state.householdTasks.filter(t=>!t.fixedReminder&&householdDoneToday(t)); const due=state.householdTasks.filter(t=>!t.fixedReminder&&householdIsDue(t)&&Number(t.effort||1)<=energy).sort((a,b)=>householdPriority(b)-householdPriority(a)||Number(a.effort)-Number(b.effort)); const openSlots=Math.max(0,limit-doneToday.length); return [...fixed,...doneToday,...due.slice(0,openSlots)]; }
-  function renderHousehold(){ const list=document.getElementById('householdList');if(!list)return; const shown=householdVisibleToday(),active=shown.filter(t=>!householdDoneToday(t)),completed=state.householdTasks.filter(householdDoneToday),limit=householdLimit(),regularShown=shown.filter(t=>!t.fixedReminder).length; const counter=document.getElementById('householdCounter');if(counter)counter.textContent=`${regularShown} / ${limit}`; const note=document.getElementById('householdNote');if(note)note.textContent=Number(state.energy)===1?'Lage energie: maximaal 1 licht klusje + vaste reminder(s).':Number(state.energy)===2?'Normale energie: maximaal 2 passende klusjes + vaste reminder(s).':'Hoge energie: maximaal 3 passende klusjes + vaste reminder(s).'; list.innerHTML=active.length?active.map(t=>`<div class="household-item"><input class="check" type="checkbox" data-household-check="${t.id}" aria-label="Huishoudtaak afvinken"/><div class="household-copy"><div class="household-name">${escapeHtml(t.name)}</div>${t.description?`<div class="household-detail">${escapeHtml(t.description)}</div>`:''}<div class="household-meta">${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span></div></div><div class="focus-item-actions"><button class="focus-list-button" data-focus-household="${t.id}">Focus</button><button class="basis-options" data-item-action="household|${t.id}" aria-label="Bewerken en opties">•••</button></div></div>`).join(''):`<div class="empty-state">${completed.length?'Alle huishoudklusjes voor vandaag zijn afgerond.':'Voor vandaag zijn er geen passende huishoudklusjes nodig.'}</div>`; const wrap=document.getElementById('completedHouseholdWrap');if(wrap)wrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div><div class="completed-habit-meta">${escapeHtml(t.fixedReminder?'Vaste reminder':householdEffortLabel(t.effort))} · ${escapeHtml(householdFrequencyLabel(t.frequency))}</div></div><button class="habit-undo-button" data-household-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''; }
+  function renderHousehold(){ const list=document.getElementById('householdList');if(!list)return; const shown=householdVisibleToday(),active=shown.filter(t=>!householdDoneToday(t)),completed=state.householdTasks.filter(householdDoneToday),limit=householdLimit(),regularShown=shown.filter(t=>!t.fixedReminder).length; const counter=document.getElementById('householdCounter');if(counter)counter.textContent=`${regularShown} / ${limit}`; const note=document.getElementById('householdNote');if(note)note.textContent=Number(state.energy)===1?'Lage energie: maximaal 1 licht klusje + vaste reminder(s).':Number(state.energy)===2?'Normale energie: maximaal 2 passende klusjes + vaste reminder(s).':'Hoge energie: maximaal 3 passende klusjes + vaste reminder(s).'; list.innerHTML=active.length?active.map(t=>`<div class="household-item"><input class="check" type="checkbox" data-household-check="${t.id}" aria-label="Huishoudtaak afvinken"/><div class="household-copy"><div class="household-name">${escapeHtml(t.name)}</div>${t.description?`<div class="household-detail">${escapeHtml(t.description)}</div>`:''}<div class="household-meta">${t.time?`<span class="household-badge light">⏰ ${escapeHtml(t.time)}</span>`:''}${t.alarmEnabled?'<span class="household-badge light">Alarm</span>':''}${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span></div></div><div class="focus-item-actions"><button class="focus-list-button" data-focus-household="${t.id}">Focus</button><button class="basis-options" data-item-action="household|${t.id}" aria-label="Bewerken en opties">•••</button></div></div>`).join(''):`<div class="empty-state">${completed.length?'Alle huishoudklusjes voor vandaag zijn afgerond.':'Voor vandaag zijn er geen passende huishoudklusjes nodig.'}</div>`; const wrap=document.getElementById('completedHouseholdWrap');if(wrap)wrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div><div class="completed-habit-meta">${escapeHtml(t.fixedReminder?'Vaste reminder':householdEffortLabel(t.effort))} · ${escapeHtml(householdFrequencyLabel(t.frequency))}</div></div><button class="habit-undo-button" data-household-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''; }
   function renderHouseholdManage(){ const wrap=document.getElementById('householdManageList');if(!wrap)return; const today=localDateKey();wrap.innerHTML=state.householdTasks.length?state.householdTasks.map(t=>`<div class="household-manage-item ${t.paused?'paused':''}"><div class="household-manage-top"><div class="household-manage-name">${escapeHtml(t.name)}<div class="household-meta">${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span>${t.paused?'<span class="household-badge">Gepauzeerd</span>':''}${t.deferUntil&&t.deferUntil>today?`<span class="household-badge">Tot ${escapeHtml(formatDateShort(t.deferUntil))}</span>`:''}</div></div></div><div class="household-manage-actions"><button class="accent" data-household-edit="${t.id}">Bewerken</button><button data-item-reminders="household|${t.id}">🔔 ${t.reminders?.length||0}</button><button data-household-tomorrow="${t.id}">Morgen</button><button data-household-pause="${t.id}">${t.paused?'Activeren':'Pauzeren'}</button><button class="danger" data-household-delete="${t.id}">Verwijderen</button></div></div>`).join(''):`<div class="empty-state">Nog geen huishoudklusjes.</div>`; }
   function openHouseholdManage(){ renderHouseholdManage();document.getElementById('householdModal').classList.add('open'); }
 
@@ -1697,7 +1712,7 @@
     const deadline=deadlineDisplay(task),progress=subtaskProgress(task), showActions=Boolean(options.actions);
     return `<div class="task-item ${task.done?'done':''}" data-task-id="${task.id}">
       <div class="task-row"><input class="check" type="checkbox" ${task.done?'checked':''} data-task-check="${task.id}" aria-label="Taak afvinken" />
-      <div class="task-main"><div class="task-name">${escapeHtml(task.name)}</div>${(deadline||task.paused)?`<div class="task-meta">${deadline?`<span class="task-badge ${deadline.cls}">${escapeHtml(deadline.text)}</span>`:''}${task.paused?`<span class="task-badge">Rust even</span>`:''}</div>`:''}</div>
+      <div class="task-main"><div class="task-name">${escapeHtml(task.name)}</div>${(deadline||task.time||task.paused)?`<div class="task-meta">${task.time?`<span class="task-badge today">⏰ ${escapeHtml(task.time)}</span>`:''}${deadline?`<span class="task-badge ${deadline.cls}">${escapeHtml(deadline.text)}</span>`:''}${task.alarmEnabled?'<span class="task-badge">Alarm</span>':''}${task.paused?`<span class="task-badge">Rust even</span>`:''}</div>`:''}</div>
       <button class="timer-button" data-focus-task="${task.id}">Focus</button></div>
       ${task.subtasks?.length?`<details class="task-step-details" data-task-step-details="${task.id}" ${openTaskStepIds.has(task.id)?'open':''}><summary><span>${escapeHtml(progress||'Stappen')}</span><b>Bekijken</b></summary><div class="subtask-list">${task.subtasks.map(st=>`<label class="subtask-row ${st.done?'done':''}"><input class="check" type="checkbox" ${st.done?'checked':''} data-subtask-check="${task.id}|${st.id}" /><span class="subtask-name">${escapeHtml(st.name)}</span></label>`).join('')}</div>${!task.done?`<button class="task-step-manage" data-manage-task-steps="${task.id}">Stappen beheren</button>`:''}</details>`:(!task.done?`<button class="task-step-manage" data-manage-task-steps="${task.id}">+ Kleine stappen</button>`:'')}
       ${showActions?`<div class="task-actions"><button class="task-action primary" data-focus-task="${task.id}">Focus</button><button class="task-action" data-task-reminders="${task.id}">🔔 ${task.reminders?.length||0}</button><button class="task-action" data-toggle-pause="${task.id}">${task.paused?'Weer actief':'Laat rusten'}</button><button class="task-action" data-tomorrow="${task.id}">Morgen</button></div>`:''}
@@ -1721,6 +1736,18 @@
       return date+(time?' · '+time:'');
     }catch{return '';}
   }
+  function relocateNativeAgendaCard(){
+    try{
+      const button=[...document.querySelectorAll('button')].find(b=>/agenda.?s kiezen/i.test((b.textContent||'').trim()));
+      const nativeCard=button?.closest('.section-card');
+      const target=document.getElementById('todayAgendaBlock');
+      if(!nativeCard||!target||nativeCard===target)return;
+      target.replaceWith(nativeCard);
+      nativeCard.id='todayAgendaBlock';
+      nativeCard.classList.add('today-section-card');
+    }catch{}
+  }
+
   function renderTodayAgenda(){
     const list=document.getElementById('todayAgendaList');if(!list)return;
     let events=todayAgendaCache();
@@ -1749,6 +1776,8 @@
     document.getElementById('taskList').innerHTML=planned.length?planned.map(t=>renderTaskCard(t)).join(''):`<div class="empty-state">Nog geen belangrijke taak voor vandaag.</div>`;
     renderTodayAgenda();
     saveState();
+    syncTimedAlarms();
+    setTimeout(relocateNativeAgendaCard,120);
   }
   function openHabitHistory(id){
     const h=state.habits.find(x=>x.id===id); if(!h)return; activeHabitId=id;habitHistoryMonthOffset=0;
@@ -1806,6 +1835,7 @@
   function closeItemAction(){activeItemActionType=null;activeItemActionId=null;document.getElementById('itemActionModal').classList.remove('open');}
   function cancelItemReminders(type,item){
     (item?.reminders||[]).forEach(r=>{try{window.AndroidWidgetBridge?.cancelReminder?.(reminderPrefix(type)+'-'+item.id+'-'+r.id);}catch{}});
+    if(item?.id)cancelTimedAlarm(type,item.id);
   }
   function deleteManagedItem(type,id){
     const item=itemActionObject(type,id);if(!item)return;
@@ -1862,6 +1892,49 @@
     renderItemReminderList();renderAllTasks();renderDailyBasis();renderHousehold();renderHouseholdManage();
   }
   function removeTaskReminder(id){removeItemReminder(id);}
+
+  function timedAlarmId(type,id){return 'timed-'+type+'-'+id;}
+  function cancelTimedAlarm(type,id){try{window.AndroidWidgetBridge?.cancelReminder?.(timedAlarmId(type,id));}catch{}}
+  function dateTimeAt(dateKey,time){
+    if(!dateKey||!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(time||''))return 0;
+    const d=new Date(dateKey+'T'+time+':00');return Number.isFinite(d.getTime())?d.getTime():0;
+  }
+  function addDaysToKey(key,days){const d=new Date(key+'T12:00:00');d.setDate(d.getDate()+Number(days||0));return localDateKey(d);}
+  function householdNextDueKey(t){
+    const today=localDateKey(),last=householdLastDone(t);
+    let key=last?addDaysToKey(last,Math.max(1,Number(t.frequency)||1)):today;
+    if(t.deferUntil&&t.deferUntil>key)key=t.deferUntil;
+    if(key<today)key=today;
+    return key;
+  }
+  function syncTimedAlarms(){
+    if(!window.AndroidWidgetBridge)return;
+    try{
+      state.tasks.forEach(t=>{
+        const id=timedAlarmId('task',t.id);
+        if(t.alarmEnabled&&t.deadline&&t.time&&!t.done){
+          const at=dateTimeAt(t.deadline,t.time);
+          if(at>Date.now()+1000&&AndroidWidgetBridge.scheduleReminder)AndroidWidgetBridge.scheduleReminder(id,t.name,'Tijd voor je taak.',at,'today-tasks');
+          else AndroidWidgetBridge.cancelReminder?.(id);
+        }else AndroidWidgetBridge.cancelReminder?.(id);
+      });
+      state.habits.forEach(h=>{
+        const id=timedAlarmId('habit',h.id);
+        if(h.alarmEnabled&&h.time&&AndroidWidgetBridge.scheduleDailyItemReminder){
+          const doneToday=Boolean(h.history?.[localDateKey()]);
+          const target=h.id==='basis-move'?'today-movement':h.id==='basis-relax'?'today-relax':'today-routines';
+          AndroidWidgetBridge.scheduleDailyItemReminder(id,h.name,'Tijd voor '+h.name+'.',h.time,target,doneToday);
+        }else AndroidWidgetBridge.cancelReminder?.(id);
+      });
+      state.householdTasks.forEach(t=>{
+        const id=timedAlarmId('household',t.id);
+        if(t.alarmEnabled&&t.time&&!t.paused&&AndroidWidgetBridge.scheduleEveryDaysReminder){
+          const first=dateTimeAt(householdNextDueKey(t),t.time);
+          AndroidWidgetBridge.scheduleEveryDaysReminder(id,t.name,'Tijd voor je huishoudtaak.',first,Math.max(1,Number(t.frequency)||1),'today-household');
+        }else AndroidWidgetBridge.cancelReminder?.(id);
+      });
+    }catch{}
+  }
 
   function nextOpenSubtask(task){ return task?.subtasks?.find(s=>!s.done)?.name||''; }
   function focusItemByType(type,id){
@@ -2053,20 +2126,20 @@
   function openInputModal(mode,id=null){
     inputMode=mode; editingHabitId=mode==='habit-edit'?id:null; editingHouseholdId=mode==='household-edit'?id:null;
     const title=document.getElementById('inputModalTitle'),hint=document.getElementById('inputModalHint'),label=document.getElementById('inputLabel'),input=document.getElementById('modalInput'),save=document.getElementById('modalSaveButton');
-    input.value=''; document.getElementById('taskDeadline').value=''; document.getElementById('taskSubtasks').value=''; document.getElementById('taskSubtasks').dataset.source=''; renderTaskStepEditor([]); taskStepsStatus('AI maakt automatisch kleine, concrete stappen. Je kunt elke stap zelf aanpassen.'); document.getElementById('habitDescription').value=''; document.getElementById('habitEnergyAdaptive').checked=false; ['habitLowMinimum','habitLowDetail','habitNormalMinimum','habitNormalDetail','habitHighMinimum','habitHighDetail'].forEach(x=>document.getElementById(x).value=''); document.getElementById('householdDescription').value='';document.getElementById('householdEffort').value='1';document.getElementById('householdFrequency').value='1';document.getElementById('householdFrequencyCustom').value='';document.getElementById('householdFixedReminder').checked=false;updateHouseholdFrequencyVisibility();
+    input.value=''; document.getElementById('taskDeadline').value=''; document.getElementById('taskTime').value=''; document.getElementById('taskAlarmEnabled').checked=false; document.getElementById('taskSubtasks').value=''; document.getElementById('taskSubtasks').dataset.source=''; renderTaskStepEditor([]); taskStepsStatus('AI maakt automatisch kleine, concrete stappen. Je kunt elke stap zelf aanpassen.'); document.getElementById('habitDescription').value=''; document.getElementById('habitTime').value='';document.getElementById('habitAlarmEnabled').checked=false; document.getElementById('habitEnergyAdaptive').checked=false; ['habitLowMinimum','habitLowDetail','habitNormalMinimum','habitNormalDetail','habitHighMinimum','habitHighDetail'].forEach(x=>document.getElementById(x).value=''); document.getElementById('householdDescription').value='';document.getElementById('householdTime').value='';document.getElementById('householdAlarmEnabled').checked=false;document.getElementById('householdEffort').value='1';document.getElementById('householdFrequency').value='1';document.getElementById('householdFrequencyCustom').value='';document.getElementById('householdFixedReminder').checked=false;updateHouseholdFrequencyVisibility();
     document.getElementById('taskOptions').style.display='none';if(document.getElementById('taskBucket'))document.getElementById('taskBucket').value='inbox';document.getElementById('habitOptions').style.display='none';document.getElementById('householdOptions').style.display='none';
     if(mode==='task'){title.textContent='Nieuwe taak';hint.textContent='Typ de hoofdtaak. AI deelt hem automatisch op in kleine stappen.';label.textContent='Wat wil je doen?';input.placeholder='Bijv. slaapkamer behangen';save.textContent='Taak toevoegen';document.getElementById('taskOptions').style.display='block';}
-    else if(mode==='habit'||mode==='habit-edit'){const h=mode==='habit-edit'?state.habits.find(x=>x.id===id):null;title.textContent=h?'Gewoonte bewerken':'Nieuwe gewoonte';hint.textContent=h?'Pas de tekst of energieversies aan. Je historie blijft bewaard.':'Kies zelf of dit iedere dag hetzelfde is of met je energie meebeweegt.';label.textContent='Naam';input.placeholder='Bijv. Lezen, Ochtendroutine of Bewegen';input.value=h?.name||'';document.getElementById('habitDescription').value=h?.description||'';document.getElementById('habitEnergyAdaptive').checked=Boolean(h?.energyAdaptive);const lv=h?.levels||{};document.getElementById('habitLowMinimum').value=lv[1]?.minimum||'';document.getElementById('habitLowDetail').value=lv[1]?.detail||'';document.getElementById('habitNormalMinimum').value=lv[2]?.minimum||'';document.getElementById('habitNormalDetail').value=lv[2]?.detail||'';document.getElementById('habitHighMinimum').value=lv[3]?.minimum||'';document.getElementById('habitHighDetail').value=lv[3]?.detail||'';save.textContent=h?'Wijzigingen opslaan':'Toevoegen';document.getElementById('habitOptions').style.display='block';updateHabitOptionVisibility();}
-    else if(mode==='household'||mode==='household-edit'){const h=mode==='household-edit'?state.householdTasks.find(x=>x.id===id):null;title.textContent=h?'Huishoudklus aanpassen':'Nieuw huishoudklusje';hint.textContent='Kleine terugkerende klusjes. Je energie bepaalt hoeveel er vandaag worden gekozen.';label.textContent='Klus';input.placeholder='Bijv. Robotstofzuiger aanzetten';input.value=h?.name||'';document.getElementById('householdDescription').value=h?.description||'';document.getElementById('householdEffort').value=String(h?.effort||1);const freq=String(h?.frequency||1),freqSelect=document.getElementById('householdFrequency'),knownFreq=['1','2','3','4','5','7','14','28','30'];if(knownFreq.includes(freq)){freqSelect.value=freq;}else{freqSelect.value='custom';document.getElementById('householdFrequencyCustom').value=freq;}document.getElementById('householdFixedReminder').checked=Boolean(h?.fixedReminder);updateHouseholdFrequencyVisibility();save.textContent=h?'Wijzigingen opslaan':'Klus toevoegen';document.getElementById('householdOptions').style.display='block';}
+    else if(mode==='habit'||mode==='habit-edit'){const h=mode==='habit-edit'?state.habits.find(x=>x.id===id):null;title.textContent=h?'Gewoonte bewerken':'Nieuwe gewoonte';hint.textContent=h?'Pas de tekst of energieversies aan. Je historie blijft bewaard.':'Kies zelf of dit iedere dag hetzelfde is of met je energie meebeweegt.';label.textContent='Naam';input.placeholder='Bijv. Lezen, Ochtendroutine of Bewegen';input.value=h?.name||'';document.getElementById('habitDescription').value=h?.description||'';document.getElementById('habitTime').value=h?.time||'';document.getElementById('habitAlarmEnabled').checked=Boolean(h?.alarmEnabled);document.getElementById('habitEnergyAdaptive').checked=Boolean(h?.energyAdaptive);const lv=h?.levels||{};document.getElementById('habitLowMinimum').value=lv[1]?.minimum||'';document.getElementById('habitLowDetail').value=lv[1]?.detail||'';document.getElementById('habitNormalMinimum').value=lv[2]?.minimum||'';document.getElementById('habitNormalDetail').value=lv[2]?.detail||'';document.getElementById('habitHighMinimum').value=lv[3]?.minimum||'';document.getElementById('habitHighDetail').value=lv[3]?.detail||'';save.textContent=h?'Wijzigingen opslaan':'Toevoegen';document.getElementById('habitOptions').style.display='block';updateHabitOptionVisibility();}
+    else if(mode==='household'||mode==='household-edit'){const h=mode==='household-edit'?state.householdTasks.find(x=>x.id===id):null;title.textContent=h?'Huishoudklus aanpassen':'Nieuw huishoudklusje';hint.textContent='Kleine terugkerende klusjes. Je energie bepaalt hoeveel er vandaag worden gekozen.';label.textContent='Klus';input.placeholder='Bijv. Robotstofzuiger aanzetten';input.value=h?.name||'';document.getElementById('householdDescription').value=h?.description||'';document.getElementById('householdTime').value=h?.time||'';document.getElementById('householdAlarmEnabled').checked=Boolean(h?.alarmEnabled);document.getElementById('householdEffort').value=String(h?.effort||1);const freq=String(h?.frequency||1),freqSelect=document.getElementById('householdFrequency'),knownFreq=['1','2','3','4','5','7','14','28','30'];if(knownFreq.includes(freq)){freqSelect.value=freq;}else{freqSelect.value='custom';document.getElementById('householdFrequencyCustom').value=freq;}document.getElementById('householdFixedReminder').checked=Boolean(h?.fixedReminder);updateHouseholdFrequencyVisibility();save.textContent=h?'Wijzigingen opslaan':'Klus toevoegen';document.getElementById('householdOptions').style.display='block';}
     else {title.textContent='Nieuw project';hint.textContent='Voor nu alleen een eenvoudige projectnaam.';label.textContent='Projectnaam';input.placeholder='Bijv. Schuur opruimen';save.textContent='Project toevoegen';}
     document.getElementById('inputModal').classList.add('open'); setTimeout(()=>input.focus(),100);
   }
   function closeInputModal(){taskStepsRequestId++;document.getElementById('inputModal').classList.remove('open');inputMode=null;editingHabitId=null;editingHouseholdId=null;pendingDumpHouseholdId=null;}
   function saveModalInput(){
     const value=document.getElementById('modalInput').value.trim(); if(!value)return showToast('Vul eerst een naam in.');
-    if(inputMode==='task'){const ta=document.getElementById('taskSubtasks');if(!ta.value.trim())fillSuggestedSteps(false);const deadline=document.getElementById('taskDeadline').value||'',source=ta.dataset.source||'manual',subtasks=ta.value.split('\n').map(x=>x.trim()).filter(Boolean).map(name=>({id:uid('sub'),name,done:false}));const bucket=document.getElementById('taskBucket')?.value||'inbox',task={id:uid('task'),name:value,done:false,elapsed:0,running:false,deadline,bucket,reminders:[],subtasks,subtasksSource:source,createdAt:Date.now(),completedAt:null,paused:false,deferUntil:''};state.tasks.push(task);refillTodayPlan(Boolean(deadline));saveState();const autoImprove=source==='local-auto';closeInputModal();renderToday();renderAllTasks();showToast(autoImprove?'Taak opgeslagen. Slimme stappen worden gemaakt…':(state.todayPlan.taskIds.includes(task.id)?'Taak staat bij Vandaag.':'Taak toegevoegd aan je lijst.'));if(autoImprove)improveSavedTaskSteps(task.id,value); }
-    else if(inputMode==='habit'||inputMode==='habit-edit'){const adaptive=document.getElementById('habitEnergyAdaptive').checked,levels={1:{minimum:document.getElementById('habitLowMinimum').value.trim(),detail:document.getElementById('habitLowDetail').value.trim()},2:{minimum:document.getElementById('habitNormalMinimum').value.trim(),detail:document.getElementById('habitNormalDetail').value.trim()},3:{minimum:document.getElementById('habitHighMinimum').value.trim(),detail:document.getElementById('habitHighDetail').value.trim()}};if(adaptive&&!levels[1].minimum&&!levels[2].minimum&&!levels[3].minimum)return showToast('Vul minstens één energieversie in.');const wasEdit=inputMode==='habit-edit';if(wasEdit){const h=state.habits.find(x=>x.id===editingHabitId);if(h){h.name=value;h.description=document.getElementById('habitDescription').value.trim();h.energyAdaptive=adaptive;h.levels=levels;}}else state.habits.push(normalizeHabit({id:uid('habit'),name:value,description:document.getElementById('habitDescription').value.trim(),energyAdaptive:adaptive,levels,history:{},startedOn:localDateKey()}));saveState();closeInputModal();renderDailyBasis();showToast(wasEdit?'Aangepast.':'Gewoonte toegevoegd.');}
-    else if(inputMode==='household'||inputMode==='household-edit'){const wasEdit=inputMode==='household-edit',description=document.getElementById('householdDescription').value.trim(),effort=Number(document.getElementById('householdEffort').value||1),frequency=householdFrequencyValue(),fixedReminder=document.getElementById('householdFixedReminder').checked;if(!frequency)return showToast('Vul een geldig aantal dagen in (1–365).');if(wasEdit){const h=state.householdTasks.find(x=>x.id===editingHouseholdId);if(h){h.name=value;h.description=description;h.effort=effort;h.frequency=frequency;h.fixedReminder=fixedReminder;}}else {state.householdTasks.push(normalizeHouseholdTask({id:uid('house'),name:value,description,effort,frequency,fixedReminder,history:{},paused:false,deferUntil:''}));if(pendingDumpHouseholdId){const item=state.dump.find(x=>x.id===pendingDumpHouseholdId);if(item)item.processed=true;pendingDumpHouseholdId=null;}}saveState();closeInputModal();renderDump();renderHousehold();renderHouseholdManage();showToast(wasEdit?'Huishoudklus aangepast.':'Huishoudklus toegevoegd.');}
+    if(inputMode==='task'){const ta=document.getElementById('taskSubtasks');if(!ta.value.trim())fillSuggestedSteps(false);const deadline=document.getElementById('taskDeadline').value||'',time=document.getElementById('taskTime').value||'',alarmEnabled=Boolean(document.getElementById('taskAlarmEnabled').checked),source=ta.dataset.source||'manual',subtasks=ta.value.split('\n').map(x=>x.trim()).filter(Boolean).map(name=>({id:uid('sub'),name,done:false}));const bucket=document.getElementById('taskBucket')?.value||'inbox';if(alarmEnabled&&(!deadline||!time))return showToast('Kies voor het alarm een datum én tijd.');const task={id:uid('task'),name:value,done:false,elapsed:0,running:false,deadline,time,alarmEnabled,bucket,reminders:[],subtasks,subtasksSource:source,createdAt:Date.now(),completedAt:null,paused:false,deferUntil:''};state.tasks.push(task);refillTodayPlan(Boolean(deadline));saveState();const autoImprove=source==='local-auto';closeInputModal();renderToday();renderAllTasks();showToast(autoImprove?'Taak opgeslagen. Slimme stappen worden gemaakt…':(state.todayPlan.taskIds.includes(task.id)?'Taak staat bij Vandaag.':'Taak toegevoegd aan je lijst.'));if(autoImprove)improveSavedTaskSteps(task.id,value); }
+    else if(inputMode==='habit'||inputMode==='habit-edit'){const adaptive=document.getElementById('habitEnergyAdaptive').checked,levels={1:{minimum:document.getElementById('habitLowMinimum').value.trim(),detail:document.getElementById('habitLowDetail').value.trim()},2:{minimum:document.getElementById('habitNormalMinimum').value.trim(),detail:document.getElementById('habitNormalDetail').value.trim()},3:{minimum:document.getElementById('habitHighMinimum').value.trim(),detail:document.getElementById('habitHighDetail').value.trim()}};if(adaptive&&!levels[1].minimum&&!levels[2].minimum&&!levels[3].minimum)return showToast('Vul minstens één energieversie in.');const wasEdit=inputMode==='habit-edit';const time=document.getElementById('habitTime').value||'',alarmEnabled=Boolean(document.getElementById('habitAlarmEnabled').checked);if(alarmEnabled&&!time)return showToast('Kies eerst een tijd voor het alarm.');if(wasEdit){const h=state.habits.find(x=>x.id===editingHabitId);if(h){h.name=value;h.description=document.getElementById('habitDescription').value.trim();h.time=time;h.alarmEnabled=alarmEnabled;h.energyAdaptive=adaptive;h.levels=levels;}}else state.habits.push(normalizeHabit({id:uid('habit'),name:value,description:document.getElementById('habitDescription').value.trim(),time,alarmEnabled,energyAdaptive:adaptive,levels,history:{},startedOn:localDateKey()}));saveState();closeInputModal();renderDailyBasis();showToast(wasEdit?'Aangepast.':'Gewoonte toegevoegd.');}
+    else if(inputMode==='household'||inputMode==='household-edit'){const wasEdit=inputMode==='household-edit',description=document.getElementById('householdDescription').value.trim(),time=document.getElementById('householdTime').value||'',alarmEnabled=Boolean(document.getElementById('householdAlarmEnabled').checked),effort=Number(document.getElementById('householdEffort').value||1),frequency=householdFrequencyValue(),fixedReminder=document.getElementById('householdFixedReminder').checked;if(!frequency)return showToast('Vul een geldig aantal dagen in (1–365).');if(alarmEnabled&&!time)return showToast('Kies eerst een tijd voor het alarm.');if(wasEdit){const h=state.householdTasks.find(x=>x.id===editingHouseholdId);if(h){h.name=value;h.description=description;h.time=time;h.alarmEnabled=alarmEnabled;h.effort=effort;h.frequency=frequency;h.fixedReminder=fixedReminder;}}else {state.householdTasks.push(normalizeHouseholdTask({id:uid('house'),name:value,description,time,alarmEnabled,effort,frequency,fixedReminder,history:{},paused:false,deferUntil:''}));if(pendingDumpHouseholdId){const item=state.dump.find(x=>x.id===pendingDumpHouseholdId);if(item)item.processed=true;pendingDumpHouseholdId=null;}}saveState();closeInputModal();renderDump();renderHousehold();renderHouseholdManage();showToast(wasEdit?'Huishoudklus aangepast.':'Huishoudklus toegevoegd.');}
     else {state.projects.push({id:uid('project'),name:value});saveState();closeInputModal();renderProjects();}
   }
 
@@ -2317,7 +2390,7 @@
     if(e.target.closest('#taskActionDone')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(t){closeTaskAction();return markTask(t,true);}}
     if(e.target.closest('#taskActionPause')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(t){t.paused=!t.paused;if(t.paused)t.deferUntil='';refillTodayPlan(true);saveState();closeTaskAction();renderAllTasks();renderToday();return;}}
     if(e.target.closest('#taskActionTomorrow')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(t){t.deferUntil=addDaysKey(1);t.paused=false;state.todayPlan.taskIds=state.todayPlan.taskIds.filter(id=>id!==t.id);refillTodayPlan(false);saveState();closeTaskAction();renderToday();renderAllTasks();showToast('Taak staat voor morgen.');return;}}
-    if(e.target.closest('#taskActionDelete')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(!t)return;if(!confirm(`“${t.name}” verwijderen?`))return;cancelItemReminders('task',t);state.tasks=state.tasks.filter(x=>x.id!==t.id);state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(id=>id!==t.id);if(state.focus?.targetId===t.id||state.focus?.taskId===t.id){state.focus.targetId='';state.focus.taskId='';state.focus.running=false;}saveState();closeTaskAction();refillTodayPlan(false);renderAllTasks();renderToday();showToast('Taak verwijderd.');return;}
+    if(e.target.closest('#taskActionDelete')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(!t)return;if(!confirm(`“${t.name}” verwijderen?`))return;cancelItemReminders('task',t);cancelTimedAlarm('task',t.id);state.tasks=state.tasks.filter(x=>x.id!==t.id);state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(id=>id!==t.id);if(state.focus?.targetId===t.id||state.focus?.taskId===t.id){state.focus.targetId='';state.focus.taskId='';state.focus.running=false;}saveState();closeTaskAction();refillTodayPlan(false);renderAllTasks();renderToday();showToast('Taak verwijderd.');return;}
     const itemAction=e.target.closest('[data-item-action]');if(itemAction){const [type,id]=itemAction.dataset.itemAction.split('|');return openItemAction(type,id);}
     if(e.target.closest('[data-close-item-action]'))return closeItemAction();
     if(e.target.closest('#itemActionEdit')){const type=activeItemActionType,id=activeItemActionId;closeItemAction();if(type==='habit')return openInputModal('habit-edit',id);if(type==='household')return openInputModal('household-edit',id);}
