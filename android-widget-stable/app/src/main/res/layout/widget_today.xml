@@ -46,10 +46,22 @@
                 android:id="@+id/today_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
                 android:text="di 6 okt"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:textColor="#6B7168" />
+
+            <TextView
+                android:id="@+id/today_home"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:text="⌂"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:contentDescription="Open Mijn dag startpagina" />
         </LinearLayout>
 
         <TextView
