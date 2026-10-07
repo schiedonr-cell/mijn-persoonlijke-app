@@ -19,7 +19,7 @@ final class NativeAlarmScheduler {
     private NativeAlarmScheduler() {}
 
     static void schedule(Context context, String id, String title, String body, long triggerAt, String target) {
-        scheduleInternal(context, id, title, body, Math.max(System.currentTimeMillis() + 1000L, triggerAt), target, false, -1, -1);
+        scheduleInternal(context, id, title, body, Math.max(System.currentTimeMillis() + 1000L, triggerAt), target, false, -1, -1, 0);
     }
 
     static void scheduleDaily(Context context, String id, String title, String body, int hour, int minute, String target) {
@@ -29,13 +29,22 @@ final class NativeAlarmScheduler {
         c.set(Calendar.SECOND, 0);
         c.set(Calendar.MILLISECOND, 0);
         if (c.getTimeInMillis() <= System.currentTimeMillis() + 1000L) c.add(Calendar.DAY_OF_YEAR, 1);
-        scheduleInternal(context, id, title, body, c.getTimeInMillis(), target, true, hour, minute);
+        scheduleInternal(context, id, title, body, c.getTimeInMillis(), target, true, hour, minute, 1);
+    }
+
+    static void scheduleEveryDays(Context context, String id, String title, String body, long firstAt, int everyDays, String target) {
+        int days = Math.max(1, Math.min(365, everyDays));
+        long at = Math.max(System.currentTimeMillis() + 1000L, firstAt);
+        Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(at);
+        scheduleInternal(context, id, title, body, at, target, false,
+                c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), days);
     }
 
     private static void scheduleInternal(Context context, String id, String title, String body, long at, String target,
-                                         boolean repeatDaily, int hour, int minute) {
+                                         boolean repeatDaily, int hour, int minute, int repeatDays) {
         if (id == null || id.trim().isEmpty()) return;
-        save(context, id, title, body, at, target, repeatDaily, hour, minute);
+        save(context, id, title, body, at, target, repeatDaily, hour, minute, repeatDays);
 
         AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarm == null) return;
@@ -74,10 +83,16 @@ final class NativeAlarmScheduler {
             JSONObject item = items.optJSONObject(id);
             if (item == null) continue;
             boolean daily = item.optBoolean("repeatDaily", false);
+            int repeatDays = item.optInt("repeatDays", 0);
             if (daily) {
                 scheduleDaily(context, id, item.optString("title", "Herinnering"),
                         item.optString("body", ""), item.optInt("hour", 9), item.optInt("minute", 0),
                         item.optString("target", "today"));
+            } else if (repeatDays > 0) {
+                long at = item.optLong("at", 0L);
+                while (at <= now + 1000L) at += repeatDays * 86400000L;
+                scheduleEveryDays(context, id, item.optString("title", "Herinnering"),
+                        item.optString("body", ""), at, repeatDays, item.optString("target", "today"));
             } else {
                 long at = item.optLong("at", 0L);
                 if (at > now) schedule(context, id, item.optString("title", "Herinnering"),
@@ -94,6 +109,12 @@ final class NativeAlarmScheduler {
             scheduleDaily(context, id, item.optString("title", "Herinnering"),
                     item.optString("body", ""), item.optInt("hour", 9), item.optInt("minute", 0),
                     item.optString("target", "today"));
+        } else if (item != null && item.optInt("repeatDays", 0) > 0) {
+            int days = item.optInt("repeatDays", 1);
+            long next = item.optLong("at", System.currentTimeMillis()) + days * 86400000L;
+            while (next <= System.currentTimeMillis() + 1000L) next += days * 86400000L;
+            scheduleEveryDays(context, id, item.optString("title", "Herinnering"),
+                    item.optString("body", ""), next, days, item.optString("target", "today"));
         } else {
             remove(context, id);
         }
@@ -116,7 +137,7 @@ final class NativeAlarmScheduler {
     }
 
     private static void save(Context context, String id, String title, String body, long at, String target,
-                             boolean repeatDaily, int hour, int minute) {
+                             boolean repeatDaily, int hour, int minute, int repeatDays) {
         try {
             JSONObject items = load(context);
             JSONObject item = new JSONObject();
@@ -125,7 +146,8 @@ final class NativeAlarmScheduler {
             item.put("at", at);
             item.put("target", target == null ? "today" : target);
             item.put("repeatDaily", repeatDaily);
-            if (repeatDaily) {
+            item.put("repeatDays", Math.max(0, repeatDays));
+            if (repeatDaily || repeatDays > 0) {
                 item.put("hour", hour);
                 item.put("minute", minute);
             }
