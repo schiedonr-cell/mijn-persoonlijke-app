@@ -52,7 +52,7 @@ final class CalendarData {
                 String account = cursor.getString(2);
                 String type = cursor.getString(3);
                 boolean visible = cursor.getInt(4) != 0;
-                if (!isGoogle(type)) continue;
+                if (!isGoogle(type) || isTaskCalendar(name)) continue;
 
                 JSONObject item = new JSONObject();
                 item.put("id", id);
@@ -99,7 +99,7 @@ final class CalendarData {
         ZoneId zone = ZoneId.systemDefault();
         LocalDate day = LocalDate.now(zone);
         long begin = day.atStartOfDay(zone).toInstant().toEpochMilli();
-        long end = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli();
+        long end = day.plusDays(3).atStartOfDay(zone).toInstant().toEpochMilli();
 
         String[] projection = new String[]{
                 CalendarContract.Instances.TITLE,
@@ -123,7 +123,7 @@ final class CalendarData {
                 CalendarContract.Instances.BEGIN + " ASC"
         )) {
             if (cursor == null) return out;
-            while (cursor.moveToNext()) {
+            while (cursor.moveToNext() && out.length() < 3) {
                 long calendarId = cursor.getLong(5);
                 if (!selected.contains(calendarId)) continue;
 
@@ -141,8 +141,10 @@ final class CalendarData {
                 JSONObject start = new JSONObject();
                 JSONObject finish = new JSONObject();
                 if (allDay) {
-                    start.put("date", day.toString());
-                    finish.put("date", day.plusDays(1).toString());
+                    LocalDate eventDay = Instant.ofEpochMilli(startMs).atZone(java.time.ZoneOffset.UTC).toLocalDate();
+                    LocalDate eventEndDay = Instant.ofEpochMilli(endMs).atZone(java.time.ZoneOffset.UTC).toLocalDate();
+                    start.put("date", eventDay.toString());
+                    finish.put("date", eventEndDay.toString());
                 } else {
                     ZonedDateTime s = Instant.ofEpochMilli(startMs).atZone(zone);
                     ZonedDateTime e = Instant.ofEpochMilli(endMs).atZone(zone);
@@ -161,6 +163,12 @@ final class CalendarData {
         if (type == null) return false;
         String value = type.toLowerCase();
         return value.contains("google");
+    }
+
+    private static boolean isTaskCalendar(String name) {
+        if (name == null) return false;
+        String value = name.trim().toLowerCase();
+        return value.equals("tasks") || value.equals("taken") || value.contains("google tasks") || value.contains("google taken");
     }
 
     private static void ensureDefaultSelection(Context context, JSONArray available) {
