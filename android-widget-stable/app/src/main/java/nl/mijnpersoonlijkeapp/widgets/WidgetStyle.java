@@ -103,6 +103,54 @@ final class WidgetStyle {
         return ICON_XLARGE;
     }
 
+    private static String widgetKey(String key, int appWidgetId) { return key + "_widget_" + appWidgetId; }
+    private static boolean validWidgetId(int appWidgetId) { return appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID && appWidgetId >= 0; }
+
+    static int background(Context context, int appWidgetId) {
+        SharedPreferences p = prefs(context);
+        String key = widgetKey(KEY_BG, appWidgetId);
+        return validWidgetId(appWidgetId) && p.contains(key) ? p.getInt(key, background(context)) : background(context);
+    }
+
+    static int transparency(Context context, int appWidgetId) {
+        SharedPreferences p = prefs(context);
+        String key = widgetKey(KEY_TRANSPARENCY, appWidgetId);
+        return validWidgetId(appWidgetId) && p.contains(key) ? clampPercent(p.getInt(key, transparency(context))) : transparency(context);
+    }
+
+    static String textMode(Context context, int appWidgetId) {
+        SharedPreferences p = prefs(context);
+        String key = widgetKey(KEY_TEXT, appWidgetId);
+        return validWidgetId(appWidgetId) && p.contains(key) ? p.getString(key, textMode(context)) : textMode(context);
+    }
+
+    static int accent(Context context, int appWidgetId) {
+        SharedPreferences p = prefs(context);
+        String key = widgetKey(KEY_ACCENT, appWidgetId);
+        return validWidgetId(appWidgetId) && p.contains(key) ? p.getInt(key, accent(context)) : accent(context);
+    }
+
+    static int border(Context context, int appWidgetId) {
+        SharedPreferences p = prefs(context);
+        String key = widgetKey(KEY_BORDER, appWidgetId);
+        return validWidgetId(appWidgetId) && p.contains(key) ? p.getInt(key, border(context)) : border(context);
+    }
+
+    static int borderColor(Context context, int appWidgetId) {
+        int value = border(context, appWidgetId);
+        return value == BORDER_MATCH_ACCENT ? accent(context, appWidgetId) : value;
+    }
+
+    static int iconSize(Context context, int appWidgetId) {
+        SharedPreferences p = prefs(context);
+        String key = widgetKey(KEY_ICON_SIZE, appWidgetId);
+        int value = validWidgetId(appWidgetId) && p.contains(key) ? p.getInt(key, iconSize(context)) : iconSize(context);
+        if (value <= ICON_SMALL) return ICON_SMALL;
+        if (value <= ICON_MEDIUM) return ICON_MEDIUM;
+        if (value <= ICON_LARGE) return ICON_LARGE;
+        return ICON_XLARGE;
+    }
+
     static void setOptions(Context context, int background, int transparency, String textMode, int accent, int border, int iconSize) {
         if (!TEXT_LIGHT.equals(textMode) && !TEXT_DARK.equals(textMode)) textMode = TEXT_AUTO;
         prefs(context).edit()
@@ -116,11 +164,28 @@ final class WidgetStyle {
         refreshAll(context);
     }
 
-    static void applyQuick(RemoteViews v, Context context) {
-        int base = background(context);
-        int transparency = transparency(context);
+    static void setOptions(Context context, int appWidgetId, int background, int transparency, String textMode, int accent, int border, int iconSize) {
+        if (!validWidgetId(appWidgetId)) {
+            setOptions(context, background, transparency, textMode, accent, border, iconSize);
+            return;
+        }
+        if (!TEXT_LIGHT.equals(textMode) && !TEXT_DARK.equals(textMode)) textMode = TEXT_AUTO;
+        prefs(context).edit()
+                .putInt(widgetKey(KEY_BG, appWidgetId), background)
+                .putInt(widgetKey(KEY_TRANSPARENCY, appWidgetId), clampPercent(transparency))
+                .putString(widgetKey(KEY_TEXT, appWidgetId), textMode)
+                .putInt(widgetKey(KEY_ACCENT, appWidgetId), accent)
+                .putInt(widgetKey(KEY_BORDER, appWidgetId), border)
+                .putInt(widgetKey(KEY_ICON_SIZE, appWidgetId), iconSize)
+                .apply();
+        refreshAll(context);
+    }
+
+    static void applyQuick(RemoteViews v, Context context, int appWidgetId) {
+        int base = background(context, appWidgetId);
+        int transparency = transparency(context, appWidgetId);
         int opacity = 100 - transparency;
-        boolean lightText = useLightText(context, base);
+        boolean lightText = useLightText(context, appWidgetId, base);
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
         int root = withOpacity(base, opacity);
         int buttonBase = blend(base, lightText ? Color.WHITE : Color.BLACK, lightText ? 0.12f : 0.06f);
@@ -138,18 +203,18 @@ final class WidgetStyle {
         }
     }
 
-    static void applyToday(RemoteViews v, Context context) {
-        int base = background(context);
-        int transparency = transparency(context);
+    static void applyToday(RemoteViews v, Context context, int appWidgetId) {
+        int base = background(context, appWidgetId);
+        int transparency = transparency(context, appWidgetId);
         int opacity = 100 - transparency;
-        boolean lightText = useLightText(context, base);
+        boolean lightText = useLightText(context, appWidgetId, base);
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
         int muted = lightText ? Color.rgb(202, 208, 203) : Color.rgb(83, 91, 84);
-        int accent = accent(context);
+        int accent = accent(context, appWidgetId);
         int divider = Color.argb(lightText ? 110 : 85, Color.red(accent), Color.green(accent), Color.blue(accent));
 
         try { v.setInt(R.id.today_root, "setBackgroundResource", R.drawable.widget_bg_clear); } catch (Exception ignored) {}
-        applyOutlinedPanel(v, context, R.id.today_box, R.id.today_panel, base, opacity, transparency);
+        applyOutlinedPanel(v, context, appWidgetId, R.id.today_box, R.id.today_panel, base, opacity, transparency);
         setText(v, R.id.today_title, text);
         setText(v, R.id.today_subtitle, muted);
         setBackgroundColor(v, R.id.today_divider, divider);
@@ -162,34 +227,34 @@ final class WidgetStyle {
         setText(v, R.id.today_more, accent);
     }
 
-    static void applyFocus(RemoteViews v, Context context) {
-        applyTile(v, context,
+    static void applyFocus(RemoteViews v, Context context, int appWidgetId) {
+        applyTile(v, context, appWidgetId,
                 R.id.focus_root, R.id.focus_panel, R.id.focus_title,
                 new int[]{R.id.focus_icon_small, R.id.focus_icon_medium, R.id.focus_icon_large, R.id.focus_icon_xlarge});
     }
 
-    static void applyFood(RemoteViews v, Context context) {
-        applyTile(v, context,
+    static void applyFood(RemoteViews v, Context context, int appWidgetId) {
+        applyTile(v, context, appWidgetId,
                 R.id.food_root, R.id.food_panel, R.id.food_title,
                 new int[]{R.id.food_icon_small, R.id.food_icon_medium, R.id.food_icon_large, R.id.food_icon_xlarge});
     }
 
-    static void applyNotes(RemoteViews v, Context context) {
-        applyTile(v, context,
+    static void applyNotes(RemoteViews v, Context context, int appWidgetId) {
+        applyTile(v, context, appWidgetId,
                 R.id.notes_root, R.id.notes_panel, R.id.notes_title,
                 new int[]{R.id.notes_icon_small, R.id.notes_icon_medium, R.id.notes_icon_large, R.id.notes_icon_xlarge});
     }
 
-    static void applyCategory(RemoteViews v, Context context) {
-        int base = background(context);
-        int transparency = transparency(context);
+    static void applyCategory(RemoteViews v, Context context, int appWidgetId) {
+        int base = background(context, appWidgetId);
+        int transparency = transparency(context, appWidgetId);
         int opacity = 100 - transparency;
-        boolean lightText = useLightText(context, base);
+        boolean lightText = useLightText(context, appWidgetId, base);
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
         int muted = lightText ? Color.rgb(202, 208, 203) : Color.rgb(83, 91, 84);
-        int accent = accent(context);
+        int accent = accent(context, appWidgetId);
         try { v.setInt(R.id.category_root, "setBackgroundResource", R.drawable.widget_bg_clear); } catch (Exception ignored) {}
-        applyOutlinedPanel(v, context, R.id.category_box, R.id.category_panel, base, opacity, transparency);
+        applyOutlinedPanel(v, context, appWidgetId, R.id.category_box, R.id.category_panel, base, opacity, transparency);
         setText(v, R.id.category_title, text);
         setText(v, R.id.category_arrow, muted);
         setText(v, R.id.category_more, accent);
@@ -197,39 +262,39 @@ final class WidgetStyle {
         try { v.setInt(R.id.category_icon, "setColorFilter", accent); } catch (Exception ignored) {}
     }
 
-    static void applySimpleShortcut(RemoteViews v, Context context) {
-        int base = background(context);
-        int transparency = transparency(context);
+    static void applySimpleShortcut(RemoteViews v, Context context, int appWidgetId) {
+        int base = background(context, appWidgetId);
+        int transparency = transparency(context, appWidgetId);
         int opacity = 100 - transparency;
-        boolean lightText = useLightText(context, base);
+        boolean lightText = useLightText(context, appWidgetId, base);
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
-        int accent = accent(context);
-        applyOutlinedPanel(v, context, R.id.shortcut_root, R.id.shortcut_panel, base, opacity, transparency);
+        int accent = accent(context, appWidgetId);
+        applyOutlinedPanel(v, context, appWidgetId, R.id.shortcut_root, R.id.shortcut_panel, base, opacity, transparency);
         setText(v, R.id.shortcut_title, text);
         setText(v, R.id.shortcut_icon, accent);
     }
 
-    static void applyShortcutRow(RemoteViews v, Context context) {
-        applyTile(v, context,
+    static void applyShortcutRow(RemoteViews v, Context context, int appWidgetId) {
+        applyTile(v, context, appWidgetId,
                 R.id.row_focus_root, R.id.row_focus_panel, R.id.row_focus_title,
                 new int[]{R.id.row_focus_icon_small, R.id.row_focus_icon_medium, R.id.row_focus_icon_large, R.id.row_focus_icon_xlarge});
-        applyTile(v, context,
+        applyTile(v, context, appWidgetId,
                 R.id.row_food_root, R.id.row_food_panel, R.id.row_food_title,
                 new int[]{R.id.row_food_icon_small, R.id.row_food_icon_medium, R.id.row_food_icon_large, R.id.row_food_icon_xlarge});
-        applyTile(v, context,
+        applyTile(v, context, appWidgetId,
                 R.id.row_notes_root, R.id.row_notes_panel, R.id.row_notes_title,
                 new int[]{R.id.row_notes_icon_small, R.id.row_notes_icon_medium, R.id.row_notes_icon_large, R.id.row_notes_icon_xlarge});
     }
 
-    private static void applyTile(RemoteViews v, Context context, int rootId, int panelId, int titleId, int[] iconIds) {
-        int base = background(context);
-        int transparency = transparency(context);
+    private static void applyTile(RemoteViews v, Context context, int appWidgetId, int rootId, int panelId, int titleId, int[] iconIds) {
+        int base = background(context, appWidgetId);
+        int transparency = transparency(context, appWidgetId);
         int opacity = 100 - transparency;
-        boolean lightText = useLightText(context, base);
+        boolean lightText = useLightText(context, appWidgetId, base);
         int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
-        int accent = accent(context);
+        int accent = accent(context, appWidgetId);
 
-        applyOutlinedPanel(v, context, rootId, panelId, base, opacity, transparency);
+        applyOutlinedPanel(v, context, appWidgetId, rootId, panelId, base, opacity, transparency);
         setText(v, titleId, text);
 
         for (int id : iconIds) {
@@ -237,7 +302,7 @@ final class WidgetStyle {
             try { v.setInt(id, "setColorFilter", accent); } catch (Exception ignored) {}
         }
         int selectedIndex = 2;
-        int size = iconSize(context);
+        int size = iconSize(context, appWidgetId);
         if (size <= ICON_SMALL) selectedIndex = 0;
         else if (size <= ICON_MEDIUM) selectedIndex = 1;
         else if (size <= ICON_LARGE) selectedIndex = 2;
@@ -245,11 +310,11 @@ final class WidgetStyle {
         try { v.setViewVisibility(iconIds[selectedIndex], View.VISIBLE); } catch (Exception ignored) {}
     }
 
-    private static void applyOutlinedPanel(RemoteViews v, Context context, int outerId, int panelId, int base, int opacity, int transparency) {
+    private static void applyOutlinedPanel(RemoteViews v, Context context, int appWidgetId, int outerId, int panelId, int base, int opacity, int transparency) {
         try {
             v.setInt(outerId, "setBackgroundResource", transparency >= 75 ? R.drawable.widget_bg_outline : R.drawable.widget_bg_clear);
             if (transparency >= 75 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                v.setColorStateList(outerId, "setBackgroundTintList", ColorStateList.valueOf(borderColor(context)));
+                v.setColorStateList(outerId, "setBackgroundTintList", ColorStateList.valueOf(borderColor(context, appWidgetId)));
             }
         } catch (Exception ignored) {}
         setRoundedBackground(v, panelId, withOpacity(base, opacity),
@@ -279,8 +344,8 @@ final class WidgetStyle {
     private static SharedPreferences prefs(Context context) { return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE); }
     private static int clampPercent(int value) { return Math.max(0, Math.min(100, value)); }
 
-    private static boolean useLightText(Context context, int background) {
-        String mode = textMode(context);
+    private static boolean useLightText(Context context, int appWidgetId, int background) {
+        String mode = textMode(context, appWidgetId);
         if (TEXT_LIGHT.equals(mode)) return true;
         if (TEXT_DARK.equals(mode)) return false;
         return Color.luminance(background) < 0.43;
