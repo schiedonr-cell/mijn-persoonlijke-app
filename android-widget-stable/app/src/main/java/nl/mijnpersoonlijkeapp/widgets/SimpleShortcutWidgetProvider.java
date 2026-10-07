@@ -16,7 +16,7 @@ abstract class SimpleShortcutWidgetProvider extends AppWidgetProvider {
             RemoteViews v = new RemoteViews(context.getPackageName(), R.layout.widget_shortcut_single);
             v.setTextViewText(R.id.shortcut_title, title());
             v.setTextViewText(R.id.shortcut_icon, icon());
-            WidgetStyle.applySimpleShortcut(v, context);
+            WidgetStyle.applySimpleShortcut(v, context, id);
             v.setOnClickPendingIntent(R.id.shortcut_root, WidgetLinks.open(context, target(), requestCode()));
             manager.updateAppWidget(id, v);
         }
