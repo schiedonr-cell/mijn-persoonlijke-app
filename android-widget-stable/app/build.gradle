@@ -17,8 +17,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 32
-        versionName 'mijn-dag-3.4-eerstvolgende-agenda'
+        versionCode 33
+        versionName 'mijn-dag-3.5-inbox-widget'
     }
 
     buildTypes {
