@@ -68,6 +68,7 @@ final class WidgetStyle {
     private static final String KEY_ACCENT = "accent_color";
     private static final String KEY_BORDER = "border_color_v1";
     private static final String KEY_ICON_SIZE = "icon_size_sp";
+    private static final String KEY_SHOW_NAME = "show_widget_name_v1";
 
     private WidgetStyle() {}
 
@@ -102,6 +103,10 @@ final class WidgetStyle {
         if (value <= ICON_MEDIUM) return ICON_MEDIUM;
         if (value <= ICON_LARGE) return ICON_LARGE;
         return ICON_XLARGE;
+    }
+
+    static boolean showName(Context context) {
+        return prefs(context).getBoolean(KEY_SHOW_NAME, true);
     }
 
     private static String widgetKey(String key, int appWidgetId) { return key + "_widget_" + appWidgetId; }
@@ -152,7 +157,17 @@ final class WidgetStyle {
         return ICON_XLARGE;
     }
 
+    static boolean showName(Context context, int appWidgetId) {
+        SharedPreferences p = prefs(context);
+        String key = widgetKey(KEY_SHOW_NAME, appWidgetId);
+        return validWidgetId(appWidgetId) && p.contains(key) ? p.getBoolean(key, showName(context)) : showName(context);
+    }
+
     static void setOptions(Context context, int background, int transparency, String textMode, int accent, int border, int iconSize) {
+        setOptions(context, background, transparency, textMode, accent, border, iconSize, showName(context));
+    }
+
+    static void setOptions(Context context, int background, int transparency, String textMode, int accent, int border, int iconSize, boolean showName) {
         if (!TEXT_LIGHT.equals(textMode) && !TEXT_DARK.equals(textMode)) textMode = TEXT_AUTO;
         prefs(context).edit()
                 .putInt(KEY_BG, background)
@@ -161,13 +176,18 @@ final class WidgetStyle {
                 .putInt(KEY_ACCENT, accent)
                 .putInt(KEY_BORDER, border)
                 .putInt(KEY_ICON_SIZE, iconSize)
+                .putBoolean(KEY_SHOW_NAME, showName)
                 .apply();
         refreshAll(context);
     }
 
     static void setOptions(Context context, int appWidgetId, int background, int transparency, String textMode, int accent, int border, int iconSize) {
+        setOptions(context, appWidgetId, background, transparency, textMode, accent, border, iconSize, showName(context, appWidgetId));
+    }
+
+    static void setOptions(Context context, int appWidgetId, int background, int transparency, String textMode, int accent, int border, int iconSize, boolean showName) {
         if (!validWidgetId(appWidgetId)) {
-            setOptions(context, background, transparency, textMode, accent, border, iconSize);
+            setOptions(context, background, transparency, textMode, accent, border, iconSize, showName);
             return;
         }
         if (!TEXT_LIGHT.equals(textMode) && !TEXT_DARK.equals(textMode)) textMode = TEXT_AUTO;
@@ -178,6 +198,7 @@ final class WidgetStyle {
                 .putInt(widgetKey(KEY_ACCENT, appWidgetId), accent)
                 .putInt(widgetKey(KEY_BORDER, appWidgetId), border)
                 .putInt(widgetKey(KEY_ICON_SIZE, appWidgetId), iconSize)
+                .putBoolean(widgetKey(KEY_SHOW_NAME, appWidgetId), showName)
                 .apply();
         refreshAll(context);
     }
@@ -196,6 +217,7 @@ final class WidgetStyle {
         setRoundedBackground(v, R.id.widget_root, root,
                 lightText ? R.drawable.widget_bg_dark : (transparency >= 50 ? R.drawable.widget_bg_transparent : R.drawable.widget_bg));
         setText(v, R.id.widget_title, text);
+        try { v.setViewVisibility(R.id.widget_title, showName(context, appWidgetId) ? View.VISIBLE : View.GONE); } catch (Exception ignored) {}
         int[] neutral = new int[]{R.id.btn_today, R.id.btn_food, R.id.btn_projects, R.id.btn_notes};
         for (int id : neutral) {
             setRoundedBackground(v, id, button,
@@ -217,6 +239,7 @@ final class WidgetStyle {
         try { v.setInt(R.id.today_root, "setBackgroundResource", R.drawable.widget_bg_clear); } catch (Exception ignored) {}
         applyOutlinedPanel(v, context, appWidgetId, R.id.today_box, R.id.today_panel, base, opacity, transparency);
         setText(v, R.id.today_title, text);
+        try { v.setViewVisibility(R.id.today_title, showName(context, appWidgetId) ? View.VISIBLE : View.GONE); } catch (Exception ignored) {}
         setText(v, R.id.today_subtitle, muted);
         setText(v, R.id.today_home, accent);
         setBackgroundColor(v, R.id.today_divider, divider);
@@ -264,6 +287,7 @@ final class WidgetStyle {
         try { v.setInt(R.id.category_root, "setBackgroundResource", R.drawable.widget_bg_clear); } catch (Exception ignored) {}
         applyOutlinedPanel(v, context, appWidgetId, R.id.category_box, R.id.category_panel, base, opacity, transparency);
         setText(v, R.id.category_title, text);
+        try { v.setViewVisibility(R.id.category_title, showName(context, appWidgetId) ? View.VISIBLE : View.GONE); } catch (Exception ignored) {}
         setText(v, R.id.category_arrow, muted);
         setText(v, R.id.category_more, accent);
         for (int id : new int[]{R.id.category_row_1,R.id.category_row_2,R.id.category_row_3,R.id.category_row_4,R.id.category_row_5,R.id.category_row_6,R.id.category_row_7,R.id.category_row_8,R.id.category_row_9,R.id.category_row_10,R.id.category_row_11,R.id.category_row_12}) setText(v,id,text);
@@ -279,6 +303,7 @@ final class WidgetStyle {
         int accent = accent(context, appWidgetId);
         applyOutlinedPanel(v, context, appWidgetId, R.id.shortcut_root, R.id.shortcut_panel, base, opacity, transparency);
         setText(v, R.id.shortcut_title, text);
+        try { v.setViewVisibility(R.id.shortcut_title, showName(context, appWidgetId) ? View.VISIBLE : View.GONE); } catch (Exception ignored) {}
         setText(v, R.id.shortcut_icon, accent);
         try { v.setInt(R.id.shortcut_icon_image, "setColorFilter", accent); } catch (Exception ignored) {}
     }
@@ -305,6 +330,7 @@ final class WidgetStyle {
 
         applyOutlinedPanel(v, context, appWidgetId, rootId, panelId, base, opacity, transparency);
         setText(v, titleId, text);
+        try { v.setViewVisibility(titleId, showName(context, appWidgetId) ? View.VISIBLE : View.GONE); } catch (Exception ignored) {}
 
         for (int id : iconIds) {
             try { v.setViewVisibility(id, View.GONE); } catch (Exception ignored) {}
