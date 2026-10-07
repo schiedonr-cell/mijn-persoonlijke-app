@@ -99,7 +99,6 @@ final class CalendarData {
         ZoneId zone = ZoneId.systemDefault();
         LocalDate day = LocalDate.now(zone);
         long begin = day.atStartOfDay(zone).toInstant().toEpochMilli();
-        long end = day.plusDays(3).atStartOfDay(zone).toInstant().toEpochMilli();
 
         String[] projection = new String[]{
                 CalendarContract.Instances.TITLE,
@@ -111,51 +110,70 @@ final class CalendarData {
         };
 
         ContentResolver resolver = context.getContentResolver();
-        android.net.Uri.Builder builder = CalendarContract.Instances.CONTENT_URI.buildUpon();
-        ContentUris.appendId(builder, begin);
-        ContentUris.appendId(builder, end);
 
-        try (Cursor cursor = resolver.query(
-                builder.build(),
-                projection,
-                null,
-                null,
-                CalendarContract.Instances.BEGIN + " ASC"
-        )) {
-            if (cursor == null) return out;
-            while (cursor.moveToNext() && out.length() < 3) {
-                long calendarId = cursor.getLong(5);
-                if (!selected.contains(calendarId)) continue;
+        // Zoek steeds verder vooruit totdat er 3 afspraken zijn.
+        // Zo blijft een rustige agenda toch gevuld zonder meteen een enorme periode op te vragen.
+        LocalDate[] horizons = new LocalDate[]{
+                day.plusDays(31),
+                day.plusMonths(6),
+                day.plusYears(2),
+                day.plusYears(10)
+        };
+        long rangeBegin = begin;
 
-                String title = cursor.getString(0);
-                long startMs = cursor.getLong(1);
-                long endMs = cursor.getLong(2);
-                String location = cursor.getString(3);
-                boolean allDay = cursor.getInt(4) != 0;
+        for (LocalDate horizon : horizons) {
+            if (out.length() >= 3) break;
+            long rangeEnd = horizon.atStartOfDay(zone).toInstant().toEpochMilli();
 
-                JSONObject event = new JSONObject();
-                event.put("summary", title == null || title.trim().isEmpty() ? "Afspraak" : title.trim());
-                event.put("calendarId", calendarId);
-                if (location != null && !location.trim().isEmpty()) event.put("location", location.trim());
+            android.net.Uri.Builder builder = CalendarContract.Instances.CONTENT_URI.buildUpon();
+            ContentUris.appendId(builder, rangeBegin);
+            ContentUris.appendId(builder, rangeEnd);
 
-                JSONObject start = new JSONObject();
-                JSONObject finish = new JSONObject();
-                if (allDay) {
-                    LocalDate eventDay = Instant.ofEpochMilli(startMs).atZone(java.time.ZoneOffset.UTC).toLocalDate();
-                    LocalDate eventEndDay = Instant.ofEpochMilli(endMs).atZone(java.time.ZoneOffset.UTC).toLocalDate();
-                    start.put("date", eventDay.toString());
-                    finish.put("date", eventEndDay.toString());
-                } else {
-                    ZonedDateTime s = Instant.ofEpochMilli(startMs).atZone(zone);
-                    ZonedDateTime e = Instant.ofEpochMilli(endMs).atZone(zone);
-                    start.put("dateTime", s.toOffsetDateTime().toString());
-                    finish.put("dateTime", e.toOffsetDateTime().toString());
+            try (Cursor cursor = resolver.query(
+                    builder.build(),
+                    projection,
+                    null,
+                    null,
+                    CalendarContract.Instances.BEGIN + " ASC"
+            )) {
+                if (cursor != null) {
+                    while (cursor.moveToNext() && out.length() < 3) {
+                        long calendarId = cursor.getLong(5);
+                        if (!selected.contains(calendarId)) continue;
+
+                        String title = cursor.getString(0);
+                        long startMs = cursor.getLong(1);
+                        long endMs = cursor.getLong(2);
+                        String location = cursor.getString(3);
+                        boolean allDay = cursor.getInt(4) != 0;
+
+                        JSONObject event = new JSONObject();
+                        event.put("summary", title == null || title.trim().isEmpty() ? "Afspraak" : title.trim());
+                        event.put("calendarId", calendarId);
+                        if (location != null && !location.trim().isEmpty()) event.put("location", location.trim());
+
+                        JSONObject start = new JSONObject();
+                        JSONObject finish = new JSONObject();
+                        if (allDay) {
+                            LocalDate eventDay = Instant.ofEpochMilli(startMs).atZone(java.time.ZoneOffset.UTC).toLocalDate();
+                            LocalDate eventEndDay = Instant.ofEpochMilli(endMs).atZone(java.time.ZoneOffset.UTC).toLocalDate();
+                            start.put("date", eventDay.toString());
+                            finish.put("date", eventEndDay.toString());
+                        } else {
+                            ZonedDateTime s = Instant.ofEpochMilli(startMs).atZone(zone);
+                            ZonedDateTime e = Instant.ofEpochMilli(endMs).atZone(zone);
+                            start.put("dateTime", s.toOffsetDateTime().toString());
+                            finish.put("dateTime", e.toOffsetDateTime().toString());
+                        }
+                        event.put("start", start);
+                        event.put("end", finish);
+                        out.put(event);
+                    }
                 }
-                event.put("start", start);
-                event.put("end", finish);
-                out.put(event);
-            }
-        } catch (Exception ignored) {}
+            } catch (Exception ignored) {}
+
+            rangeBegin = rangeEnd + 1L;
+        }
         return out;
     }
 
