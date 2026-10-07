@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
+import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
@@ -214,6 +215,7 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         webView.addJavascriptInterface(new Bridge(), "AndroidWidgetBridge");
+        webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
                 Uri u = request.getUrl();
