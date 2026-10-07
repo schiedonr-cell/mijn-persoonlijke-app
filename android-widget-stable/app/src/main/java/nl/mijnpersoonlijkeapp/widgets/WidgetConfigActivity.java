@@ -28,12 +28,12 @@ public class WidgetConfigActivity extends Activity {
         Intent intent = getIntent();
         if (intent != null) appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
 
-        selectedBackground = WidgetStyle.background(this);
-        selectedTransparency = WidgetStyle.transparency(this);
-        selectedTextMode = WidgetStyle.textMode(this);
-        selectedAccent = WidgetStyle.accent(this);
-        selectedBorder = WidgetStyle.border(this);
-        selectedIconSize = WidgetStyle.iconSize(this);
+        selectedBackground = WidgetStyle.background(this, appWidgetId);
+        selectedTransparency = WidgetStyle.transparency(this, appWidgetId);
+        selectedTextMode = WidgetStyle.textMode(this, appWidgetId);
+        selectedAccent = WidgetStyle.accent(this, appWidgetId);
+        selectedBorder = WidgetStyle.border(this, appWidgetId);
+        selectedIconSize = WidgetStyle.iconSize(this, appWidgetId);
 
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
@@ -42,8 +42,8 @@ public class WidgetConfigActivity extends Activity {
         root.setBackgroundColor(Color.rgb(245,245,239));
         scroll.addView(root);
 
-        root.addView(heading("Widgetstijl", 27));
-        TextView info = text("Kies kleur, transparantie, tekst, pictogrammen, rand en pictogramgrootte.", 14, Color.rgb(92,100,92));
+        root.addView(heading("Deze widget aanpassen", 27));
+        TextView info = text("Deze instellingen gelden alleen voor deze widget. Andere widgets blijven zoals ze zijn.", 14, Color.rgb(92,100,92));
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         infoLp.setMargins(0, dp(8), 0, dp(18));
         root.addView(info, infoLp);
@@ -245,7 +245,7 @@ public class WidgetConfigActivity extends Activity {
     }
 
     private void save() {
-        WidgetStyle.setOptions(this, selectedBackground, selectedTransparency, selectedTextMode, selectedAccent, selectedBorder, selectedIconSize);
+        WidgetStyle.setOptions(this, appWidgetId, selectedBackground, selectedTransparency, selectedTextMode, selectedAccent, selectedBorder, selectedIconSize);
         Intent result = new Intent();
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) result.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
         setResult(RESULT_OK, result);
