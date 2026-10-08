@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
-  <!-- Mijn persoonlijke app v1.7.7 notes-v2-hard-refresh -->
+  <!-- Mijn persoonlijke app v1.7.8 notes-native-no-sw -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -1514,8 +1514,9 @@
     const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data?.error||`Herinneringsfout ${response.status}`);return data;
   }
   async function getReminderRegistration(){
+    if(new URLSearchParams(location.search).has('nativev'))throw new Error('Android gebruikt native herinneringen.');
     let reg=await navigator.serviceWorker.getRegistration('./');
-    if(!reg)reg=await navigator.serviceWorker.register('./service-worker.js');
+    if(!reg)reg=await navigator.serviceWorker.register('./service-worker.js?v=46');
     await navigator.serviceWorker.ready;
     return reg;
   }
@@ -2447,12 +2448,12 @@
   document.getElementById('inputModal').addEventListener('click',e=>{if(e.target.id==='inputModal')closeInputModal();});document.getElementById('taskStepsModal').addEventListener('click',e=>{if(e.target.id==='taskStepsModal')closeTaskStepsManage();});document.getElementById('recipeModal').addEventListener('click',e=>{if(e.target.id==='recipeModal')closeRecipeModal();});document.getElementById('habitModal').addEventListener('click',e=>{if(e.target.id==='habitModal'){activeHabitId=null;e.target.classList.remove('open');}});document.getElementById('progressModal').addEventListener('click',e=>{if(e.target.id==='progressModal')e.target.classList.remove('open');});document.getElementById('reminderModal').addEventListener('click',e=>{if(e.target.id==='reminderModal')closeReminderModal();});document.getElementById('taskReminderModal').addEventListener('click',e=>{if(e.target.id==='taskReminderModal'){activeReminderItemId=null;e.target.classList.remove('open');}});document.getElementById('taskActionModal').addEventListener('click',e=>{if(e.target.id==='taskActionModal')closeTaskAction();});document.getElementById('itemActionModal').addEventListener('click',e=>{if(e.target.id==='itemActionModal')closeItemAction();});document.getElementById('foodSettingsModal').addEventListener('click',e=>{if(e.target.id==='foodSettingsModal'){foodDraft=null;e.target.classList.remove('open');}});document.getElementById('replaceMealModal').addEventListener('click',e=>{if(e.target.id==='replaceMealModal'){replacePlanIndex=null;e.target.classList.remove('open');}});
 
   let deferredInstallPrompt=null; const installCard=document.getElementById('installCard'),installButton=document.getElementById('installAppButton');window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;installCard?.classList.add('show');});installButton?.addEventListener('click',async()=>{if(!deferredInstallPrompt)return showToast('Deze app staat al op je telefoon of installeren is hier niet beschikbaar.');deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installCard?.classList.remove('show');});window.addEventListener('appinstalled',()=>installCard?.classList.remove('show'));
-  if('serviceWorker'in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').then(()=>{if(reminderSettings.enabled)setTimeout(syncReminderState,900);}).catch(()=>{}));
+  if('serviceWorker'in navigator&&location.protocol.startsWith('http')&&!new URLSearchParams(location.search).has('nativev'))window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=46').then(()=>{if(reminderSettings.enabled)setTimeout(syncReminderState,900);}).catch(()=>{}));
 
   const dateFmt=new Intl.DateTimeFormat('nl-NL',{weekday:'long',day:'numeric',month:'long'}),dateText=dateFmt.format(new Date());document.getElementById('todayLabel').textContent=dateText.charAt(0).toUpperCase()+dateText.slice(1);
   setupSpeech(); ensureDailyState(); ensureFoodPrefs(); renderToday(); renderDump(); renderAllTasks(); renderFocus(); renderShutdown(); renderFoodAll(); renderProjects(); openWidgetTargetFromUrl();
 })();
 </script>
-  <script src="./notes-v2.js?v=45"></script>
+  <script src="./notes-v2.js?v=46"></script>
 </body>
 </html>
