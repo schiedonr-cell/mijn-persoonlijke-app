@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 52
-        versionName 'mijn-dag-5.4-alarm-direct-sync'
+        versionCode 53
+        versionName 'mijn-dag-5.5-vandaag-tijdlijn'
     }
 
     buildTypes {
