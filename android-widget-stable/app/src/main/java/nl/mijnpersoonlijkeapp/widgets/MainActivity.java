@@ -214,6 +214,7 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
+        s.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.addJavascriptInterface(new Bridge(), "AndroidWidgetBridge");
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
@@ -228,6 +229,7 @@ public class MainActivity extends Activity {
                 else if (imported()) {
                     injectCalendarCache();
                     installNativeHooks();
+                    ensureCurrentNotesModule();
                     syncWidget();
                     startSync();
                     requestCalendarIfNeeded();
@@ -235,7 +237,7 @@ public class MainActivity extends Activity {
             }
         });
         setContentView(webView);
-        webView.loadUrl(BASE + "?open=" + Uri.encode(target));
+        webView.loadUrl(BASE + "?open=" + Uri.encode(target) + "&nativev=44");
     }
 
     private void importIntoWebView() {
@@ -268,6 +270,19 @@ public class MainActivity extends Activity {
         }
         String[] p = pairs.get(i);
         webView.evaluateJavascript("localStorage.setItem(" + JSONObject.quote(p[0]) + "," + JSONObject.quote(p[1]) + ");", v -> injectNext(pairs, i+1));
+    }
+
+    private void ensureCurrentNotesModule() {
+        if (webView == null) return;
+        String js =
+            "(function(){" +
+            "if(window.__mijnDagNotesV2Loaded){try{window.MijnDagNotes&&window.MijnDagNotes.refresh&&window.MijnDagNotes.refresh();}catch(_){ }return;}" +
+            "var old=document.getElementById('mijnDagNotesV2Script');if(old)old.remove();" +
+            "var sc=document.createElement('script');sc.id='mijnDagNotesV2Script';" +
+            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=44';" +
+            "sc.async=false;document.head.appendChild(sc);" +
+            "})();";
+        try { webView.evaluateJavascript(js, null); } catch (Exception ignored) {}
     }
 
     private void installNativeHooks() {
