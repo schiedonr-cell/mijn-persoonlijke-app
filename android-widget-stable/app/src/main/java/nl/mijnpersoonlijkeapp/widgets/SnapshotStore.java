@@ -40,6 +40,7 @@ final class SnapshotStore {
                 prefs.edit().putString(KEY, text).apply();
                 TodayWidgetProvider.refreshAll(context);
                 TodayGridWidgetProvider.refreshAll(context);
+                TodayTimelineWidgetProvider.refreshAll(context);
                 refreshCategoryWidgets(context);
             }
         } catch (Exception ignored) {}
@@ -114,7 +115,7 @@ final class SnapshotStore {
             for (int i = 0; i < items.length(); i++) {
                 JSONObject item = items.optJSONObject(i);
                 if (item == null) continue;
-                addRow(rows, "Huis", item.optString("name", "Huishouden"));
+                addRow(rows, "Huis", item.optString("name", "Huishouden"), item.optString("time", ""));
             }
             return true;
         } catch (Exception e) {
@@ -132,7 +133,7 @@ final class SnapshotStore {
             if (!startedOn.isEmpty() && startedOn.compareTo(today) > 0) continue;
             JSONObject history = h.optJSONObject("history");
             if (history != null && truthy(history, today)) continue;
-            addRow(rows, "Routine", h.optString("name", "Gewoonte"));
+            addRow(rows, "Routine", h.optString("name", "Gewoonte"), h.optString("time", ""));
         }
     }
 
@@ -163,10 +164,10 @@ final class SnapshotStore {
             }
         });
 
-        for (JSONObject item : fixed) addRow(rows, "Huis", item.optString("name", "Huishouden"));
+        for (JSONObject item : fixed) addRow(rows, "Huis", item.optString("name", "Huishouden"), item.optString("time", ""));
         int openSlots = Math.max(0, energy - doneRegular);
         for (int i = 0; i < Math.min(openSlots, due.size()); i++) {
-            addRow(rows, "Huis", due.get(i).optString("name", "Huishouden"));
+            addRow(rows, "Huis", due.get(i).optString("name", "Huishouden"), due.get(i).optString("time", ""));
         }
     }
 
@@ -220,7 +221,7 @@ final class SnapshotStore {
             }
         }
 
-        for (JSONObject t : chosen) addRow(rows, "Taak", t.optString("name", "Taak"));
+        for (JSONObject t : chosen) addRow(rows, "Taak", t.optString("name", "Taak"), t.optString("time", ""));
     }
 
     private static void addAgenda(JSONArray rows, Context context, String calendarJson, String today) {
