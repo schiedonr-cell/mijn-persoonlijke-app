@@ -81,7 +81,11 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         List<JSONObject> items = new ArrayList<>();
         for (int i=0;i<rows.length();i++) {
             JSONObject row=rows.optJSONObject(i);
-            if (row!=null) items.add(row);
+            if (row==null) continue;
+            // Deze widget is echt alleen voor vandaag. De gedeelde agenda-snapshot bevat
+            // bewust ook komende afspraken voor de losse Agenda-widget.
+            if ("Agenda".equals(row.optString("kind","")) && !agendaIsToday(row)) continue;
+            items.add(row);
         }
         Collections.sort(items, new Comparator<JSONObject>() {
             @Override public int compare(JSONObject a, JSONObject b) {
@@ -118,6 +122,11 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         } else v.setViewVisibility(R.id.timeline_more, View.GONE);
 
         manager.updateAppWidget(id, v);
+    }
+
+    private static boolean agendaIsToday(JSONObject row) {
+        String value=row.optString("time","").trim();
+        return value.startsWith("Vandaag") || value.equals("Hele dag");
     }
 
     private static int rowsForHeight(AppWidgetManager manager, int id) {
