@@ -796,6 +796,18 @@
       .app-shell { padding-top: 32px; }
       .home-card { min-height: 170px; }
     }
+  
+    /* Dagplanning: tijdelijke planning bovenop bestaande onderdelen */
+    .day-plan-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .day-plan-actions .primary-button,.day-plan-actions .secondary-button{width:auto;min-height:44px;padding:9px 13px}
+    .day-plan-list{display:grid;gap:8px;margin-top:12px}
+    .day-plan-row{display:grid;grid-template-columns:auto 76px 1fr;gap:9px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+    .day-plan-row:first-child{border-top:0}.day-plan-row.done .day-plan-name{text-decoration:line-through;color:var(--muted)}
+    .day-plan-check-space{width:24px;display:flex;justify-content:center}
+    .day-plan-time{font-size:12px;font-weight:850;color:var(--accent-strong);font-variant-numeric:tabular-nums;white-space:nowrap}
+    .day-plan-name{font-weight:760;min-width:0}.day-plan-meta{font-size:11px;color:var(--muted);margin-top:2px}
+    #dayPlanInput{min-height:230px}
+
   </style>
 </head>
 <body>
@@ -852,6 +864,17 @@
                 <button class="energy-btn" data-energy="2">2<small>normaal</small></button>
                 <button class="energy-btn" data-energy="3">3<small>veel</small></button>
               </div>
+            </div>
+
+            <div class="section-card today-section-card" id="dayTimelineBlock">
+              <div class="section-heading">
+                <div class="today-block-title"><div class="today-block-icon">◷</div><div><h3 style="margin-bottom:3px;">Dagplanning</h3><span class="small-muted">Richttijden voor vandaag; je gewone onderdelen blijven hetzelfde.</span></div></div>
+              </div>
+              <div class="day-plan-actions">
+                <button class="primary-button" id="openDayPlanPasteButton">Planning plakken</button>
+                <button class="secondary-button" id="clearDayPlanButton" style="display:none;">Planning wissen</button>
+              </div>
+              <div id="dayPlanList" class="day-plan-list"></div>
             </div>
 
             <div class="section-card today-section-card" id="todayTasksBlock">
@@ -1027,6 +1050,25 @@
     </section>
   </main>
 
+
+  <div class="modal-backdrop" id="dayPlanModal" role="dialog" aria-modal="true" aria-labelledby="dayPlanModalTitle">
+    <div class="sheet">
+      <div class="sheet-head">
+        <div><h3 id="dayPlanModalTitle">Dagplanning plakken</h3><p class="small-muted" style="margin:5px 0 0;">Plak de hele lijst in één keer. Bestaande onderdelen worden gekoppeld; pauzes en vrije tijd blijven alleen in deze dagplanning.</p></div>
+        <button class="close-button" data-close-day-plan aria-label="Sluiten">×</button>
+      </div>
+      <label class="field-label" for="dayPlanDate">Dag</label>
+      <input class="text-input" type="date" id="dayPlanDate" />
+      <div class="spacer-14"></div>
+      <label class="field-label" for="dayPlanInput">Planning</label>
+      <textarea class="text-input textarea-input" id="dayPlanInput" placeholder="09:00–10:15 Ochtendroutine&#10;10:15–10:30 Orthodontist bellen&#10;10:30–10:45 Rustmoment"></textarea>
+      <label class="habit-energy-toggle" style="margin-top:12px;"><div><strong>Alarm bij begintijd</strong><span>Android-alarm bij de start van ieder blok. De tijden blijven richttijden.</span></div><input class="switch-check" type="checkbox" id="dayPlanAlarmToggle" checked /></label>
+      <div class="button-stack">
+        <button class="primary-button" id="saveDayPlanButton">Planning gebruiken</button>
+        <button class="secondary-button" data-close-day-plan>Annuleren</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-backdrop" id="inputModal" role="dialog" aria-modal="true" aria-labelledby="inputModalTitle">
     <div class="sheet">
@@ -1319,6 +1361,7 @@
     dailyBasisHistory: {},
     reflections: {},
     todayPlan: { date: null, taskIds: [] },
+    dayTimeline: { date: null, alarms: true, blocks: [] },
     dump: [],
     dayClosedDate: null,
     focus: { taskId: null, targetType: null, targetId: null, durationSec: 300, remainingSec: 300, running: false, soundEnabled: true },
@@ -1446,6 +1489,7 @@
         reflections: saved.reflections && typeof saved.reflections==='object' ? saved.reflections : {},
         dump: Array.isArray(saved.dump) ? saved.dump : [],
         todayPlan: saved.todayPlan && Array.isArray(saved.todayPlan.taskIds) ? saved.todayPlan : {date:null,taskIds:[]},
+        dayTimeline: saved.dayTimeline && Array.isArray(saved.dayTimeline.blocks) ? {date:saved.dayTimeline.date||null,alarms:saved.dayTimeline.alarms!==false,blocks:saved.dayTimeline.blocks.map(b=>({id:b.id||uid('plan'),start:b.start||'',end:b.end||'',text:b.text||'',linkType:b.linkType||'',linkId:b.linkId||'',kind:b.kind||'Plan',matchedName:b.matchedName||'',done:Boolean(b.done)}))} : {date:null,alarms:true,blocks:[]},
         focus: {...structuredClone(defaultState.focus), ...(saved.focus||{}), targetType:saved.focus?.targetType||(saved.focus?.taskId?'task':null), targetId:saved.focus?.targetId||saved.focus?.taskId||null, running:false},
         weekMenu: Array.isArray(saved.weekMenu)?saved.weekMenu:[], shopping:Array.isArray(saved.shopping)?saved.shopping:[], projects:Array.isArray(saved.projects)?saved.projects:[], notes:Array.isArray(saved.notes)?saved.notes:[],
         foodPrefs: {...structuredClone(defaultState.foodPrefs), ...(saved.foodPrefs||{}), selectedDays:Array.isArray(saved.foodPrefs?.selectedDays)?saved.foodPrefs.selectedDays:[]},
