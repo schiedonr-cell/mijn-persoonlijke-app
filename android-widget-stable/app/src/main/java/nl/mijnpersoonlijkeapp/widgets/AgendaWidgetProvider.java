@@ -16,18 +16,18 @@ public class AgendaWidgetProvider extends CategoryWidgetProvider {
         String time=row.optString("time","").trim();
         if(time.isEmpty()) return text;
 
+        // Vandaag: tijd + afspraak. Toekomst: alleen dag/datum + afspraak,
+        // zodat de naam van de afspraak zoveel mogelijk ruimte krijgt.
         if(time.startsWith("Vandaag · ")) {
             return time.substring("Vandaag · ".length()) + "  " + text;
         }
         if("Vandaag".equals(time)) {
             return text;
         }
-        if(time.startsWith("Morgen · ")) {
-            return "Morgen · " + time.substring("Morgen · ".length()) + "  " + text;
-        }
-        if(time.startsWith("Overmorgen · ")) {
-            return "Overmorgen · " + time.substring("Overmorgen · ".length()) + "  " + text;
+
+        int sep=time.indexOf(" · ");
+        if(sep>0) {
+            return time.substring(0,sep) + "  " + text;
         }
         return time + "  " + text;
-    }
-}
+    }}
