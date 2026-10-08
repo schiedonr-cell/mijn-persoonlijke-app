@@ -1786,6 +1786,130 @@
     }catch{}
   }
 
+
+  function dayPlanNormalizeText(value){
+    return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  }
+  function dayPlanRestLike(name){
+    const n=dayPlanNormalizeText(name);
+    return /(^| )(pauze|rust|vrije tijd|vrije avond|vrije ruimte|lunch|avondeten|afbouwen)( |$)/.test(n);
+  }
+  function dayPlanCandidates(){
+    const out=[];
+    state.tasks.forEach(x=>out.push({type:'task',id:x.id,name:x.name,kind:'Taak'}));
+    state.habits.forEach(x=>out.push({type:'habit',id:x.id,name:x.name,kind:'Routine'}));
+    state.householdTasks.forEach(x=>out.push({type:'household',id:x.id,name:x.name,kind:'Huis'}));
+    todayAgendaCache().forEach((x,i)=>out.push({type:'agenda',id:'agenda-'+i,name:x?.summary||'Afspraak',kind:'Agenda'}));
+    return out;
+  }
+  function dayPlanAlias(name){
+    const n=dayPlanNormalizeText(name),pairs=[
+      ['ochtendroutine','habit','habit-morning'],['robotstofzuiger','household','house-robot'],
+      ['badkamer','household','house-bath'],['avondreset','habit','habit-evening-reset'],
+      ['avondroutine','habit','habit-day-close'],['dag afsluiten','habit','habit-day-close'],
+      ['bewegen','habit','basis-move'],['ontspanning','habit','basis-relax'],['ontspannen','habit','basis-relax']
+    ];
+    for(const [needle,type,id] of pairs)if(n.includes(needle)){
+      const list=type==='habit'?state.habits:state.householdTasks,item=list.find(x=>x.id===id);
+      if(item)return {type,id:item.id,name:item.name,kind:type==='habit'?'Routine':'Huis'};
+    }
+    return null;
+  }
+  function matchDayPlanTarget(name){
+    if(dayPlanRestLike(name))return null;
+    const alias=dayPlanAlias(name);if(alias)return alias;
+    const n=dayPlanNormalizeText(name);if(!n)return null;
+    const scored=dayPlanCandidates().map(c=>{
+      const m=dayPlanNormalizeText(c.name);let score=0;
+      if(n===m)score=100;
+      else if(m.length>=5&&(n.includes(m)||m.includes(n)))score=82;
+      else{
+        const a=n.split(' ').filter(x=>x.length>2),b=m.split(' ').filter(x=>x.length>2),common=a.filter(x=>b.includes(x)).length;
+        if(common)score=55+Math.round(35*common/Math.max(1,Math.min(a.length,b.length)));
+      }
+      return {c,score};
+    }).filter(x=>x.score>=72).sort((a,b)=>b.score-a.score);
+    if(!scored.length)return null;
+    if(scored.length>1&&scored[0].score===scored[1].score&&scored[0].c.id!==scored[1].c.id)return null;
+    return scored[0].c;
+  }
+  function parseDayPlanText(raw){
+    const blocks=[];
+    String(raw||'').split(/\r?\n/).forEach(line=>{
+      line=line.trim().replace(/^[-•*]\s*/,'');
+      if(!line||/^tijd\s*\|/i.test(line)||/^[-| :]+$/.test(line))return;
+      const m=line.match(/^(\d{1,2}:\d{2})(?:\s*[–—-]\s*(\d{1,2}:\d{2}))?\s*(?:\||:)?\s*(.+?)\s*$/);
+      if(!m)return;
+      const start=m[1].padStart(5,'0'),end=(m[2]||'').padStart(m[2]?5:0,'0'),text=m[3].trim(),target=matchDayPlanTarget(m[3].trim());
+      if(!text)return;
+      blocks.push({id:uid('plan'),start,end,text,linkType:target?.type||'',linkId:target?.id||'',kind:target?.kind||'Plan',matchedName:target?.name||'',done:false});
+    });
+    return blocks;
+  }
+  function dayPlanBlockDone(block){
+    const today=localDateKey();
+    if(block.linkType==='task')return Boolean(state.tasks.find(x=>x.id===block.linkId)?.done);
+    if(block.linkType==='habit')return Boolean(state.habits.find(x=>x.id===block.linkId)?.history?.[today]);
+    if(block.linkType==='household')return Boolean(state.householdTasks.find(x=>x.id===block.linkId)?.history?.[today]);
+    return Boolean(block.done);
+  }
+  function dayPlanKindLabel(block){
+    return block.linkType==='task'?'Taak':block.linkType==='habit'?'Routine':block.linkType==='household'?'Huishouden':block.linkType==='agenda'?'Agenda':'Dagblok';
+  }
+  function dayPlanAlarmId(plan,block){return 'dayplan-'+(plan?.date||'')+'-'+block.id;}
+  function cancelDayPlanAlarms(plan){(plan?.blocks||[]).forEach(b=>{try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}});}
+  function scheduleDayPlanAlarms(){
+    const plan=state.dayTimeline;if(!plan?.date||!plan.alarms)return;
+    (plan.blocks||[]).forEach(b=>{
+      if(!b.start||dayPlanBlockDone(b))return;
+      const at=new Date(plan.date+'T'+b.start+':00').getTime();if(!Number.isFinite(at)||at<=Date.now()+1000)return;
+      const range=b.end?b.start+'–'+b.end:b.start;
+      try{window.AndroidWidgetBridge?.scheduleReminder?.(dayPlanAlarmId(plan,b),b.text,'Dagplanning · '+range,at,'today');}catch{}
+    });
+  }
+  function openDayPlanModal(){
+    const plan=state.dayTimeline||{};
+    document.getElementById('dayPlanDate').value=plan.date||localDateKey();
+    document.getElementById('dayPlanAlarmToggle').checked=plan.alarms!==false;
+    document.getElementById('dayPlanInput').value=(plan.blocks||[]).map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+    document.getElementById('dayPlanModal').classList.add('open');
+  }
+  function closeDayPlanModal(){document.getElementById('dayPlanModal').classList.remove('open');}
+  function saveDayPlanFromModal(){
+    const date=document.getElementById('dayPlanDate').value||localDateKey(),blocks=parseDayPlanText(document.getElementById('dayPlanInput').value);
+    if(!blocks.length)return showToast('Ik herken nog geen regels met een begintijd.');
+    cancelDayPlanAlarms(state.dayTimeline);
+    state.dayTimeline={date,alarms:document.getElementById('dayPlanAlarmToggle').checked,blocks};
+    saveState();scheduleDayPlanAlarms();closeDayPlanModal();renderToday();showToast(blocks.length+' blokken ingepland.');
+  }
+  function clearDayPlan(){
+    if(!state.dayTimeline?.blocks?.length)return;
+    if(!confirm('Dagplanning wissen? Je gewone taken, routines en huishoudklusjes blijven bestaan.'))return;
+    cancelDayPlanAlarms(state.dayTimeline);state.dayTimeline={date:null,alarms:true,blocks:[]};saveState();renderToday();showToast('Dagplanning gewist.');
+  }
+  function renderDayTimeline(){
+    const box=document.getElementById('dayPlanList'),clear=document.getElementById('clearDayPlanButton');if(!box)return;
+    const plan=state.dayTimeline||{blocks:[]},active=plan.date===localDateKey()&&Array.isArray(plan.blocks)&&plan.blocks.length;
+    if(clear)clear.style.display=plan.blocks?.length?'inline-flex':'none';
+    if(!active){
+      const when=plan.date&&plan.blocks?.length?'Er staat een planning klaar voor '+escapeHtml(formatDateShort(plan.date))+'.':'Nog geen tijdsplanning voor vandaag.';
+      box.innerHTML='<div class="empty-state">'+when+'<br>Tijden zijn optionele richtlijnen.</div>';return;
+    }
+    box.innerHTML=plan.blocks.map(b=>{
+      const done=dayPlanBlockDone(b),linked=['task','habit','household'].includes(b.linkType),time=escapeHtml(b.start+(b.end?'–'+b.end:''));
+      const mark=linked?'<input class="check" type="checkbox" '+(done?'checked':'')+' data-day-plan-check="'+b.id+'" aria-label="Afvinken"/>':(b.linkType==='agenda'?'▣':'•');
+      return '<div class="day-plan-row '+(done?'done':'')+'"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div><div class="day-plan-name">'+escapeHtml(b.text)+'</div><div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div></div></div>';
+    }).join('');
+  }
+  function setDayPlanLinkedDone(block,checked){
+    const today=localDateKey();
+    if(block.linkType==='task'){const t=state.tasks.find(x=>x.id===block.linkId);if(t){markTask(t,checked);return;}}
+    if(block.linkType==='habit'){const h=state.habits.find(x=>x.id===block.linkId);if(h){h.history||={};h.versionHistory||={};if(checked){h.history[today]=true;if(h.energyAdaptive)h.versionHistory[today]=habitSelectedVersion(h,today);}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();}}
+    if(block.linkType==='household'){const h=state.householdTasks.find(x=>x.id===block.linkId);if(h){h.history||={};if(checked){h.history[today]=true;h.deferUntil='';}else delete h.history[today];saveState();}}
+    if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
+    renderToday();renderAllTasks();renderFocus();
+  }
+
   function renderTodayAgenda(){
     const list=document.getElementById('todayAgendaList');if(!list)return;
     let events=todayAgendaCache();
@@ -1805,6 +1929,7 @@
     const closed=state.dayClosedDate===localDateKey();
     document.getElementById('dayClosedArea').innerHTML=closed?`<div class="section-card closed-card"><p class="eyebrow">VANDAAG</p><h3>Vandaag is rond.</h3><p class="small-muted">Morgen begint opnieuw bij je energie.</p><button class="secondary-button" id="reopenDayButton">Toch nog iets doen</button></div>`:'';
     document.getElementById('dayOpenArea').style.display=closed?'none':'block';
+    renderDayTimeline();
     renderDailyBasis();
     renderHousehold();
     refillTodayPlan(false);
@@ -2474,6 +2599,20 @@
     if(e.target.closest('#deleteHabitButton')){if(!activeHabitId)return;const h=state.habits.find(x=>x.id===activeHabitId);if(!h)return;if(!confirm(`“${h.name}” verwijderen? De historie van dit onderdeel wordt ook verwijderd.`))return;state.habits=state.habits.filter(x=>x.id!==activeHabitId);activeHabitId=null;saveState();document.getElementById('habitModal').classList.remove('open');renderDailyBasis();return showToast('Onderdeel verwijderd.');}
     if(e.target.closest('[data-close-modal]'))return closeInputModal();if(e.target.closest('[data-close-recipe]'))return closeRecipeModal();if(e.target.closest('[data-close-habit]')){activeHabitId=null;return document.getElementById('habitModal').classList.remove('open');}if(e.target.closest('#modalSaveButton'))return saveModalInput();
     if(e.target.closest('#addProductButton')){const input=document.getElementById('manualProduct'),name=input.value.trim();if(!name)return showToast('Vul eerst een product in.');state.shopping.push({id:uid('shop'),name,amount:1,unit:'',cat:'Overig',done:false,manual:true});input.value='';saveState();return renderShopping();}
+  });
+
+
+  document.addEventListener('click',e=>{
+    if(e.target.closest('#openDayPlanPasteButton'))return openDayPlanModal();
+    if(e.target.closest('[data-close-day-plan]'))return closeDayPlanModal();
+    if(e.target.closest('#saveDayPlanButton'))return saveDayPlanFromModal();
+    if(e.target.closest('#clearDayPlanButton'))return clearDayPlan();
+  });
+  document.addEventListener('change',e=>{
+    if(e.target.matches('[data-day-plan-check]')){
+      const b=state.dayTimeline?.blocks?.find(x=>x.id===e.target.dataset.dayPlanCheck);
+      if(b)setDayPlanLinkedDone(b,e.target.checked);
+    }
   });
 
   document.addEventListener('change',e=>{
