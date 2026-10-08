@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 45
-        versionName 'mijn-dag-4.7-notities-hard-refresh'
+        versionCode 46
+        versionName 'mijn-dag-4.8-notities-native-no-sw'
     }
 
     buildTypes {
