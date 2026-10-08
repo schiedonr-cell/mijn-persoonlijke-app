@@ -1890,6 +1890,7 @@
   function renderDayTimeline(){
     const box=document.getElementById('dayPlanList'),clear=document.getElementById('clearDayPlanButton');if(!box)return;
     const plan=state.dayTimeline||{blocks:[]},active=plan.date===localDateKey()&&Array.isArray(plan.blocks)&&plan.blocks.length;
+    if(active)(plan.blocks||[]).filter(dayPlanBlockDone).forEach(b=>{try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}});
     if(clear)clear.style.display=plan.blocks?.length?'inline-flex':'none';
     if(!active){
       const when=plan.date&&plan.blocks?.length?'Er staat een planning klaar voor '+escapeHtml(formatDateShort(plan.date))+'.':'Nog geen tijdsplanning voor vandaag.';
@@ -1903,7 +1904,7 @@
   }
   function setDayPlanLinkedDone(block,checked){
     const today=localDateKey();
-    if(block.linkType==='task'){const t=state.tasks.find(x=>x.id===block.linkId);if(t){markTask(t,checked);return;}}
+    if(block.linkType==='task'){const t=state.tasks.find(x=>x.id===block.linkId);if(t){if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}markTask(t,checked);return;}}
     if(block.linkType==='habit'){const h=state.habits.find(x=>x.id===block.linkId);if(h){h.history||={};h.versionHistory||={};if(checked){h.history[today]=true;if(h.energyAdaptive)h.versionHistory[today]=habitSelectedVersion(h,today);}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();}}
     if(block.linkType==='household'){const h=state.householdTasks.find(x=>x.id===block.linkId);if(h){h.history||={};if(checked){h.history[today]=true;h.deferUntil='';}else delete h.history[today];saveState();}}
     if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
