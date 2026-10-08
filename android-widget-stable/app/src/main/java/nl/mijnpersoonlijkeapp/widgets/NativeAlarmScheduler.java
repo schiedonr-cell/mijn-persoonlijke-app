@@ -34,7 +34,12 @@ final class NativeAlarmScheduler {
 
     static void scheduleEveryDays(Context context, String id, String title, String body, long firstAt, int everyDays, String target) {
         int days = Math.max(1, Math.min(365, everyDays));
-        long at = Math.max(System.currentTimeMillis() + 1000L, firstAt);
+        long at = firstAt;
+        long now = System.currentTimeMillis();
+        long step = days * 86400000L;
+        // Never turn a missed repeating household time into an immediate alarm.
+        // Move it to the next valid repeat occurrence instead.
+        while (at <= now + 1000L) at += step;
         Calendar c = Calendar.getInstance();
         c.setTimeInMillis(at);
         scheduleInternal(context, id, title, body, at, target, false,
