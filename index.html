@@ -1932,7 +1932,7 @@
     const last=plan.blocks[plan.blocks.length-1];
     const countHtml='<p class="day-plan-count">'+plan.blocks.length+' blokken · van '+escapeHtml(plan.blocks[0].start)+' tot '+escapeHtml(last.end||last.start)+'</p>';
     box.innerHTML=countHtml+plan.blocks.map(b=>{
-      const done=dayPlanBlockDone(b),linked=['task','habit','household'].includes(b.linkType),time=escapeHtml(b.start+(b.end?'–'+b.end:''));
+      const done=dayPlanBlockDone(b),linked=b.linkType!=='agenda',time=escapeHtml(b.start+(b.end?'–'+b.end:''));
       const mark=linked?'<input class="check" type="checkbox" '+(done?'checked':'')+' data-day-plan-check="'+b.id+'" aria-label="Afvinken"/>':(b.linkType==='agenda'?'▣':'•');
       return '<div class="day-plan-row '+(done?'done':'')+'"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div><div class="day-plan-name">'+escapeHtml(b.text)+'</div><div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div></div></div>';
     }).join('');
@@ -1942,9 +1942,32 @@
     if(block.linkType==='task'){const t=state.tasks.find(x=>x.id===block.linkId);if(t){if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}markTask(t,checked);return;}}
     if(block.linkType==='habit'){const h=state.habits.find(x=>x.id===block.linkId);if(h){h.history||={};h.versionHistory||={};if(checked){h.history[today]=true;if(h.energyAdaptive)h.versionHistory[today]=habitSelectedVersion(h,today);}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();}}
     if(block.linkType==='household'){const h=state.householdTasks.find(x=>x.id===block.linkId);if(h){h.history||={};if(checked){h.history[today]=true;h.deferUntil='';}else delete h.history[today];saveState();}}
+    if(!['task','habit','household','agenda'].includes(block.linkType)){block.done=checked;saveState();}
     if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
+    else scheduleDayPlanAlarms();
     renderToday();renderAllTasks();renderFocus();
   }
+
+  // Door Android-homescreenwidgets opgeslagen afvinkacties toepassen op de echte appdata.
+  // Gebeurt vóór de volgende snapshotsynchronisatie vanuit de WebView.
+  window.applyNativeDayTimelineChanges=function(raw){
+    let operations=[];
+    try{operations=JSON.parse(raw||'[]');}catch{return;}
+    if(!Array.isArray(operations)||!operations.length)return;
+    const confirmed=[];
+    for(const op of operations){
+      if(!op||!op.id||!op.blockId||op.date!==localDateKey())continue;
+      const plan=state.dayTimeline;
+      if(!plan||plan.date!==op.date)continue;
+      const block=(plan.blocks||[]).find(b=>b.id===op.blockId);
+      if(!block||block.linkType==='agenda')continue;
+      setDayPlanLinkedDone(block,Boolean(op.done));
+      confirmed.push(op.id);
+    }
+    if(confirmed.length){
+      try{window.AndroidWidgetBridge?.ackDayTimelineUpdates?.(JSON.stringify(confirmed));}catch{}
+    }
+  };
 
   function renderTodayAgenda(){
     const list=document.getElementById('todayAgendaList');if(!list)return;
