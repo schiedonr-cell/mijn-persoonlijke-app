@@ -43,7 +43,6 @@ public class MainActivity extends Activity {
     private static final String PREFS = "native_app_state";
     private static final String IMPORT_DONE = "import_done";
     private static final String IMPORT_FILE = "pending-import.json";
-    private static final String WEB_CACHE_RESET_V45 = "web_cache_reset_v45";
     private static final int PICK_FILE = 77;
     private static final int CALENDAR_PERMISSION = 78;
     private static final int NOTIFICATION_PERMISSION = 79;
@@ -229,18 +228,12 @@ public class MainActivity extends Activity {
             @Override public void onPageFinished(WebView view, String url) {
                 if (importFile().exists() && !importing) importIntoWebView();
                 else if (imported()) {
-                    if (!getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(WEB_CACHE_RESET_V45, false)) {
-                        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(WEB_CACHE_RESET_V45, true).apply();
-                        String reloadUrl = BASE + "?open=" + Uri.encode(target) + "&nativev=45&fresh=1";
-                        String cleanJs =
-                            "(function(){" +
-                            "try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).catch(function(){});}}catch(e){}" +
-                            "try{if(window.caches){caches.keys().then(function(keys){return Promise.all(keys.map(function(k){return caches.delete(k);}));}).catch(function(){});}}catch(e){}" +
-                            "setTimeout(function(){location.replace(" + JSONObject.quote(reloadUrl) + ");},700);" +
-                            "})();";
-                        try { webView.evaluateJavascript(cleanJs, null); } catch (Exception ignored) {}
-                        return;
-                    }
+                    String cleanJs =
+                        "(function(){" +
+                        "try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).catch(function(){});}}catch(e){}" +
+                        "try{if(window.caches){caches.keys().then(function(keys){return Promise.all(keys.map(function(k){return caches.delete(k);}));}).catch(function(){});}}catch(e){}" +
+                        "})();";
+                    try { webView.evaluateJavascript(cleanJs, null); } catch (Exception ignored) {}
                     injectCalendarCache();
                     installNativeHooks();
                     ensureCurrentNotesModule();
@@ -251,7 +244,7 @@ public class MainActivity extends Activity {
             }
         });
         setContentView(webView);
-        webView.loadUrl(BASE + "?open=" + Uri.encode(target) + "&nativev=45");
+        webView.loadUrl(BASE + "?open=" + Uri.encode(target) + "&nativev=46");
     }
 
     private void importIntoWebView() {
@@ -293,7 +286,7 @@ public class MainActivity extends Activity {
             "if(window.__mijnDagNotesV2Loaded){try{window.MijnDagNotes&&window.MijnDagNotes.refresh&&window.MijnDagNotes.refresh();}catch(_){ }return;}" +
             "var old=document.getElementById('mijnDagNotesV2Script');if(old)old.remove();" +
             "var sc=document.createElement('script');sc.id='mijnDagNotesV2Script';" +
-            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=45';" +
+            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=46';" +
             "sc.async=false;document.head.appendChild(sc);" +
             "})();";
         try { webView.evaluateJavascript(js, null); } catch (Exception ignored) {}
