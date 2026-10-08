@@ -90,7 +90,67 @@ final class SnapshotStore {
         snapshot.put("energy", energy);
         snapshot.put("updatedAt", System.currentTimeMillis());
         snapshot.put("rows", rows);
+
+        JSONArray timelineRows = buildDayTimelineRows(state, today);
+        if (timelineRows.length() > 0) snapshot.put("timelineRows", timelineRows);
+
         return snapshot;
+    }
+
+    private static JSONArray buildDayTimelineRows(JSONObject state, String today) {
+        JSONArray out = new JSONArray();
+        JSONObject plan = state.optJSONObject("dayTimeline");
+        if (plan == null || !today.equals(plan.optString("date", ""))) return out;
+        JSONArray blocks = plan.optJSONArray("blocks");
+        if (blocks == null) return out;
+
+        JSONArray tasks = state.optJSONArray("tasks");
+        JSONArray habits = state.optJSONArray("habits");
+        JSONArray household = state.optJSONArray("householdTasks");
+
+        for (int i = 0; i < blocks.length(); i++) {
+            JSONObject b = blocks.optJSONObject(i);
+            if (b == null) continue;
+            String text = b.optString("text", "").trim();
+            String start = b.optString("start", "").trim();
+            String end = b.optString("end", "").trim();
+            String linkType = b.optString("linkType", "");
+            String linkId = b.optString("linkId", "");
+            if (text.isEmpty() || start.isEmpty()) continue;
+
+            boolean done = b.optBoolean("done", false);
+            String kind = "Plan";
+            if ("task".equals(linkType)) {
+                kind = "Taak";
+                JSONObject item = findById(tasks, linkId);
+                if (item != null) done = item.optBoolean("done", false);
+            } else if ("habit".equals(linkType)) {
+                kind = "Routine";
+                JSONObject item = findById(habits, linkId);
+                JSONObject history = item == null ? null : item.optJSONObject("history");
+                if (history != null) done = truthy(history, today);
+            } else if ("household".equals(linkType)) {
+                kind = "Huis";
+                JSONObject item = findById(household, linkId);
+                JSONObject history = item == null ? null : item.optJSONObject("history");
+                if (history != null) done = truthy(history, today);
+            } else if ("agenda".equals(linkType)) {
+                kind = "Agenda";
+            }
+
+            if (done) continue;
+            addRow(out, kind, text, end.isEmpty() ? start : start + "–" + end);
+        }
+        return out;
+    }
+
+    private static JSONObject findById(JSONArray array, String id) {
+        if (array == null || id == null || id.isEmpty()) return null;
+        for (int i = 0; i < array.length(); i++) {
+            JSONObject item = array.optJSONObject(i);
+            if (item != null && id.equals(item.optString("id", ""))) return item;
+        }
+        return null;
     }
 
     private static void addRow(JSONArray rows, String kind, String text) {
