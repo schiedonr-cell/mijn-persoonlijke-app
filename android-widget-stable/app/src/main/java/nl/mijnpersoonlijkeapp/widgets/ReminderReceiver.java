@@ -5,6 +5,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.RemoteInput;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -13,6 +14,7 @@ import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
@@ -23,7 +25,8 @@ public class ReminderReceiver extends BroadcastReceiver {
     static final String CHANNEL_ID = "mijn_dag_alarms_v2";
     private static final String ACTION_SNOOZE = "nl.mijnpersoonlijkeapp.widgets.REMINDER_SNOOZE";
     private static final String ACTION_STOP = "nl.mijnpersoonlijkeapp.widgets.REMINDER_STOP";
-    private static final long SNOOZE_MS = 10L * 60L * 1000L;
+    private static final String SNOOZE_KEY = "snooze_choice";
+    private static final long DEFAULT_SNOOZE_MS = 10L * 60L * 1000L;
 
     @Override public void onReceive(Context context, Intent intent) {
         String action = intent == null ? null : intent.getAction();
@@ -44,13 +47,21 @@ public class ReminderReceiver extends BroadcastReceiver {
             if (title == null || title.trim().isEmpty()) title = "Mijn dag";
             if (body == null || body.trim().isEmpty()) body = "Je hebt iets gepland.";
             if (target == null || target.trim().isEmpty()) target = "today";
+
+            long snoozeMs = DEFAULT_SNOOZE_MS;
+            try {
+                Bundle results = RemoteInput.getResultsFromIntent(intent);
+                CharSequence choice = results == null ? null : results.getCharSequence(SNOOZE_KEY);
+                snoozeMs = snoozeDelay(choice == null ? "" : choice.toString());
+            } catch (Exception ignored) {}
+
             String snoozeId = "snooze-" + (id == null ? System.currentTimeMillis() : id) + "-" + System.currentTimeMillis();
             NativeAlarmScheduler.schedule(
                     context,
                     snoozeId,
                     title,
                     body,
-                    System.currentTimeMillis() + SNOOZE_MS,
+                    System.currentTimeMillis() + snoozeMs,
                     target
             );
             return;
@@ -81,8 +92,18 @@ public class ReminderReceiver extends BroadcastReceiver {
                 immutableFlags
         );
 
-        PendingIntent snooze = actionIntent(context, ACTION_SNOOZE, id, title, body, target, 1);
+        PendingIntent snooze = snoozeIntent(context, id, title, body, target);
         PendingIntent stop = actionIntent(context, ACTION_STOP, id, title, body, target, 2);
+
+        RemoteInput snoozeChoices = new RemoteInput.Builder(SNOOZE_KEY)
+                .setLabel("Snooze")
+                .setChoices(new CharSequence[]{"5 min", "10 min", "30 min", "1 uur"})
+                .build();
+
+        Notification.Action snoozeAction = new Notification.Action.Builder(
+                android.R.drawable.ic_lock_idle_alarm, "Snooze", snooze)
+                .addRemoteInput(snoozeChoices)
+                .build();
 
         Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 ? new Notification.Builder(context, CHANNEL_ID)
@@ -99,8 +120,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                 .setDefaults(Notification.DEFAULT_ALL)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
                 .setOnlyAlertOnce(false)
-                .addAction(new Notification.Action.Builder(
-                        android.R.drawable.ic_lock_idle_alarm, "Snooze 10 min", snooze).build())
+                .addAction(snoozeAction)
                 .addAction(new Notification.Action.Builder(
                         android.R.drawable.ic_menu_close_clear_cancel, "Stop", stop).build());
 
@@ -113,6 +133,25 @@ public class ReminderReceiver extends BroadcastReceiver {
 
         vibrate(context);
         NativeAlarmScheduler.handleFired(context, id);
+    }
+
+    private static PendingIntent snoozeIntent(Context context, String id, String title, String body, String target) {
+        Intent i = new Intent(context, ReminderReceiver.class);
+        i.setAction(ACTION_SNOOZE);
+        i.putExtra("id", id);
+        i.putExtra("title", title);
+        i.putExtra("body", body);
+        i.putExtra("target", target);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= 31) flags |= PendingIntent.FLAG_MUTABLE;
+        return PendingIntent.getBroadcast(context, requestCode(id, 1), i, flags);
+    }
+
+    private static long snoozeDelay(String choice) {
+        if ("5 min".equals(choice)) return 5L * 60L * 1000L;
+        if ("30 min".equals(choice)) return 30L * 60L * 1000L;
+        if ("1 uur".equals(choice)) return 60L * 60L * 1000L;
+        return 10L * 60L * 1000L;
     }
 
     private static PendingIntent actionIntent(Context context, String action, String id, String title,
