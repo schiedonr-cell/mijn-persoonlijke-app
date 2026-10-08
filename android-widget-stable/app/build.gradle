@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 49
-        versionName 'mijn-dag-5.1-native-alarmen-snooze-keuze'
+        versionCode 50
+        versionName 'mijn-dag-5.2-alarmgeluid-service'
     }
 
     buildTypes {
