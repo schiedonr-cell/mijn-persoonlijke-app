@@ -29,6 +29,12 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
     abstract int requestCode();
     boolean showTime() { return false; }
 
+    String formatLine(JSONObject row) {
+        String text = row.optString("text", "");
+        String time = row.optString("time", "").trim();
+        return showTime() && !time.isEmpty() ? time + "  " + text : "○  " + text;
+    }
+
     @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
         for (int id : ids) updateOne(context, manager, id);
     }
@@ -72,9 +78,7 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         for (int i = 0; i < ROW_IDS.length; i++) {
             if (i < visible) {
                 JSONObject row = items.get(i);
-                String text = row.optString("text", "");
-                String time = row.optString("time", "").trim();
-                String line = showTime() && !time.isEmpty() ? time + "  " + text : "○  " + text;
+                String line = formatLine(row);
                 v.setTextViewText(ROW_IDS[i], line);
                 v.setViewVisibility(ROW_IDS[i], View.VISIBLE);
             } else if (i == 0 && items.isEmpty() && limit > 0) {
