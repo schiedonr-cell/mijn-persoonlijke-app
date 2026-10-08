@@ -69,8 +69,9 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
 
         hideRows(v);
         JSONObject snapshot = SnapshotStore.read(context);
-        JSONArray rows = snapshot.optJSONArray("timelineRows");
-        if (rows == null || rows.length() == 0) rows = snapshot.optJSONArray("rows");
+        JSONArray plannedRows = snapshot.optJSONArray("timelineRows");
+        boolean usingDayPlan = plannedRows != null && plannedRows.length() > 0;
+        JSONArray rows = usingDayPlan ? plannedRows : snapshot.optJSONArray("rows");
         if (!SnapshotStore.todayKey().equals(snapshot.optString("date", "")) || rows == null) {
             v.setViewVisibility(R.id.timeline_empty, View.VISIBLE);
             v.setTextViewText(R.id.timeline_empty, "Open Mijn dag om het overzicht te vernieuwen.");
@@ -85,7 +86,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             if (row==null) continue;
             // Deze widget is echt alleen voor vandaag. De gedeelde agenda-snapshot bevat
             // bewust ook komende afspraken voor de losse Agenda-widget.
-            if ("Agenda".equals(row.optString("kind","")) && !agendaIsToday(row)) continue;
+            if (!usingDayPlan && "Agenda".equals(row.optString("kind","")) && !agendaIsToday(row)) continue;
             items.add(row);
         }
         Collections.sort(items, new Comparator<JSONObject>() {
