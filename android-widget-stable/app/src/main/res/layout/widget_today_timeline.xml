@@ -46,7 +46,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="5dp"
                     android:text="do 8 okt"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:textStyle="bold" />
                 <TextView
                     android:id="@+id/timeline_home"
@@ -83,9 +83,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_1"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -113,9 +113,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_2"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -143,9 +143,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_3"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -173,9 +173,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_4"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -203,9 +203,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_5"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -233,9 +233,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_6"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -263,9 +263,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_7"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -293,9 +293,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_8"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -323,9 +323,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_9"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -353,9 +353,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_10"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -383,9 +383,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_11"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -413,9 +413,9 @@
                 android:contentDescription="" />
             <TextView
                 android:id="@+id/timeline_time_12"
-                android:layout_width="50dp"
+                android:layout_width="82dp"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:maxLines="1" />
             <TextView
@@ -442,7 +442,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="5dp"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
         </LinearLayout>
