@@ -55,6 +55,7 @@ public class MainActivity extends Activity {
 
     private final Runnable syncLoop = new Runnable() {
         @Override public void run() {
+            applyPendingTimelineChanges();
             syncWidget();
             handler.postDelayed(this, 1200);
         }
@@ -238,6 +239,7 @@ public class MainActivity extends Activity {
                     installNativeHooks();
                     ensureCurrentNotesModule();
                     syncWidget();
+                    applyPendingTimelineChanges();
                     startSync();
                     requestCalendarIfNeeded();
                 }
@@ -380,6 +382,14 @@ public class MainActivity extends Activity {
         handler.post(syncLoop);
     }
 
+    private void applyPendingTimelineChanges() {
+        if(webView==null||!imported())return;
+        String pending=SnapshotStore.pending(this);
+        if("[]".equals(pending))return;
+        String js="if(window.applyNativeDayTimelineChanges)window.applyNativeDayTimelineChanges("+JSONObject.quote(pending)+");";
+        try{webView.evaluateJavascript(js,null);}catch(Exception ignored){}
+    }
+
     private void syncWidget() {
         if (webView == null || !imported()) return;
         try {
@@ -423,6 +433,10 @@ public class MainActivity extends Activity {
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
 
     private final class Bridge {
+        @JavascriptInterface public void ackDayTimelineUpdates(String idsJson) {
+            SnapshotStore.acknowledge(getApplicationContext(),idsJson);
+        }
+
         @JavascriptInterface public void update(String stateJson, String calendarJson, String liveHouseholdJson) {
             SnapshotStore.updateFromWebState(getApplicationContext(), stateJson, calendarJson, liveHouseholdJson);
         }

@@ -25,6 +25,7 @@ import java.util.Set;
 final class SnapshotStore {
     private static final String PREFS = "widget_snapshot_store";
     private static final String KEY = "today_snapshot";
+    private static final String PENDING = "day_timeline_pending";
 
     private SnapshotStore() {}
 
@@ -32,6 +33,8 @@ final class SnapshotStore {
         if (stateJson == null || stateJson.trim().isEmpty()) return;
         try {
             JSONObject state = new JSONObject(stateJson);
+            // Widgetwijzigingen blijven bewaard totdat de WebView ze toepast en bevestigt.
+            applyPendingToSnapshotState(context, state);
             JSONObject snapshot = build(context, state, calendarJson, liveHouseholdJson);
             String text = snapshot.toString();
             SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
@@ -67,6 +70,88 @@ final class SnapshotStore {
         } catch (Exception e) {
             return new JSONObject();
         }
+    }
+
+    static synchronized String pending(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(PENDING, "[]");
+    }
+
+    static synchronized void acknowledge(Context context, String idsJson) {
+        try {
+            JSONArray ids = new JSONArray(idsJson), ops = new JSONArray(pending(context)), remain = new JSONArray();
+            for (int i=0;i<ops.length();i++) {
+                JSONObject op=ops.optJSONObject(i);
+                if(op==null)continue;
+                boolean found=false;
+                for(int j=0;j<ids.length();j++)if(op.optString("id").equals(ids.optString(j)))found=true;
+                if(!found)remain.put(op);
+            }
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(PENDING,remain.toString()).commit();
+        }catch(Exception ignored){}
+    }
+
+    static synchronized void toggleBlock(Context context, String date, String blockId, boolean done) {
+        if(!todayKey().equals(date)||blockId==null||blockId.isEmpty())return;
+        try {
+            JSONObject snapshot=read(context);
+            JSONArray rows=snapshot.optJSONArray("timelineRows");
+            if(rows==null||!date.equals(snapshot.optString("date")))return;
+            boolean found=false;
+            for(int i=0;i<rows.length();i++){
+                JSONObject row=rows.optJSONObject(i);
+                if(row!=null && blockId.equals(row.optString("blockId"))
+                        && !"agenda".equals(row.optString("linkType"))){found=true;break;}
+            }
+            if(!found)return;
+            JSONArray old=new JSONArray(pending(context)), next=new JSONArray();
+            for(int i=0;i<old.length();i++){
+                JSONObject op=old.optJSONObject(i);
+                if(op!=null && !(date.equals(op.optString("date"))&&blockId.equals(op.optString("blockId"))))next.put(op);
+            }
+            JSONObject op=new JSONObject();
+            op.put("id",java.util.UUID.randomUUID().toString());op.put("date",date);op.put("blockId",blockId);op.put("done",done);
+            next.put(op);
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(PENDING,next.toString()).commit();
+            for(int i=0;i<rows.length();i++){
+                JSONObject row=rows.optJSONObject(i);
+                if(row!=null && blockId.equals(row.optString("blockId")))row.put("done",done);
+            }
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY,snapshot.toString()).commit();
+            if(done)NativeAlarmScheduler.cancel(context,"dayplan-"+date+"-"+blockId);
+            TodayTimelineWidgetProvider.refreshAll(context);
+        }catch(Exception ignored){}
+    }
+
+    private static void applyPendingToSnapshotState(Context context, JSONObject state) {
+        try{
+            JSONObject plan=state.optJSONObject("dayTimeline");
+            if(plan==null)return;
+            String date=plan.optString("date"),today=todayKey();
+            if(!today.equals(date))return;
+            JSONArray blocks=plan.optJSONArray("blocks"),ops=new JSONArray(pending(context));
+            if(blocks==null)return;
+            for(int i=0;i<ops.length();i++){
+                JSONObject op=ops.optJSONObject(i);
+                if(op==null||!date.equals(op.optString("date")))continue;
+                for(int j=0;j<blocks.length();j++){
+                    JSONObject b=blocks.optJSONObject(j);
+                    if(b==null||!op.optString("blockId").equals(b.optString("id")))continue;
+                    boolean done=op.optBoolean("done");
+                    String type=b.optString("linkType"),id=b.optString("linkId");
+                    if("task".equals(type)){
+                        JSONObject t=findById(state.optJSONArray("tasks"),id);
+                        if(t!=null){t.put("done",done);t.put("completedAt",done?System.currentTimeMillis():JSONObject.NULL);}
+                    }else if("habit".equals(type)||"household".equals(type)){
+                        JSONObject t=findById(state.optJSONArray("habit".equals(type)?"habits":"householdTasks"),id);
+                        if(t!=null){
+                            JSONObject history=t.optJSONObject("history");
+                            if(history==null){history=new JSONObject();t.put("history",history);}
+                            if(done)history.put(today,true);else history.remove(today);
+                        }
+                    }else if(!"agenda".equals(type)){b.put("done",done);}
+                }
+            }
+        }catch(Exception ignored){}
     }
 
     static String todayKey() {
@@ -150,6 +235,8 @@ final class SnapshotStore {
                 row.put("text", text);
                 row.put("time", end.isEmpty() ? start : start + "–" + end);
                 row.put("done", done);
+                row.put("blockId", b.optString("id", ""));
+                row.put("linkType", linkType);
                 out.put(row);
             } catch (Exception ignored) {}
         }

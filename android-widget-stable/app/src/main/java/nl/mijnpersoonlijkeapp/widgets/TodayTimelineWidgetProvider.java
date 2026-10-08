@@ -33,6 +33,32 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         R.id.timeline_row_box_17,R.id.timeline_row_box_18,R.id.timeline_row_box_19,R.id.timeline_row_box_20,
         R.id.timeline_row_box_21,R.id.timeline_row_box_22,R.id.timeline_row_box_23,R.id.timeline_row_box_24
     };
+    private static final int[] CHECK_IDS = new int[]{
+        R.id.timeline_check_1,
+        R.id.timeline_check_2,
+        R.id.timeline_check_3,
+        R.id.timeline_check_4,
+        R.id.timeline_check_5,
+        R.id.timeline_check_6,
+        R.id.timeline_check_7,
+        R.id.timeline_check_8,
+        R.id.timeline_check_9,
+        R.id.timeline_check_10,
+        R.id.timeline_check_11,
+        R.id.timeline_check_12,
+        R.id.timeline_check_13,
+        R.id.timeline_check_14,
+        R.id.timeline_check_15,
+        R.id.timeline_check_16,
+        R.id.timeline_check_17,
+        R.id.timeline_check_18,
+        R.id.timeline_check_19,
+        R.id.timeline_check_20,
+        R.id.timeline_check_21,
+        R.id.timeline_check_22,
+        R.id.timeline_check_23,
+        R.id.timeline_check_24
+    };
     private static final int[] ICON_IDS = new int[]{
         R.id.timeline_icon_1,R.id.timeline_icon_2,R.id.timeline_icon_3,R.id.timeline_icon_4,
         R.id.timeline_icon_5,R.id.timeline_icon_6,R.id.timeline_icon_7,R.id.timeline_icon_8,
@@ -58,11 +84,27 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         R.id.timeline_text_21,R.id.timeline_text_22,R.id.timeline_text_23,R.id.timeline_text_24
     };
     private static final Pattern CLOCK = Pattern.compile("(\\d{1,2}):(\\d{2})");
+    private static final String ACTION_TOGGLE = "nl.mijnpersoonlijkeapp.widgets.TIMELINE_TOGGLE";
     private static final String ACTION_NEXT_PAGE = "nl.mijnpersoonlijkeapp.widgets.TIMELINE_NEXT_PAGE";
     private static final String PAGE_PREFS = "timeline_widget_pages";
 
     @Override public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
+        if (intent != null && ACTION_TOGGLE.equals(intent.getAction())) {
+            String date=intent.getStringExtra("date"),blockId=intent.getStringExtra("blockId");
+            if(date!=null&&blockId!=null){
+                JSONObject snap=SnapshotStore.read(context);
+                JSONArray rows=snap.optJSONArray("timelineRows");
+                if(rows!=null)for(int i=0;i<rows.length();i++){
+                    JSONObject row=rows.optJSONObject(i);
+                    if(row!=null&&blockId.equals(row.optString("blockId"))){
+                        SnapshotStore.toggleBlock(context,date,blockId,!row.optBoolean("done",false));
+                        break;
+                    }
+                }
+            }
+            return;
+        }
         if (intent != null && ACTION_NEXT_PAGE.equals(intent.getAction())) {
             int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
             if (id != AppWidgetManager.INVALID_APPWIDGET_ID) {
@@ -151,7 +193,20 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             String clock=displayTime(rawTime);
             v.setImageViewResource(ICON_IDS[i], iconFor(kind));
             v.setTextViewText(TIME_IDS[i], clock.isEmpty() ? "—" : clock);
-            v.setTextViewText(TEXT_IDS[i], (usingDayPlan && row.optBoolean("done", false) ? "✓ " : "") + row.optString("text",""));
+            boolean completed=row.optBoolean("done",false);
+            v.setTextViewText(TEXT_IDS[i], row.optString("text",""));
+            if(usingDayPlan && !"agenda".equals(row.optString("linkType")) && !row.optString("blockId").isEmpty()){
+                v.setViewVisibility(CHECK_IDS[i], View.VISIBLE);
+                v.setTextViewText(CHECK_IDS[i], completed ? "☑" : "□");
+                Intent toggle=new Intent(context,TodayTimelineWidgetProvider.class);
+                toggle.setAction(ACTION_TOGGLE);
+                toggle.setData(android.net.Uri.parse("mijndag://check/"+android.net.Uri.encode(row.optString("blockId"))));
+                toggle.putExtra("date",snapshot.optString("date"));
+                toggle.putExtra("blockId",row.optString("blockId"));
+                PendingIntent pi=PendingIntent.getBroadcast(context, 3000+i+id*100, toggle,
+                        PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+                v.setOnClickPendingIntent(CHECK_IDS[i],pi);
+            }else v.setViewVisibility(CHECK_IDS[i],View.GONE);
             v.setViewVisibility(ROW_BOX_IDS[i], View.VISIBLE);
             v.setOnClickPendingIntent(ROW_BOX_IDS[i], WidgetLinks.open(context, targetFor(kind), 540+i));
         }
