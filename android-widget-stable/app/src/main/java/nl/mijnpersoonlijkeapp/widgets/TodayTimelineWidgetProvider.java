@@ -69,7 +69,8 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
 
         hideRows(v);
         JSONObject snapshot = SnapshotStore.read(context);
-        JSONArray rows = snapshot.optJSONArray("rows");
+        JSONArray rows = snapshot.optJSONArray("timelineRows");
+        if (rows == null || rows.length() == 0) rows = snapshot.optJSONArray("rows");
         if (!SnapshotStore.todayKey().equals(snapshot.optString("date", "")) || rows == null) {
             v.setViewVisibility(R.id.timeline_empty, View.VISIBLE);
             v.setTextViewText(R.id.timeline_empty, "Open Mijn dag om het overzicht te vernieuwen.");
@@ -172,8 +173,10 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
 
     private static String displayTime(String value) {
         if(value==null) return "";
-        if(value.toLowerCase(Locale.ROOT).contains("hele dag")) return "Hele dag";
-        Matcher m=CLOCK.matcher(value);
+        String v=value.trim();
+        if(v.toLowerCase(Locale.ROOT).contains("hele dag")) return "Hele dag";
+        if(v.matches("^\\d{1,2}:\\d{2}[–—-]\\d{1,2}:\\d{2}$")) return v;
+        Matcher m=CLOCK.matcher(v);
         if(m.find()) return String.format(Locale.ROOT,"%02d:%s",Integer.parseInt(m.group(1)),m.group(2));
         return "";
     }
@@ -189,6 +192,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         if("Agenda".equals(kind)) return "today-agenda";
         if("Routine".equals(kind)) return "today-routines";
         if("Huis".equals(kind)) return "today-household";
+        if("Plan".equals(kind)) return "today";
         return "today-tasks";
     }
 
