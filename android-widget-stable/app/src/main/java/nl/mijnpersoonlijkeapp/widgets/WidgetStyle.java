@@ -252,6 +252,40 @@ final class WidgetStyle {
         setText(v, R.id.today_more, accent);
     }
 
+    static void applyTimeline(RemoteViews v, Context context, int appWidgetId) {
+        int base = background(context, appWidgetId);
+        int transparency = transparency(context, appWidgetId);
+        int opacity = 100 - transparency;
+        boolean lightText = useLightText(context, appWidgetId, base);
+        int text = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
+        int muted = lightText ? Color.rgb(202, 208, 203) : Color.rgb(83, 91, 84);
+        int accent = accent(context, appWidgetId);
+        int divider = Color.argb(lightText ? 110 : 85, Color.red(accent), Color.green(accent), Color.blue(accent));
+
+        try { v.setInt(R.id.timeline_root, "setBackgroundResource", R.drawable.widget_bg_clear); } catch (Exception ignored) {}
+        applyOutlinedPanel(v, context, appWidgetId, R.id.timeline_box, R.id.timeline_panel, base, opacity, transparency);
+        setText(v, R.id.timeline_title, text);
+        try { v.setViewVisibility(R.id.timeline_title, showName(context, appWidgetId) ? View.VISIBLE : View.GONE); } catch (Exception ignored) {}
+        setText(v, R.id.timeline_date, muted);
+        setText(v, R.id.timeline_home, accent);
+        setBackgroundColor(v, R.id.timeline_divider, divider);
+
+        int[] icons = new int[]{R.id.timeline_icon_1,R.id.timeline_icon_2,R.id.timeline_icon_3,R.id.timeline_icon_4,
+                R.id.timeline_icon_5,R.id.timeline_icon_6,R.id.timeline_icon_7,R.id.timeline_icon_8,
+                R.id.timeline_icon_9,R.id.timeline_icon_10,R.id.timeline_icon_11,R.id.timeline_icon_12};
+        int[] times = new int[]{R.id.timeline_time_1,R.id.timeline_time_2,R.id.timeline_time_3,R.id.timeline_time_4,
+                R.id.timeline_time_5,R.id.timeline_time_6,R.id.timeline_time_7,R.id.timeline_time_8,
+                R.id.timeline_time_9,R.id.timeline_time_10,R.id.timeline_time_11,R.id.timeline_time_12};
+        int[] texts = new int[]{R.id.timeline_text_1,R.id.timeline_text_2,R.id.timeline_text_3,R.id.timeline_text_4,
+                R.id.timeline_text_5,R.id.timeline_text_6,R.id.timeline_text_7,R.id.timeline_text_8,
+                R.id.timeline_text_9,R.id.timeline_text_10,R.id.timeline_text_11,R.id.timeline_text_12};
+        for (int id : icons) try { v.setInt(id, "setColorFilter", accent); } catch (Exception ignored) {}
+        for (int id : times) setText(v, id, accent);
+        for (int id : texts) setText(v, id, text);
+        setText(v, R.id.timeline_empty, muted);
+        setText(v, R.id.timeline_more, accent);
+    }
+
     static void applyFocus(RemoteViews v, Context context, int appWidgetId) {
         applyTile(v, context, appWidgetId,
                 R.id.focus_root, R.id.focus_panel, R.id.focus_title,
@@ -364,6 +398,7 @@ final class WidgetStyle {
         refresh(context, LargeWidgetProvider.class);
         refresh(context, TodayWidgetProvider.class);
         refresh(context, TodayGridWidgetProvider.class);
+        refresh(context, TodayTimelineWidgetProvider.class);
         refresh(context, FocusWidgetProvider.class);
         refresh(context, FoodWidgetProvider.class);
         refresh(context, NotesWidgetProvider.class);
