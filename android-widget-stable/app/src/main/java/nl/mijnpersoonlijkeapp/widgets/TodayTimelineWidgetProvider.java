@@ -89,8 +89,16 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         }
         Collections.sort(items, new Comparator<JSONObject>() {
             @Override public int compare(JSONObject a, JSONObject b) {
-                int ka=sortKey(a), kb=sortKey(b);
-                if (ka!=kb) return Integer.compare(ka,kb);
+                boolean ta=hasClock(a), tb=hasClock(b);
+                if (ta && !tb) return -1;
+                if (!ta && tb) return 1;
+                if (ta) {
+                    int ka=sortKey(a), kb=sortKey(b);
+                    if (ka!=kb) return Integer.compare(ka,kb);
+                    return categoryRank(a.optString("kind","")) - categoryRank(b.optString("kind",""));
+                }
+                int ca=categoryRank(a.optString("kind","")), cb=categoryRank(b.optString("kind",""));
+                if (ca!=cb) return Integer.compare(ca,cb);
                 return a.optString("text","").compareToIgnoreCase(b.optString("text",""));
             }
         });
@@ -135,6 +143,20 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             int h=o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 300);
             return Math.max(3, Math.min(12, (h-64)/30));
         } catch(Exception ignored) { return 8; }
+    }
+
+    private static boolean hasClock(JSONObject row) {
+        String time=row.optString("time","").trim();
+        if (time.toLowerCase(Locale.ROOT).contains("hele dag")) return true;
+        return CLOCK.matcher(time).find();
+    }
+
+    private static int categoryRank(String kind) {
+        if ("Routine".equals(kind)) return 0;
+        if ("Taak".equals(kind)) return 1;
+        if ("Huis".equals(kind)) return 2;
+        if ("Agenda".equals(kind)) return 3;
+        return 4;
     }
 
     private static int sortKey(JSONObject row) {
