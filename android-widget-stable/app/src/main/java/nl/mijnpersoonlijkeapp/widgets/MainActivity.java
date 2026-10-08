@@ -524,6 +524,10 @@ public class MainActivity extends Activity {
             NativeAlarmScheduler.cancel(getApplicationContext(), id);
         }
 
+        @JavascriptInterface public void clearReminderSuppression(String type, String itemId) {
+            ReminderReceiver.clearSuppressionForItem(getApplicationContext(), type, itemId);
+        }
+
         @JavascriptInterface public boolean nativeRemindersAvailable() {
             return true;
         }
