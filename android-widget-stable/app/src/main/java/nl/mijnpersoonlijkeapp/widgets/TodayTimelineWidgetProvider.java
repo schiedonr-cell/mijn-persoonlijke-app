@@ -206,7 +206,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
                 PendingIntent pi=PendingIntent.getBroadcast(context, 3000+i+id*100, toggle,
                         PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
                 v.setOnClickPendingIntent(CHECK_IDS[i],pi);
-            }else v.setViewVisibility(CHECK_IDS[i],View.GONE);
+            }else v.setViewVisibility(CHECK_IDS[i],usingDayPlan ? View.INVISIBLE : View.GONE);
             v.setViewVisibility(ROW_BOX_IDS[i], View.VISIBLE);
             v.setOnClickPendingIntent(ROW_BOX_IDS[i], WidgetLinks.open(context, targetFor(kind), 540+i));
         }
