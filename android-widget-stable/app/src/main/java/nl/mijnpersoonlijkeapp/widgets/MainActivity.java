@@ -385,18 +385,21 @@ public class MainActivity extends Activity {
         try {
             String js = "(function(){try{" +
                     "var liveHouse='';" +
+                    "if(typeof householdVisibleToday==='function'){" +
+                    "var list=householdVisibleToday();" +
+                    "if(Array.isArray(list)){" +
+                    "if(typeof householdDoneToday==='function')list=list.filter(function(x){return !householdDoneToday(x);});" +
+                    "liveHouse=JSON.stringify(list.map(function(x){return {name:(x&&x.name)||'Huishouden',time:(x&&x.time)||''};}));" +
+                    "}" +
+                    "}else{" +
                     "var box=document.getElementById('householdList');" +
                     "if(box){" +
                     "var items=[];" +
                     "var nodes=box.querySelectorAll('.household-name');" +
-                    "for(var i=0;i<nodes.length;i++){var name=(nodes[i].textContent||'').trim();if(name)items.push({name:name});}" +
+                    "for(var i=0;i<nodes.length;i++){var name=(nodes[i].textContent||'').trim();if(name)items.push({name:name,time:''});}" +
                     "liveHouse=JSON.stringify(items);" +
-                    "}else if(typeof householdVisibleToday==='function'){" +
-                    "var list=householdVisibleToday();" +
-                    "if(Array.isArray(list)){" +
-                    "if(typeof householdDoneToday==='function')list=list.filter(function(x){return !householdDoneToday(x);});" +
-                    "liveHouse=JSON.stringify(list.map(function(x){return {name:(x&&x.name)||'Huishouden'};}));" +
-                    "}}" +
+                    "}" +
+                    "}" +
                     "AndroidWidgetBridge.update(localStorage.getItem('mijnPersoonlijkeAppV1')||'',localStorage.getItem('mijnPersoonlijkeAppCalendarEventsV1')||'',liveHouse);" +
                     "}catch(e){try{AndroidWidgetBridge.update(localStorage.getItem('mijnPersoonlijkeAppV1')||'',localStorage.getItem('mijnPersoonlijkeAppCalendarEventsV1')||'','');}catch(_){} }})();";
             webView.evaluateJavascript(js, null);
