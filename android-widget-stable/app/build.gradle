@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 47
-        versionName 'mijn-dag-4.9-huishouden-vandaag-keuze'
+        versionCode 48
+        versionName 'mijn-dag-5.0-native-alarmen-snooze'
     }
 
     buildTypes {
