@@ -174,6 +174,11 @@ public class ReminderReceiver extends BroadcastReceiver {
         groupPrefs(context).edit().remove(group).apply();
     }
 
+    static void clearSuppressionForItem(Context context, String type, String itemId) {
+        if (type == null || itemId == null) return;
+        clearGroupSuppression(context, type + "|" + itemId);
+    }
+
     static Notification buildAlarmNotification(Context context, String id, String title, String body, String target) {
         PendingIntent content = actionIntent(context, ACTION_OPEN, id, title, body, target, 0);
         PendingIntent snooze = snoozeIntent(context, id, title, body, target);
