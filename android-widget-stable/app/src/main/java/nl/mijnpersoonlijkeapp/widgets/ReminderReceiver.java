@@ -22,9 +22,10 @@ import android.os.VibratorManager;
 public class ReminderReceiver extends BroadcastReceiver {
     // New channel ID on purpose: Android notification channel sound settings are immutable
     // after creation, so this guarantees the audible alarm settings are actually applied.
-    static final String CHANNEL_ID = "mijn_dag_alarms_v2";
+    static final String CHANNEL_ID = "mijn_dag_alarms_v3";
     private static final String ACTION_SNOOZE = "nl.mijnpersoonlijkeapp.widgets.REMINDER_SNOOZE";
     private static final String ACTION_STOP = "nl.mijnpersoonlijkeapp.widgets.REMINDER_STOP";
+    private static final String ACTION_OPEN = "nl.mijnpersoonlijkeapp.widgets.REMINDER_OPEN";
     private static final String SNOOZE_KEY = "snooze_choice";
     private static final long DEFAULT_SNOOZE_MS = 10L * 60L * 1000L;
 
@@ -36,12 +37,26 @@ public class ReminderReceiver extends BroadcastReceiver {
         String target = intent == null ? null : intent.getStringExtra("target");
 
         if (ACTION_STOP.equals(action)) {
+            stopAlarmService(context);
             cancelNotification(context, id);
             stopVibration(context);
             return;
         }
 
+        if (ACTION_OPEN.equals(action)) {
+            stopAlarmService(context);
+            cancelNotification(context, id);
+            stopVibration(context);
+            if (target == null || target.trim().isEmpty()) target = "today";
+            Intent open = new Intent(context, MainActivity.class);
+            open.putExtra("target", target);
+            open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            try { context.startActivity(open); } catch (Exception ignored) {}
+            return;
+        }
+
         if (ACTION_SNOOZE.equals(action)) {
+            stopAlarmService(context);
             cancelNotification(context, id);
             stopVibration(context);
             if (title == null || title.trim().isEmpty()) title = "Mijn dag";
@@ -79,19 +94,25 @@ public class ReminderReceiver extends BroadcastReceiver {
             return;
         }
 
-        Intent open = new Intent(context, MainActivity.class);
-        open.putExtra("target", target);
-        open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        int immutableFlags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) immutableFlags |= PendingIntent.FLAG_IMMUTABLE;
+        Intent sound = new Intent(context, AlarmSoundService.class);
+        sound.putExtra("id", id);
+        sound.putExtra("title", title);
+        sound.putExtra("body", body);
+        sound.putExtra("target", target);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(sound);
+            else context.startService(sound);
+        } catch (Exception ignored) {
+            NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) nm.notify(notificationId(id), buildAlarmNotification(context, id, title, body, target));
+            vibrate(context);
+        }
 
-        PendingIntent content = PendingIntent.getActivity(
-                context,
-                requestCode(id, 0),
-                open,
-                immutableFlags
-        );
+        NativeAlarmScheduler.handleFired(context, id);
+    }
 
+    static Notification buildAlarmNotification(Context context, String id, String title, String body, String target) {
+        PendingIntent content = actionIntent(context, ACTION_OPEN, id, title, body, target, 0);
         PendingIntent snooze = snoozeIntent(context, id, title, body, target);
         PendingIntent stop = actionIntent(context, ACTION_STOP, id, title, body, target, 2);
 
@@ -99,7 +120,6 @@ public class ReminderReceiver extends BroadcastReceiver {
                 .setLabel("Snooze")
                 .setChoices(new CharSequence[]{"5 min", "10 min", "30 min", "1 uur"})
                 .build();
-
         Notification.Action snoozeAction = new Notification.Action.Builder(
                 android.R.drawable.ic_lock_idle_alarm, "Snooze", snooze)
                 .addRemoteInput(snoozeChoices)
@@ -108,31 +128,29 @@ public class ReminderReceiver extends BroadcastReceiver {
         Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 ? new Notification.Builder(context, CHANNEL_ID)
                 : new Notification.Builder(context);
-
         b.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setStyle(new Notification.BigTextStyle().bigText(body))
                 .setPriority(Notification.PRIORITY_MAX)
                 .setCategory(Notification.CATEGORY_ALARM)
-                .setAutoCancel(true)
+                .setOngoing(true)
+                .setAutoCancel(false)
                 .setContentIntent(content)
-                .setDefaults(Notification.DEFAULT_ALL)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
-                .setOnlyAlertOnce(false)
+                .setOnlyAlertOnce(true)
                 .addAction(snoozeAction)
                 .addAction(new Notification.Action.Builder(
                         android.R.drawable.ic_menu_close_clear_cancel, "Stop", stop).build());
+        return b.build();
+    }
 
-        Notification notification = b.build();
-        // Repeat the alarm sound until the user opens, stops or snoozes the reminder.
-        notification.flags |= Notification.FLAG_INSISTENT;
+    static int notificationIdForService(String id) {
+        return notificationId(id);
+    }
 
-        NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        if (nm != null) nm.notify(notificationId(id), notification);
-
-        vibrate(context);
-        NativeAlarmScheduler.handleFired(context, id);
+    private static void stopAlarmService(Context context) {
+        try { context.stopService(new Intent(context, AlarmSoundService.class)); } catch (Exception ignored) {}
     }
 
     private static PendingIntent snoozeIntent(Context context, String id, String title, String body, String target) {
@@ -189,14 +207,8 @@ public class ReminderReceiver extends BroadcastReceiver {
         NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID, "Alarmen en herinneringen", NotificationManager.IMPORTANCE_HIGH);
         channel.setDescription("Duidelijke alarmen voor taken, routines, huishouden en focus");
-        channel.enableVibration(true);
-        channel.setVibrationPattern(new long[]{0, 500, 180, 500, 180, 800});
-        Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-        AudioAttributes attrs = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build();
-        channel.setSound(sound, attrs);
+        channel.enableVibration(false);
+        channel.setSound(null, null);
         channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         channel.enableLights(true);
         nm.createNotificationChannel(channel);
