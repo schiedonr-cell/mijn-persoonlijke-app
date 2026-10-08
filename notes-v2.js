@@ -1,5 +1,7 @@
 (() => {
   'use strict';
+  if(window.__mijnDagNotesV2Loaded)return;
+  window.__mijnDagNotesV2Loaded=true;
 
   const STORE_KEY = 'mijnPersoonlijkeAppNotesV1';
   const MAIN_KEY = 'mijnPersoonlijkeAppV1';
@@ -59,6 +61,8 @@
       });
     } catch {}
 
+    // Lege test-/placeholdernotities uit oudere versies niet meenemen.
+    out.notes=out.notes.filter(n=>(n.title||'').trim()||(n.plainText||'').trim()||stripHtml(n.html||''));
     saveData(out);
     return out;
   }
@@ -200,6 +204,7 @@
 
             <div class="note-rich-toolbar" aria-label="Tekstopmaak">
               <button class="note-format-button" data-note-command="insertUnorderedList" title="Opsomming">• Lijst</button>
+              <button class="note-format-button" data-note-command="insertOrderedList" title="Nummering">1. Lijst</button>
               <button class="note-format-button" id="noteChecklistButton" title="Checklist">☐ Check</button>
               <button class="note-format-button" data-note-command="bold" title="Vet"><b>B</b></button>
               <button class="note-format-button" data-note-command="underline" title="Onderstrepen"><u>U</u></button>
