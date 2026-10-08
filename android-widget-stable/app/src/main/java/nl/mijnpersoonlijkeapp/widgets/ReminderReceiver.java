@@ -9,6 +9,7 @@ import android.app.RemoteInput;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.RingtoneManager;
@@ -28,6 +29,8 @@ public class ReminderReceiver extends BroadcastReceiver {
     private static final String ACTION_OPEN = "nl.mijnpersoonlijkeapp.widgets.REMINDER_OPEN";
     private static final String SNOOZE_KEY = "snooze_choice";
     private static final long DEFAULT_SNOOZE_MS = 10L * 60L * 1000L;
+    private static final long STOP_SUPPRESS_MS = 15L * 60L * 1000L;
+    private static final String GROUP_PREFS = "reminder_group_state";
 
     @Override public void onReceive(Context context, Intent intent) {
         String action = intent == null ? null : intent.getAction();
@@ -37,6 +40,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         String target = intent == null ? null : intent.getStringExtra("target");
 
         if (ACTION_STOP.equals(action)) {
+            suppressGroup(context, groupKeyFromId(id), System.currentTimeMillis() + STOP_SUPPRESS_MS);
             stopAlarmService(context);
             cancelNotification(context, id);
             stopVibration(context);
@@ -70,7 +74,9 @@ public class ReminderReceiver extends BroadcastReceiver {
                 snoozeMs = snoozeDelay(choice == null ? "" : choice.toString());
             } catch (Exception ignored) {}
 
-            String snoozeId = "snooze-" + (id == null ? System.currentTimeMillis() : id) + "-" + System.currentTimeMillis();
+            String group = groupKeyFromId(id);
+            suppressGroup(context, group, System.currentTimeMillis() + snoozeMs - 1000L);
+            String snoozeId = (id == null ? "reminder" : stripSnoozeSuffix(id)) + "-snooze-" + System.currentTimeMillis();
             NativeAlarmScheduler.schedule(
                     context,
                     snoozeId,
@@ -85,6 +91,14 @@ public class ReminderReceiver extends BroadcastReceiver {
         if (title == null || title.trim().isEmpty()) title = "Mijn dag";
         if (body == null || body.trim().isEmpty()) body = "Je hebt iets gepland.";
         if (target == null || target.trim().isEmpty()) target = "today";
+
+        String group = groupKeyFromId(id);
+        boolean snoozedOccurrence = id != null && id.contains("-snooze-");
+        if (!snoozedOccurrence && isGroupSuppressed(context, group)) {
+            NativeAlarmScheduler.handleFired(context, id);
+            return;
+        }
+        if (snoozedOccurrence) clearGroupSuppression(context, group);
 
         ensureChannel(context);
 
@@ -109,6 +123,55 @@ public class ReminderReceiver extends BroadcastReceiver {
         }
 
         NativeAlarmScheduler.handleFired(context, id);
+    }
+
+    private static String stripSnoozeSuffix(String id) {
+        if (id == null) return "";
+        int i = id.indexOf("-snooze-");
+        return i >= 0 ? id.substring(0, i) : id;
+    }
+
+    private static String groupKeyFromId(String rawId) {
+        if (rawId == null || rawId.trim().isEmpty()) return "";
+        String id = stripSnoozeSuffix(rawId);
+
+        if (id.startsWith("timed-task-")) return "task|" + id.substring("timed-task-".length());
+        if (id.startsWith("timed-habit-")) return "habit|" + id.substring("timed-habit-".length());
+        if (id.startsWith("timed-household-")) return "household|" + id.substring("timed-household-".length());
+
+        int rem = id.indexOf("-rem-");
+        if (rem > 0) {
+            String base = id.substring(0, rem);
+            if (base.startsWith("task-")) return "task|" + base.substring("task-".length());
+            if (base.startsWith("habit-")) return "habit|" + base.substring("habit-".length());
+            if (base.startsWith("household-")) return "household|" + base.substring("household-".length());
+        }
+
+        return "alarm|" + id;
+    }
+
+    private static SharedPreferences groupPrefs(Context context) {
+        return context.getSharedPreferences(GROUP_PREFS, Context.MODE_PRIVATE);
+    }
+
+    private static void suppressGroup(Context context, String group, long until) {
+        if (group == null || group.isEmpty()) return;
+        groupPrefs(context).edit().putLong(group, until).apply();
+    }
+
+    private static boolean isGroupSuppressed(Context context, String group) {
+        if (group == null || group.isEmpty()) return false;
+        long until = groupPrefs(context).getLong(group, 0L);
+        if (until <= System.currentTimeMillis()) {
+            if (until > 0L) groupPrefs(context).edit().remove(group).apply();
+            return false;
+        }
+        return true;
+    }
+
+    private static void clearGroupSuppression(Context context, String group) {
+        if (group == null || group.isEmpty()) return;
+        groupPrefs(context).edit().remove(group).apply();
     }
 
     static Notification buildAlarmNotification(Context context, String id, String title, String body, String target) {
