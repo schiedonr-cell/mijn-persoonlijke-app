@@ -26,27 +26,41 @@ final class SnapshotStore {
     private static final String PREFS = "widget_snapshot_store";
     private static final String KEY = "today_snapshot";
     private static final String PENDING = "day_timeline_pending";
+    private static final String CACHED_STATE = "last_web_state";
+    private static final String CACHED_CALENDAR = "last_calendar_state";
+    private static final String CACHED_HOUSEHOLD = "last_household_state";
 
     private SnapshotStore() {}
 
-    static void updateFromWebState(Context context, String stateJson, String calendarJson, String liveHouseholdJson) {
+    static synchronized void updateFromWebState(Context context, String stateJson, String calendarJson, String liveHouseholdJson) {
         if (stateJson == null || stateJson.trim().isEmpty()) return;
         try {
             JSONObject state = new JSONObject(stateJson);
-            // Widgetwijzigingen blijven bewaard totdat de WebView ze toepast en bevestigt.
+            SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            // Bewaar een bronkopie: hiermee kan afvinken op het homescreen ook zonder open WebView
+            // meteen de grote en alle kleine widgets vanuit dezelfde data bijwerken.
+            prefs.edit()
+                    .putString(CACHED_STATE, stateJson)
+                    .putString(CACHED_CALENDAR, calendarJson == null ? "" : calendarJson)
+                    .putString(CACHED_HOUSEHOLD, liveHouseholdJson == null ? "" : liveHouseholdJson)
+                    .commit();
             applyPendingToSnapshotState(context, state);
             JSONObject snapshot = build(context, state, calendarJson, liveHouseholdJson);
-            String text = snapshot.toString();
-            SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-            String old = prefs.getString(KEY, "");
-            if (!text.equals(old)) {
-                prefs.edit().putString(KEY, text).apply();
-                TodayWidgetProvider.refreshAll(context);
-                TodayGridWidgetProvider.refreshAll(context);
-                TodayTimelineWidgetProvider.refreshAll(context);
-                refreshCategoryWidgets(context);
-            }
+            persistAndRefresh(context, snapshot);
         } catch (Exception ignored) {}
+    }
+
+    private static void persistAndRefresh(Context context, JSONObject snapshot) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String text = snapshot.toString();
+        String old = prefs.getString(KEY, "");
+        if (!text.equals(old)) {
+            prefs.edit().putString(KEY, text).commit();
+            TodayWidgetProvider.refreshAll(context);
+            TodayGridWidgetProvider.refreshAll(context);
+            TodayTimelineWidgetProvider.refreshAll(context);
+            refreshCategoryWidgets(context);
+        }
     }
 
     private static void refreshCategoryWidgets(Context context) {
@@ -112,13 +126,32 @@ final class SnapshotStore {
             op.put("id",java.util.UUID.randomUUID().toString());op.put("date",date);op.put("blockId",blockId);op.put("done",done);
             next.put(op);
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(PENDING,next.toString()).commit();
-            for(int i=0;i<rows.length();i++){
-                JSONObject row=rows.optJSONObject(i);
-                if(row!=null && blockId.equals(row.optString("blockId")))row.put("done",done);
+            SharedPreferences prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE);
+            String saved=prefs.getString(CACHED_STATE,"");
+            if(!saved.isEmpty()){
+                JSONObject state=new JSONObject(saved);
+                applyPendingToSnapshotState(context,state);
+                JSONObject rebuilt=build(context,state,prefs.getString(CACHED_CALENDAR,""),
+                        prefs.getString(CACHED_HOUSEHOLD,""));
+                // Eén gekoppelde taak kan op meerdere plekken in de planning staan.
+                // Alle bijbehorende herinneringen moeten dan ook stoppen.
+                JSONArray planned=rebuilt.optJSONArray("timelineRows");
+                if(planned!=null)for(int i=0;i<planned.length();i++){
+                    JSONObject row=planned.optJSONObject(i);
+                    if(row!=null && row.optBoolean("done",false))
+                        NativeAlarmScheduler.cancel(context,"dayplan-"+date+"-"+row.optString("blockId"));
+                }
+                persistAndRefresh(context,rebuilt);
+            }else{
+                // Alleen bij een nog niet gesynchroniseerde installatie.
+                // De volgende WebView-sync bouwt alle categorieën opnieuw op.
+                for(int i=0;i<rows.length();i++){
+                    JSONObject row=rows.optJSONObject(i);
+                    if(row!=null && blockId.equals(row.optString("blockId")))row.put("done",done);
+                }
+                if(done)NativeAlarmScheduler.cancel(context,"dayplan-"+date+"-"+blockId);
+                persistAndRefresh(context,snapshot);
             }
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY,snapshot.toString()).commit();
-            if(done)NativeAlarmScheduler.cancel(context,"dayplan-"+date+"-"+blockId);
-            TodayTimelineWidgetProvider.refreshAll(context);
         }catch(Exception ignored){}
     }
 
@@ -166,7 +199,7 @@ final class SnapshotStore {
 
         JSONArray rows = new JSONArray();
         addRoutines(rows, state, today);
-        if (!addLiveHousehold(rows, liveHouseholdJson)) addHousehold(rows, state, today, energy);
+        if (!addLiveHousehold(rows, liveHouseholdJson, state, today)) addHousehold(rows, state, today, energy);
         addTasks(rows, state, today, energy);
         addAgenda(rows, context, calendarJson, today);
 
@@ -180,6 +213,7 @@ final class SnapshotStore {
         JSONArray blocks = plan == null ? null : plan.optJSONArray("blocks");
         if (plan != null && today.equals(plan.optString("date", "")) && blocks != null && blocks.length() > 0) {
             snapshot.put("hasDayTimeline", true);
+            snapshot.put("timelineTotal", blocks.length());
             snapshot.put("timelineRows", buildDayTimelineRows(state, today));
         }
 
@@ -227,8 +261,9 @@ final class SnapshotStore {
                 kind = "Agenda";
             }
 
-            // Houd afgeronde blokken in de geplakte dagplanning zichtbaar.
-            // De losse categorie-widgets blijven hun eigen filtering gebruiken.
+            // Afgeronde onderdelen blijven in de app bewaard, maar niet op het homescreen.
+            // Agenda-afspraken zijn informatief en kunnen niet afgevinkt worden.
+            if (done) continue;
             JSONObject row = new JSONObject();
             try {
                 row.put("kind", kind);
@@ -267,14 +302,22 @@ final class SnapshotStore {
         } catch (Exception ignored) {}
     }
 
-    private static boolean addLiveHousehold(JSONArray rows, String liveHouseholdJson) {
+    private static boolean addLiveHousehold(JSONArray rows, String liveHouseholdJson, JSONObject state, String today) {
         if (liveHouseholdJson == null || liveHouseholdJson.trim().isEmpty()) return false;
         try {
             JSONArray items = new JSONArray(liveHouseholdJson);
+            JSONArray allHousehold=state.optJSONArray("householdTasks");
             for (int i = 0; i < items.length(); i++) {
                 JSONObject item = items.optJSONObject(i);
                 if (item == null) continue;
-                addRow(rows, "Huis", item.optString("name", "Huishouden"), item.optString("time", ""));
+                String name=item.optString("name","Huishouden");
+                boolean completed=false;
+                if(allHousehold!=null)for(int j=0;j<allHousehold.length();j++){
+                    JSONObject house=allHousehold.optJSONObject(j);
+                    if(house!=null && name.equalsIgnoreCase(house.optString("name",""))
+                            && doneToday(house,today)){completed=true;break;}
+                }
+                if(!completed)addRow(rows, "Huis", name, item.optString("time", ""));
             }
             return true;
         } catch (Exception e) {

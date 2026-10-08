@@ -180,7 +180,9 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         int maxRows = Math.min(rowsForHeight(manager, id), ROW_BOX_IDS.length);
         int pages = Math.max(1, (items.size() + maxRows - 1) / maxRows);
         SharedPreferences pref = context.getSharedPreferences(PAGE_PREFS, Context.MODE_PRIVATE);
-        String token = snapshot.optString("date", "") + "|" + usingDayPlan + "|" + items.size();
+        // Houd de huidige pagina aan wanneer een afgevinkte regel verdwijnt.
+        String token = snapshot.optString("date", "") + "|" + usingDayPlan + "|"
+                + (usingDayPlan ? snapshot.optInt("timelineTotal", rows.length()) : items.size());
         int requestedPage = token.equals(pref.getString("token-" + id, "")) ? pref.getInt("page-" + id, 0) : 0;
         int page = Math.floorMod(requestedPage, pages);
         pref.edit().putString("token-" + id, token).putInt("page-" + id, page).apply();
@@ -213,7 +215,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
 
         if (items.isEmpty()) {
             v.setViewVisibility(R.id.timeline_empty, View.VISIBLE);
-            v.setTextViewText(R.id.timeline_empty, usingDayPlan ? "Geen blokken in de dagplanning." : "Niets meer gepland voor vandaag.");
+            v.setTextViewText(R.id.timeline_empty, usingDayPlan ? "Alles afgerond voor vandaag." : "Niets meer gepland voor vandaag.");
         } else {
             v.setViewVisibility(R.id.timeline_empty, View.GONE);
         }
