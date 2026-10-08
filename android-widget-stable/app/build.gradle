@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 55
-        versionName 'mijn-dag-5.7-vandaag-groepering'
+        versionCode 56
+        versionName 'mijn-dag-5.8-agenda-compact'
     }
 
     buildTypes {
