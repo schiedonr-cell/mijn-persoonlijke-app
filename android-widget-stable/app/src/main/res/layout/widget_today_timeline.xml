@@ -71,7 +71,7 @@
             android:id="@+id/timeline_row_box_1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -101,7 +101,7 @@
             android:id="@+id/timeline_row_box_2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -131,7 +131,7 @@
             android:id="@+id/timeline_row_box_3"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -161,7 +161,7 @@
             android:id="@+id/timeline_row_box_4"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -191,7 +191,7 @@
             android:id="@+id/timeline_row_box_5"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -221,7 +221,7 @@
             android:id="@+id/timeline_row_box_6"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -251,7 +251,7 @@
             android:id="@+id/timeline_row_box_7"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -281,7 +281,7 @@
             android:id="@+id/timeline_row_box_8"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -311,7 +311,7 @@
             android:id="@+id/timeline_row_box_9"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -341,7 +341,7 @@
             android:id="@+id/timeline_row_box_10"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -371,7 +371,7 @@
             android:id="@+id/timeline_row_box_11"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -401,7 +401,7 @@
             android:id="@+id/timeline_row_box_12"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="30dp"
+            android:minHeight="28dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <ImageView
@@ -420,6 +420,366 @@
                 android:maxLines="1" />
             <TextView
                 android:id="@+id/timeline_text_12"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_13"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_13"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_13"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_13"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_14"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_14"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_14"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_14"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_15"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_15"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_15"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_15"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_16"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_16"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_16"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_16"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_17"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_17"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_17"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_17"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_18"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_18"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_18"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_18"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_19"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_19"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_19"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_19"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_20"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_20"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_20"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_20"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_21"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_21"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_21"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_21"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_22"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_22"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_22"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_22"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_23"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_23"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_23"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_23"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/timeline_row_box_24"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/timeline_icon_24"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_grid_tasks"
+                android:contentDescription="" />
+            <TextView
+                android:id="@+id/timeline_time_24"
+                android:layout_width="82dp"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/timeline_text_24"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"

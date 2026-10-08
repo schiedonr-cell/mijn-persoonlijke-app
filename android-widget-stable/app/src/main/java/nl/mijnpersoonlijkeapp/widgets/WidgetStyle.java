@@ -270,15 +270,27 @@ final class WidgetStyle {
         setText(v, R.id.timeline_home, accent);
         setBackgroundColor(v, R.id.timeline_divider, divider);
 
-        int[] icons = new int[]{R.id.timeline_icon_1,R.id.timeline_icon_2,R.id.timeline_icon_3,R.id.timeline_icon_4,
-                R.id.timeline_icon_5,R.id.timeline_icon_6,R.id.timeline_icon_7,R.id.timeline_icon_8,
-                R.id.timeline_icon_9,R.id.timeline_icon_10,R.id.timeline_icon_11,R.id.timeline_icon_12};
-        int[] times = new int[]{R.id.timeline_time_1,R.id.timeline_time_2,R.id.timeline_time_3,R.id.timeline_time_4,
-                R.id.timeline_time_5,R.id.timeline_time_6,R.id.timeline_time_7,R.id.timeline_time_8,
-                R.id.timeline_time_9,R.id.timeline_time_10,R.id.timeline_time_11,R.id.timeline_time_12};
-        int[] texts = new int[]{R.id.timeline_text_1,R.id.timeline_text_2,R.id.timeline_text_3,R.id.timeline_text_4,
-                R.id.timeline_text_5,R.id.timeline_text_6,R.id.timeline_text_7,R.id.timeline_text_8,
-                R.id.timeline_text_9,R.id.timeline_text_10,R.id.timeline_text_11,R.id.timeline_text_12};
+        int[] icons = new int[]{
+            R.id.timeline_icon_1,R.id.timeline_icon_2,R.id.timeline_icon_3,R.id.timeline_icon_4,
+            R.id.timeline_icon_5,R.id.timeline_icon_6,R.id.timeline_icon_7,R.id.timeline_icon_8,
+            R.id.timeline_icon_9,R.id.timeline_icon_10,R.id.timeline_icon_11,R.id.timeline_icon_12,
+            R.id.timeline_icon_13,R.id.timeline_icon_14,R.id.timeline_icon_15,R.id.timeline_icon_16,
+            R.id.timeline_icon_17,R.id.timeline_icon_18,R.id.timeline_icon_19,R.id.timeline_icon_20,
+            R.id.timeline_icon_21,R.id.timeline_icon_22,R.id.timeline_icon_23,R.id.timeline_icon_24};
+        int[] times = new int[]{
+            R.id.timeline_time_1,R.id.timeline_time_2,R.id.timeline_time_3,R.id.timeline_time_4,
+            R.id.timeline_time_5,R.id.timeline_time_6,R.id.timeline_time_7,R.id.timeline_time_8,
+            R.id.timeline_time_9,R.id.timeline_time_10,R.id.timeline_time_11,R.id.timeline_time_12,
+            R.id.timeline_time_13,R.id.timeline_time_14,R.id.timeline_time_15,R.id.timeline_time_16,
+            R.id.timeline_time_17,R.id.timeline_time_18,R.id.timeline_time_19,R.id.timeline_time_20,
+            R.id.timeline_time_21,R.id.timeline_time_22,R.id.timeline_time_23,R.id.timeline_time_24};
+        int[] texts = new int[]{
+            R.id.timeline_text_1,R.id.timeline_text_2,R.id.timeline_text_3,R.id.timeline_text_4,
+            R.id.timeline_text_5,R.id.timeline_text_6,R.id.timeline_text_7,R.id.timeline_text_8,
+            R.id.timeline_text_9,R.id.timeline_text_10,R.id.timeline_text_11,R.id.timeline_text_12,
+            R.id.timeline_text_13,R.id.timeline_text_14,R.id.timeline_text_15,R.id.timeline_text_16,
+            R.id.timeline_text_17,R.id.timeline_text_18,R.id.timeline_text_19,R.id.timeline_text_20,
+            R.id.timeline_text_21,R.id.timeline_text_22,R.id.timeline_text_23,R.id.timeline_text_24};
         for (int id : icons) try { v.setInt(id, "setColorFilter", accent); } catch (Exception ignored) {}
         for (int id : times) setText(v, id, accent);
         for (int id : texts) setText(v, id, text);

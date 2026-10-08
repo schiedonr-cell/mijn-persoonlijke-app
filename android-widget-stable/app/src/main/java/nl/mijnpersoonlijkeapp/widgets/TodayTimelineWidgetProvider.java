@@ -4,6 +4,9 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.app.PendingIntent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -23,26 +26,53 @@ import java.util.regex.Pattern;
 
 public class TodayTimelineWidgetProvider extends AppWidgetProvider {
     private static final int[] ROW_BOX_IDS = new int[]{
-            R.id.timeline_row_box_1,R.id.timeline_row_box_2,R.id.timeline_row_box_3,R.id.timeline_row_box_4,
-            R.id.timeline_row_box_5,R.id.timeline_row_box_6,R.id.timeline_row_box_7,R.id.timeline_row_box_8,
-            R.id.timeline_row_box_9,R.id.timeline_row_box_10,R.id.timeline_row_box_11,R.id.timeline_row_box_12
+        R.id.timeline_row_box_1,R.id.timeline_row_box_2,R.id.timeline_row_box_3,R.id.timeline_row_box_4,
+        R.id.timeline_row_box_5,R.id.timeline_row_box_6,R.id.timeline_row_box_7,R.id.timeline_row_box_8,
+        R.id.timeline_row_box_9,R.id.timeline_row_box_10,R.id.timeline_row_box_11,R.id.timeline_row_box_12,
+        R.id.timeline_row_box_13,R.id.timeline_row_box_14,R.id.timeline_row_box_15,R.id.timeline_row_box_16,
+        R.id.timeline_row_box_17,R.id.timeline_row_box_18,R.id.timeline_row_box_19,R.id.timeline_row_box_20,
+        R.id.timeline_row_box_21,R.id.timeline_row_box_22,R.id.timeline_row_box_23,R.id.timeline_row_box_24
     };
     private static final int[] ICON_IDS = new int[]{
-            R.id.timeline_icon_1,R.id.timeline_icon_2,R.id.timeline_icon_3,R.id.timeline_icon_4,
-            R.id.timeline_icon_5,R.id.timeline_icon_6,R.id.timeline_icon_7,R.id.timeline_icon_8,
-            R.id.timeline_icon_9,R.id.timeline_icon_10,R.id.timeline_icon_11,R.id.timeline_icon_12
+        R.id.timeline_icon_1,R.id.timeline_icon_2,R.id.timeline_icon_3,R.id.timeline_icon_4,
+        R.id.timeline_icon_5,R.id.timeline_icon_6,R.id.timeline_icon_7,R.id.timeline_icon_8,
+        R.id.timeline_icon_9,R.id.timeline_icon_10,R.id.timeline_icon_11,R.id.timeline_icon_12,
+        R.id.timeline_icon_13,R.id.timeline_icon_14,R.id.timeline_icon_15,R.id.timeline_icon_16,
+        R.id.timeline_icon_17,R.id.timeline_icon_18,R.id.timeline_icon_19,R.id.timeline_icon_20,
+        R.id.timeline_icon_21,R.id.timeline_icon_22,R.id.timeline_icon_23,R.id.timeline_icon_24
     };
     private static final int[] TIME_IDS = new int[]{
-            R.id.timeline_time_1,R.id.timeline_time_2,R.id.timeline_time_3,R.id.timeline_time_4,
-            R.id.timeline_time_5,R.id.timeline_time_6,R.id.timeline_time_7,R.id.timeline_time_8,
-            R.id.timeline_time_9,R.id.timeline_time_10,R.id.timeline_time_11,R.id.timeline_time_12
+        R.id.timeline_time_1,R.id.timeline_time_2,R.id.timeline_time_3,R.id.timeline_time_4,
+        R.id.timeline_time_5,R.id.timeline_time_6,R.id.timeline_time_7,R.id.timeline_time_8,
+        R.id.timeline_time_9,R.id.timeline_time_10,R.id.timeline_time_11,R.id.timeline_time_12,
+        R.id.timeline_time_13,R.id.timeline_time_14,R.id.timeline_time_15,R.id.timeline_time_16,
+        R.id.timeline_time_17,R.id.timeline_time_18,R.id.timeline_time_19,R.id.timeline_time_20,
+        R.id.timeline_time_21,R.id.timeline_time_22,R.id.timeline_time_23,R.id.timeline_time_24
     };
     private static final int[] TEXT_IDS = new int[]{
-            R.id.timeline_text_1,R.id.timeline_text_2,R.id.timeline_text_3,R.id.timeline_text_4,
-            R.id.timeline_text_5,R.id.timeline_text_6,R.id.timeline_text_7,R.id.timeline_text_8,
-            R.id.timeline_text_9,R.id.timeline_text_10,R.id.timeline_text_11,R.id.timeline_text_12
+        R.id.timeline_text_1,R.id.timeline_text_2,R.id.timeline_text_3,R.id.timeline_text_4,
+        R.id.timeline_text_5,R.id.timeline_text_6,R.id.timeline_text_7,R.id.timeline_text_8,
+        R.id.timeline_text_9,R.id.timeline_text_10,R.id.timeline_text_11,R.id.timeline_text_12,
+        R.id.timeline_text_13,R.id.timeline_text_14,R.id.timeline_text_15,R.id.timeline_text_16,
+        R.id.timeline_text_17,R.id.timeline_text_18,R.id.timeline_text_19,R.id.timeline_text_20,
+        R.id.timeline_text_21,R.id.timeline_text_22,R.id.timeline_text_23,R.id.timeline_text_24
     };
     private static final Pattern CLOCK = Pattern.compile("(\\d{1,2}):(\\d{2})");
+    private static final String ACTION_NEXT_PAGE = "nl.mijnpersoonlijkeapp.widgets.TIMELINE_NEXT_PAGE";
+    private static final String PAGE_PREFS = "timeline_widget_pages";
+
+    @Override public void onReceive(Context context, Intent intent) {
+        super.onReceive(context, intent);
+        if (intent != null && ACTION_NEXT_PAGE.equals(intent.getAction())) {
+            int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+            if (id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                SharedPreferences p = context.getSharedPreferences(PAGE_PREFS, Context.MODE_PRIVATE);
+                p.edit().putInt("page-" + id, p.getInt("page-" + id, 0) + 1).apply();
+                updateOne(context, AppWidgetManager.getInstance(context), id);
+            }
+        }
+    }
+
 
     @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
         for (int id : ids) updateOne(context, manager, id);
@@ -70,7 +100,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         hideRows(v);
         JSONObject snapshot = SnapshotStore.read(context);
         JSONArray plannedRows = snapshot.optJSONArray("timelineRows");
-        boolean usingDayPlan = plannedRows != null && plannedRows.length() > 0;
+        boolean usingDayPlan = snapshot.optBoolean("hasDayTimeline", false) && plannedRows != null;
         JSONArray rows = usingDayPlan ? plannedRows : snapshot.optJSONArray("rows");
         if (!SnapshotStore.todayKey().equals(snapshot.optString("date", "")) || rows == null) {
             v.setViewVisibility(R.id.timeline_empty, View.VISIBLE);
@@ -89,7 +119,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             if (!usingDayPlan && "Agenda".equals(row.optString("kind","")) && !agendaIsToday(row)) continue;
             items.add(row);
         }
-        Collections.sort(items, new Comparator<JSONObject>() {
+        if (!usingDayPlan) Collections.sort(items, new Comparator<JSONObject>() {
             @Override public int compare(JSONObject a, JSONObject b) {
                 boolean ta=hasClock(a), tb=hasClock(b);
                 if (ta && !tb) return -1;
@@ -105,30 +135,43 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             }
         });
 
-        int maxRows = rowsForHeight(manager, id);
-        int visible=Math.min(Math.min(maxRows, ROW_BOX_IDS.length), items.size());
+        int maxRows = Math.min(rowsForHeight(manager, id), ROW_BOX_IDS.length);
+        int pages = Math.max(1, (items.size() + maxRows - 1) / maxRows);
+        SharedPreferences pref = context.getSharedPreferences(PAGE_PREFS, Context.MODE_PRIVATE);
+        String token = snapshot.optString("date", "") + "|" + usingDayPlan + "|" + items.size();
+        int requestedPage = token.equals(pref.getString("token-" + id, "")) ? pref.getInt("page-" + id, 0) : 0;
+        int page = Math.floorMod(requestedPage, pages);
+        pref.edit().putString("token-" + id, token).putInt("page-" + id, page).apply();
+        int start = page * maxRows;
+        int visible = Math.min(maxRows, items.size() - start);
         for(int i=0;i<visible;i++) {
-            JSONObject row=items.get(i);
+            JSONObject row=items.get(start+i);
             String kind=row.optString("kind","");
             String rawTime=row.optString("time","").trim();
             String clock=displayTime(rawTime);
             v.setImageViewResource(ICON_IDS[i], iconFor(kind));
             v.setTextViewText(TIME_IDS[i], clock.isEmpty() ? "—" : clock);
-            v.setTextViewText(TEXT_IDS[i], row.optString("text",""));
+            v.setTextViewText(TEXT_IDS[i], (usingDayPlan && row.optBoolean("done", false) ? "✓ " : "") + row.optString("text",""));
             v.setViewVisibility(ROW_BOX_IDS[i], View.VISIBLE);
             v.setOnClickPendingIntent(ROW_BOX_IDS[i], WidgetLinks.open(context, targetFor(kind), 540+i));
         }
 
         if (items.isEmpty()) {
             v.setViewVisibility(R.id.timeline_empty, View.VISIBLE);
-            v.setTextViewText(R.id.timeline_empty, "Niets meer gepland voor vandaag.");
+            v.setTextViewText(R.id.timeline_empty, usingDayPlan ? "Geen blokken in de dagplanning." : "Niets meer gepland voor vandaag.");
         } else {
             v.setViewVisibility(R.id.timeline_empty, View.GONE);
         }
 
-        if(items.size()>visible) {
-            v.setTextViewText(R.id.timeline_more, "+ " + (items.size()-visible) + " meer");
+        if (pages > 1) {
+            v.setTextViewText(R.id.timeline_more, "Pagina " + (page + 1) + "/" + pages + " · tik voor volgende ›");
             v.setViewVisibility(R.id.timeline_more, View.VISIBLE);
+            Intent next = new Intent(context, TodayTimelineWidgetProvider.class);
+            next.setAction(ACTION_NEXT_PAGE);
+            next.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
+            PendingIntent pending = PendingIntent.getBroadcast(context, id + 2400, next,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            v.setOnClickPendingIntent(R.id.timeline_more, pending);
         } else v.setViewVisibility(R.id.timeline_more, View.GONE);
 
         manager.updateAppWidget(id, v);
@@ -143,7 +186,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         try {
             Bundle o=manager.getAppWidgetOptions(id);
             int h=o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 300);
-            return Math.max(3, Math.min(12, (h-64)/30));
+            return Math.max(3, Math.min(24, (h-76)/28));
         } catch(Exception ignored) { return 8; }
     }
 

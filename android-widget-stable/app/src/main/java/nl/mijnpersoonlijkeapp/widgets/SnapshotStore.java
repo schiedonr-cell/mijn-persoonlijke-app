@@ -91,8 +91,12 @@ final class SnapshotStore {
         snapshot.put("updatedAt", System.currentTimeMillis());
         snapshot.put("rows", rows);
 
-        JSONArray timelineRows = buildDayTimelineRows(state, today);
-        if (timelineRows.length() > 0) snapshot.put("timelineRows", timelineRows);
+        JSONObject plan = state.optJSONObject("dayTimeline");
+        JSONArray blocks = plan == null ? null : plan.optJSONArray("blocks");
+        if (plan != null && today.equals(plan.optString("date", "")) && blocks != null && blocks.length() > 0) {
+            snapshot.put("hasDayTimeline", true);
+            snapshot.put("timelineRows", buildDayTimelineRows(state, today));
+        }
 
         return snapshot;
     }
@@ -138,8 +142,16 @@ final class SnapshotStore {
                 kind = "Agenda";
             }
 
-            if (done) continue;
-            addRow(out, kind, text, end.isEmpty() ? start : start + "–" + end);
+            // Houd afgeronde blokken in de geplakte dagplanning zichtbaar.
+            // De losse categorie-widgets blijven hun eigen filtering gebruiken.
+            JSONObject row = new JSONObject();
+            try {
+                row.put("kind", kind);
+                row.put("text", text);
+                row.put("time", end.isEmpty() ? start : start + "–" + end);
+                row.put("done", done);
+                out.put(row);
+            } catch (Exception ignored) {}
         }
         return out;
     }
