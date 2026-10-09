@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 64
-        versionName 'mijn-dag-6.6-losse-tijdblokken'
+        versionCode 65
+        versionName 'mijn-dag-6.7-agenda-alleen-vandaag'
     }
 
     buildTypes {
