@@ -1837,7 +1837,7 @@
   }
   function completedHabitHtml(h,today){
     const kind=recoveryRoutineKind(h);
-    const progress=kind?' · '+recoveryMinutesTotal(kind,today)+' / '+recoveryMinuteGoal(kind,today)+' min':'';
+    const progress=kind?recoveryMinutesTotal(kind,today)+' / '+recoveryMinuteGoal(kind,today)+' min':'';
     const v=Number(h.versionHistory?.[today]||0),level=v?habitLevel(h,v):null,meta=[h.time?`⏰ ${h.time}`:'',h.anchor,h.energyAdaptive&&v?habitVersionLabel(v):'',level?.minimum||'',progress].filter(Boolean).join(' · ');
     return `<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(h.name)}</div>${meta?`<div class="completed-habit-meta">${escapeHtml(meta)}</div>`:''}</div><button class="habit-undo-button" data-habit-undo="${h.id}">Ongedaan</button></div>`;
   }
@@ -2015,7 +2015,12 @@
   function dayPlanBlockDone(block){
     const today=state.dayTimeline?.date||localDateKey();
     if(block.linkType==='task')return Boolean(block.done||state.tasks.find(x=>x.id===block.linkId)?.done);
-    if(block.linkType==='habit')return Boolean(state.habits.find(x=>x.id===block.linkId)?.history?.[today]);
+    if(block.linkType==='habit'){
+      const h=state.habits.find(x=>x.id===block.linkId);
+      // Meerdere ontspannings- of stretchblokken blijven afzonderlijk afvinkbaar.
+      if(recoveryRoutineKind(h))return Boolean(block.done);
+      return Boolean(h?.history?.[today]);
+    }
     if(block.linkType==='household')return Boolean(state.householdTasks.find(x=>x.id===block.linkId)?.history?.[today]);
     return Boolean(block.done);
   }
@@ -2911,7 +2916,38 @@
         return;
       }
     }
-    if(block.linkType==='habit'){const h=state.habits.find(x=>x.id===block.linkId);if(h){h.history||={};h.versionHistory||={};if(checked){h.history[today]=true;if(h.energyAdaptive)h.versionHistory[today]=habitSelectedVersion(h,today);}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();}}
+    if(block.linkType==='habit'){
+      const h=state.habits.find(x=>x.id===block.linkId);
+      if(h){
+        const routineKind=recoveryRoutineKind(h);
+        if(routineKind){
+          // Een tijdblok afronden betekent niet dat het hele dagdoel is gehaald.
+          // Alleen de duur van dat ene (afgeronde) blok telt mee.
+          const sessionId='daytimeline|'+today+'|'+block.id;
+          block.done=checked;
+          if(checked){
+            const minutes=dayPlanFocusDuration(block);
+            if(minutes>0 && !state.recovery.sessions.some(x=>x.id===sessionId)){
+              state.recovery.sessions.push({
+                id:sessionId,date:today,daypart:recoveryDaypart(),kind:routineKind==='stretch'?'stretchen':'zitten',
+                minutes,endedAt:Date.now(),source:'dagplanning'
+              });
+            }
+          }else{
+            state.recovery.sessions=state.recovery.sessions.filter(x=>x.id!==sessionId);
+          }
+          syncRecoveryGoals(today);
+          if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
+          else scheduleDayPlanAlarms();
+          saveState();renderToday();renderFocus();
+          return;
+        }
+        h.history||={};h.versionHistory||={};
+        if(checked){h.history[today]=true;if(h.energyAdaptive)h.versionHistory[today]=habitSelectedVersion(h,today);}
+        else{delete h.history[today];delete h.versionHistory[today];}
+        saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();
+      }
+    }
     if(block.linkType==='household'){const h=state.householdTasks.find(x=>x.id===block.linkId);if(h){h.history||={};if(checked){h.history[today]=true;h.deferUntil='';}else delete h.history[today];saveState();}}
     if(!['task','habit','household','agenda'].includes(block.linkType)){block.done=checked;saveState();}
     if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
@@ -3198,7 +3234,24 @@
   function completeFocusItem(type,id){
     if(type==='task'){const t=state.tasks.find(x=>x.id===id);if(t)return markTask(t,true);return;}
     const today=localDateKey();state.focus.running=false;state.focus.targetType=null;state.focus.targetId=null;state.focus.taskId=null;
-    if(type==='habit'){const h=state.habits.find(x=>x.id===id);if(!h)return;h.history||={};h.versionHistory||={};h.history[today]=true;if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}else delete h.versionHistory[today];saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderDailyBasis();renderFocus();renderShutdown();showToast(`${h.name} afgerond.`);return;}
+    if(type==='habit'){
+      const h=state.habits.find(x=>x.id===id);if(!h)return;
+      const routineKind=recoveryRoutineKind(h);
+      if(routineKind){
+        const elapsed=Math.max(0,Math.floor(((state.focus.durationSec||0)-(state.focus.remainingSec||0))/60));
+        saveState();setDailyTab('start');
+        if(elapsed>0){
+          recordRecoverySession(routineKind==='stretch'?'stretchen':'zitten',elapsed,'focus');
+          showToast(elapsed+' minuten toegevoegd aan '+h.name+'.');
+        }else openRecoveryManual(routineKind);
+        return;
+      }
+      h.history||={};h.versionHistory||={};h.history[today]=true;
+      if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}
+      else delete h.versionHistory[today];
+      saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();
+      renderDailyBasis();renderFocus();renderShutdown();showToast(`${h.name} afgerond.`);return;
+    }
     if(type==='household'){const h=state.householdTasks.find(x=>x.id===id);if(!h)return;h.history||={};h.history[today]=true;h.deferUntil='';saveState();renderHousehold();renderFocus();showToast(`${h.name} afgerond.`);}
   }
   function renderFocus(){
