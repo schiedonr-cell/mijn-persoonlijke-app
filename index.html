@@ -820,6 +820,15 @@
     .day-plan-conflict strong{display:block;margin-bottom:5px}
     .day-plan-conflict p{font-size:13px;line-height:1.5;margin:0 0 8px}
     .day-plan-conflict button{min-height:42px;padding:8px 12px}
+    .day-plan-choice-list{display:grid;gap:7px;margin:12px 0}
+    .day-plan-choice-row{display:flex;gap:10px;align-items:center;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;padding:11px 10px;min-height:54px;cursor:pointer}
+    .day-plan-choice-row input{width:22px;height:22px;flex-shrink:0;accent-color:var(--accent-strong)}
+    .day-plan-choice-row span{min-width:0;font-weight:730}
+    .day-plan-choice-row small{display:block;font-weight:400;color:var(--muted);margin-top:3px}
+    .day-plan-deferred{margin-top:12px;border-top:1px solid var(--line);padding:9px 0}
+    .day-plan-deferred summary{font-weight:750;cursor:pointer}
+    .day-plan-deferred-item{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-top:9px;padding:8px 0;border-bottom:1px solid var(--line)}
+    .day-plan-deferred-item button{font-size:12px;border-radius:9px;border:1px solid var(--line);padding:7px;min-height:36px;background:var(--card,#fff)}
 
 
   </style>
@@ -1510,7 +1519,7 @@
         reflections: saved.reflections && typeof saved.reflections==='object' ? saved.reflections : {},
         dump: Array.isArray(saved.dump) ? saved.dump : [],
         todayPlan: saved.todayPlan && Array.isArray(saved.todayPlan.taskIds) ? saved.todayPlan : {date:null,taskIds:[]},
-        dayTimeline: saved.dayTimeline && Array.isArray(saved.dayTimeline.blocks) ? {date:saved.dayTimeline.date||null,alarms:saved.dayTimeline.alarms===true,sourceText:typeof saved.dayTimeline.sourceText==='string'?saved.dayTimeline.sourceText:'',blocks:saved.dayTimeline.blocks.map(b=>({id:b.id||uid('plan'),start:b.start||'',end:b.end||'',originalStart:b.originalStart||b.start||'',originalEnd:b.originalEnd||b.end||'',text:b.text||'',linkType:b.linkType||'',linkId:b.linkId||'',kind:b.kind||'Plan',matchedName:b.matchedName||'',done:Boolean(b.done),fixed:b.fixed===true?true:b.fixed===false?false:null,remind:b.remind===true}))} : {date:null,alarms:false,blocks:[],sourceText:''},
+        dayTimeline: saved.dayTimeline && Array.isArray(saved.dayTimeline.blocks) ? {date:saved.dayTimeline.date||null,alarms:saved.dayTimeline.alarms===true,sourceText:typeof saved.dayTimeline.sourceText==='string'?saved.dayTimeline.sourceText:'',blocks:saved.dayTimeline.blocks.map(b=>({id:b.id||uid('plan'),start:b.start||'',end:b.end||'',originalStart:b.originalStart||b.start||'',originalEnd:b.originalEnd||b.end||'',text:b.text||'',linkType:b.linkType||'',linkId:b.linkId||'',kind:b.kind||'Plan',matchedName:b.matchedName||'',done:Boolean(b.done),fixed:b.fixed===true?true:b.fixed===false?false:null,remind:b.remind===true,postponedTo:b.postponedTo||'',postponedCreatedTask:Boolean(b.postponedCreatedTask)}))} : {date:null,alarms:false,blocks:[],sourceText:''},
         focus: {...structuredClone(defaultState.focus), ...(saved.focus||{}), targetType:saved.focus?.targetType||(saved.focus?.taskId?'task':null), targetId:saved.focus?.targetId||saved.focus?.taskId||null, running:false},
         weekMenu: Array.isArray(saved.weekMenu)?saved.weekMenu:[], shopping:Array.isArray(saved.shopping)?saved.shopping:[], projects:Array.isArray(saved.projects)?saved.projects:[], notes:Array.isArray(saved.notes)?saved.notes:[],
         foodPrefs: {...structuredClone(defaultState.foodPrefs), ...(saved.foodPrefs||{}), selectedDays:Array.isArray(saved.foodPrefs?.selectedDays)?saved.foodPrefs.selectedDays:[]},
@@ -1906,7 +1915,7 @@
   function scheduleDayPlanAlarms(){
     const plan=state.dayTimeline;if(!plan?.date)return;
     (plan.blocks||[]).forEach(b=>{
-      if(!b.start||!b.remind||dayPlanBlockDone(b))return;
+      if(!b.start||!b.remind||dayPlanBlockDone(b)||b.postponedTo)return;
       const at=new Date(plan.date+'T'+b.start+':00').getTime();if(!Number.isFinite(at)||at<=Date.now()+1000)return;
       const range=b.end?b.start+'–'+b.end:b.start;
       try{window.AndroidWidgetBridge?.scheduleReminder?.(dayPlanAlarmId(plan,b),b.text,'Dagplanning · '+range,at,'today');}catch{}
@@ -1952,13 +1961,15 @@
   }
   function calculateDayPlanFromNow(startMinutes,options={}){
     const plan=state.dayTimeline,blocks=plan?.blocks||[],finished=dayPlanBlockDone;
+    const excluded=new Set(options.postponeIds||[]);
+    const eligible=blocks.filter(b=>!b.postponedTo&&!excluded.has(b.id));
     const chosenMeal=options.prioritizeMealId
-      ? blocks.find(b=>b.id===options.prioritizeMealId&&!finished(b)&&dayPlanMealWindow(b)&&dayPlanBlockMode(b)==='window')
+      ? eligible.find(b=>b.id===options.prioritizeMealId&&!finished(b)&&dayPlanMealWindow(b)&&dayPlanBlockMode(b)==='window')
       : null;
     // Alleen na een bewuste keuze van de gebruiker de maaltijd voorrang geven.
     // De oorspronkelijke volgorde van de overige activiteiten blijft gelijk.
-    const ordered=chosenMeal?[chosenMeal,...blocks.filter(b=>b!==chosenMeal)]:blocks;
-    const reserved=blocks.filter(b=>!finished(b)&&dayPlanBlockMode(b)==='fixed').map(b=>({
+    const ordered=chosenMeal?[chosenMeal,...eligible.filter(b=>b!==chosenMeal)]:eligible;
+    const reserved=eligible.filter(b=>!finished(b)&&dayPlanBlockMode(b)==='fixed').map(b=>({
       block:b,start:dayPlanMinutes(b.originalStart||b.start),end:dayPlanMinutes(b.originalEnd||b.end)
     })).filter(x=>x.start!==null).sort((a,b)=>a.start-b.start);
     const changes=new Map();
@@ -2010,6 +2021,26 @@
     }
     return {ok:true,changes};
   }
+  function dayPlanMayPostpone(b){
+    if(!b||b.postponedTo||dayPlanBlockDone(b)||dayPlanBlockMode(b)!=='flex')return false;
+    if(b.linkType==='habit'||b.linkType==='agenda')return false;
+    const name=dayPlanNormalizeText(b.text);
+    if(/\b(rust|pauze|ontspanning|ontspannen|bewegen|wandelen|lunch|avondeten|vrij(e|e)? tijd|vrije avond|ochtendroutine|avondroutine|avondreset)\b/.test(name))return false;
+    return true;
+  }
+  function dayPlanPostponeChoices(){
+    const groups=new Map();
+    for(const b of state.dayTimeline?.blocks||[]){
+      if(!dayPlanMayPostpone(b))continue;
+      const key=b.linkId&&['task','household'].includes(b.linkType)?b.linkType+'|'+b.linkId:b.id;
+      if(!groups.has(key))groups.set(key,{text:b.text,ids:[],minutes:0,kind:b.linkType==='household'?'Huishouden':'Taak'});
+      const group=groups.get(key);
+      group.ids.push(b.id);
+      const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
+      group.minutes+=start!==null&&end!==null?Math.max(0,end-start):0;
+    }
+    return [...groups.values()];
+  }
   let dayPlanPendingChoice=null;
   function hideDayPlanConflict(){
     dayPlanPendingChoice=null;
@@ -2018,29 +2049,97 @@
   }
   function showDayPlanConflict(failure,options){
     const box=document.getElementById('dayPlanConflict');if(!box)return;
-    dayPlanPendingChoice=options;
+    dayPlanPendingChoice={...options};
     let extra='';
     if(failure.type==='meal'){
       const eligible=dayPlanBlockMode(failure.block)==='window';
       if(eligible&&!options?.prioritizeMealId)extra+='<button type="button" class="primary-button" data-dayplan-meal-first="'+escapeHtml(failure.block.id)+'">Eerst '+escapeHtml(dayPlanMealWindow(failure.block)?.name.toLowerCase()||'eten')+', andere taken daarna</button>';
-      extra+='<button type="button" class="secondary-button" data-dayplan-allow-meals>Deze keer later eten</button>';
+      if(!options.allowLateMeals)extra+='<button type="button" class="secondary-button" data-dayplan-allow-meals>Deze keer later eten</button>';
     }
-    if(failure.type==='dayEnd')extra='<button type="button" class="secondary-button" data-dayplan-allow-longer>Vandaag langer doorgaan</button>';
+    if(failure.type==='dayEnd'&&!options.allowLateDay)extra+='<button type="button" class="secondary-button" data-dayplan-allow-longer>Vandaag langer doorgaan</button>';
+    const groups=dayPlanPostponeChoices();
+    const previously=new Set(options.postponeIds||[]);
+    const choices=groups.length?'<div class="day-plan-choice-section">'
+      +'<strong>Wat mag naar morgen?</strong>'
+      +'<p>Kies zelf welke taken minder dringend zijn. Routines, eetmomenten en pauzes blijven vandaag. Een vinkje hieronder betekent <b>naar morgen</b>, niet afgerond.</p>'
+      +'<div class="day-plan-choice-list">'+groups.map(g=>{
+        const all=g.ids.every(id=>previously.has(id));
+        return '<label class="day-plan-choice-row"><input type="checkbox" data-dayplan-postpone-group="'+escapeHtml(g.ids.join('|'))+'" '+(all?'checked':'')+'/>'
+          +'<span>'+escapeHtml(g.text)+(g.ids.length>1?' ('+g.ids.length+' tijdblokken)':'')
+          +'<small>'+escapeHtml(g.kind)+(g.minutes?' · '+g.minutes+' minuten':'')+'</small></span></label>';
+      }).join('')+'</div>'
+      +'<button type="button" class="primary-button" data-dayplan-apply-choices>Herplan met mijn keuzes</button>'
+      +'</div>':'<p>Er zijn geen gewone taken meer die eenvoudig naar morgen kunnen. Pas je planning zelf aan om ruimte te maken.</p>';
     box.hidden=false;
     box.innerHTML='<strong>Even kiezen wat past</strong><p>'+escapeHtml(failure.reason)+'</p>'
-      +'<p>Niets is veranderd. Je kunt de planning aanpassen via Planning plakken; geen onderdeel wordt automatisch korter of verwijderd.</p>'
-      +'<div class="day-plan-actions">'+extra+'<button type="button" class="secondary-button" data-dayplan-dismiss>Planning behouden</button></div>';
+      +'<p>Er is nog niets veranderd. Je kiest zelf wat belangrijk blijft.</p>'
+      +choices+'<div class="day-plan-actions">'+extra
+      +'<button type="button" class="secondary-button" data-dayplan-dismiss>Planning behouden</button></div>';
     box.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }
+  function postponeDayPlanBlocks(ids){
+    const until=addDaysKey(1),selected=new Set(ids),plan=state.dayTimeline;
+    for(const b of plan.blocks||[]){
+      if(!selected.has(b.id)||!dayPlanMayPostpone(b))continue;
+      let task=null;
+      if(b.linkType==='task')task=state.tasks.find(t=>t.id===b.linkId);
+      if(b.linkType==='household'){
+        const household=state.householdTasks.find(t=>t.id===b.linkId);
+        if(household){
+          household.deferUntil=until;
+          const choice=householdTodayChoiceState();
+          choice.taskIds=(choice.taskIds||[]).filter(id=>id!==household.id);
+        }
+      }else if(b.linkType!=='task'){
+        task=state.tasks.find(t=>!t.done&&dayPlanNormalizeText(t.name)===dayPlanNormalizeText(b.text))||null;
+        if(!task){
+          task=normalizeTask({id:uid('task'),name:b.text,done:false,bucket:'A',
+            deferUntil:until,createdAt:Date.now()});
+          state.tasks.push(task);
+          b.postponedCreatedTask=true;
+        }
+        b.linkType='task';b.linkId=task.id;b.kind='Taak';b.matchedName=task.name;
+      }
+      if(task)task.deferUntil=until;
+      b.postponedTo=until;
+      try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}
+    }
+    refillTodayPlan(false);
+  }
+  function restorePostponedDayPlanBlock(id){
+    const plan=state.dayTimeline,b=plan?.blocks?.find(x=>x.id===id);
+    if(!b?.postponedTo)return;
+    const when=b.postponedTo;
+    if(b.linkType==='task'){
+      const t=state.tasks.find(x=>x.id===b.linkId);
+      if(t&&t.deferUntil===when)t.deferUntil='';
+    }
+    if(b.linkType==='household'){
+      const h=state.householdTasks.find(x=>x.id===b.linkId);
+      if(h&&h.deferUntil===when)h.deferUntil='';
+    }
+    // Alle tijdblokken met dezelfde taak horen dezelfde status te hebben.
+    for(const x of plan.blocks){
+      if(x.id===b.id||(x.linkType===b.linkType&&x.linkId===b.linkId&&x.postponedTo===when))x.postponedTo='';
+    }
+    refillTodayPlan(false);
+    saveState();renderToday();
+    showToast('Teruggezet naar vandaag. Kies Herplan vanaf nu om nieuwe tijden te maken.');
   }
   function replanDayFromNow(options={}){
     const plan=state.dayTimeline;
     if(!plan||plan.date!==localDateKey()||!plan.blocks?.length)return showToast('Er staat nog geen dagplanning voor vandaag.');
     const now=new Date(),minutes=now.getHours()*60+now.getMinutes();
-    const result=calculateDayPlanFromNow(minutes,options);
-    if(!result.ok){showDayPlanConflict(result,options);return false;}
+    const requested=Array.isArray(options.postponeIds)?options.postponeIds:[];
+    const eligible=new Set(dayPlanPostponeChoices().flatMap(g=>g.ids));
+    const selected=[...new Set(requested)].filter(id=>eligible.has(id));
+    const safeOptions={...options,postponeIds:selected};
+    const result=calculateDayPlanFromNow(minutes,safeOptions);
+    if(!result.ok){showDayPlanConflict(result,safeOptions);return false;}
     hideDayPlanConflict();
     cancelDayPlanAlarms(plan);
-    plan.blocks.forEach((b,index)=>{
+    if(selected.length)postponeDayPlanBlocks(selected);
+    plan.blocks.forEach(b=>{
       if(!b.originalStart)b.originalStart=b.start;
       if(!b.originalEnd&&b.end)b.originalEnd=b.end;
       const c=result.changes.get(b.id);
@@ -2048,18 +2147,21 @@
       b.start=dayPlanClock(c.start);
       b.end=c.hasEnd?dayPlanClock(c.end):'';
     });
-    // De tijdlijn en widget tonen de echte chronologische volgorde.
+    // Chronologisch tonen; uitgestelde onderdelen worden apart onderaan vermeld.
     plan.blocks=plan.blocks.map((b,index)=>({b,index}))
-      .sort((x,y)=>dayPlanMinutes(x.b.start)-dayPlanMinutes(y.b.start)||x.index-y.index)
+      .sort((x,y)=>(x.b.postponedTo?1:0)-(y.b.postponedTo?1:0)
+        ||dayPlanMinutes(x.b.start)-dayPlanMinutes(y.b.start)||x.index-y.index)
       .map(x=>x.b);
     plan.alarms=false;
-    plan.sourceText=plan.blocks.map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+    plan.sourceText=plan.blocks.filter(b=>!b.postponedTo).map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
     saveState();
     scheduleDayPlanAlarms();
     renderToday();
     const status=document.getElementById('dayPlanReplanStatus');
-    if(status)status.textContent='Planning aangepast aan '+dayPlanClock(minutes)+'. Afgeronde blokken en vaste afspraken zijn niet verschoven.';
-    if(!options.silent)showToast('Je planning schuift mee vanaf '+dayPlanClock(minutes)+'.');
+    if(status)status.textContent=selected.length
+      ? selected.length+' tijdblok(ken) naar morgen · rest aangepast vanaf '+dayPlanClock(minutes)+'.'
+      :'Planning aangepast vanaf '+dayPlanClock(minutes)+'. Afgeronde blokken en vaste afspraken bleven staan.';
+    if(!options.silent)showToast(selected.length?'Je keuzes zijn opgeslagen. De rest van je dag is herpland.':'Je planning schuift mee vanaf '+dayPlanClock(minutes)+'.');
     return true;
   }
   function openDayPlanModal(){
@@ -2103,16 +2205,20 @@
       const when=plan.date&&plan.blocks?.length?'Er staat een planning klaar voor '+escapeHtml(formatDateShort(plan.date))+'.':'Nog geen tijdsplanning voor vandaag.';
       box.innerHTML='<div class="empty-state">'+when+'<br>Tijden zijn optionele richtlijnen.</div>';return;
     }
-    const last=plan.blocks[plan.blocks.length-1];
-    const countHtml='<p class="day-plan-count">'+plan.blocks.length+' blokken · van '+escapeHtml(plan.blocks[0].start)+' tot '+escapeHtml(last.end||last.start)+'</p>';
-    box.innerHTML=countHtml+plan.blocks.map(b=>{
+    const visible=plan.blocks.filter(b=>!b.postponedTo),moved=plan.blocks.filter(b=>b.postponedTo);
+    const last=visible[visible.length-1],first=visible[0];
+    const countHtml='<p class="day-plan-count">'+visible.length+' blokken vandaag'+(first&&last?' · van '+escapeHtml(first.start)+' tot '+escapeHtml(last.end||last.start):'')+(moved.length?' · '+moved.length+' naar morgen':'')+'</p>';
+    box.innerHTML=countHtml+visible.map(b=>{
       const done=dayPlanBlockDone(b),linked=b.linkType!=='agenda',time=escapeHtml(b.start+(b.end?'–'+b.end:''));
       const mark=linked?'<input class="check" type="checkbox" '+(done?'checked':'')+' data-day-plan-check="'+b.id+'" aria-label="Afvinken"/>':(b.linkType==='agenda'?'▣':'•');
       return '<div class="day-plan-row '+(done?'done':'')+'"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div><div class="day-plan-name">'+escapeHtml(b.text)+'</div><div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
       +(done?'':'<div class="day-plan-settings"><button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>'
        +(b.linkType!=='agenda'?'<button type="button" class="day-plan-mini '+(b.remind?'on':'')+'" data-dayplan-remind="'+escapeHtml(b.id)+'">'+(b.remind?'Herinnering aan':'Herinnering uit')+'</button>':'')+'</div>')
        +'</div></div>';
-    }).join('');
+    }).join('')
+    +(moved.length?'<details class="day-plan-deferred"><summary>Doorgeschoven naar morgen ('+moved.length+')</summary>'
+       +moved.map(b=>'<div class="day-plan-deferred-item"><span>'+escapeHtml(b.text)+'</span><button type="button" data-dayplan-restore="'+escapeHtml(b.id)+'">Terug naar vandaag</button></div>').join('')
+       +'</details>':'');
   }
   function setDayPlanLinkedDone(block,checked){
     const today=localDateKey();
@@ -2844,6 +2950,16 @@
     if(e.target.closest('#startMyDayNowButton'))return replanDayFromNow();
     if(e.target.closest('#replanDayNowButton'))return replanDayFromNow();
     if(e.target.closest('[data-dayplan-dismiss]'))return hideDayPlanConflict();
+    const pick=e.target.closest('[data-dayplan-apply-choices]');
+    if(pick){
+      const box=document.getElementById('dayPlanConflict');
+      const ids=[...box.querySelectorAll('[data-dayplan-postpone-group]:checked')]
+        .flatMap(input=>input.dataset.dayplanPostponeGroup.split('|'));
+      if(!ids.length)return showToast('Vink één of meer taken aan die naar morgen mogen.');
+      return replanDayFromNow({...dayPlanPendingChoice,postponeIds:ids});
+    }
+    const restore=e.target.closest('[data-dayplan-restore]');
+    if(restore)return restorePostponedDayPlanBlock(restore.dataset.dayplanRestore);
     const mealFirst=e.target.closest('[data-dayplan-meal-first]');
     if(mealFirst)return replanDayFromNow({...dayPlanPendingChoice,prioritizeMealId:mealFirst.dataset.dayplanMealFirst});
     if(e.target.closest('[data-dayplan-allow-meals]'))return replanDayFromNow({...dayPlanPendingChoice,allowLateMeals:true});
