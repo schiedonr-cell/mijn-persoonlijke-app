@@ -3097,6 +3097,50 @@
     renderToday();renderAllTasks();renderFocus();
   }
 
+  // Gemengde Vandaag-widget zonder kloktijden: native afvinken synchroniseren.
+  window.applyNativeQuickChanges=function(raw){
+    let operations=[];
+    try{operations=JSON.parse(raw||'[]');}catch{return;}
+    if(!Array.isArray(operations)||!operations.length)return;
+    const confirmed=[],today=localDateKey();
+    for(const op of operations){
+      if(!op?.id||op.date!==today||op.done!==true)continue;
+      const type=op.itemType,id=op.itemId;
+      if(type==='task'){
+        const task=state.tasks.find(t=>t.id===id);
+        if(!task)continue;
+        if(!task.done)markTask(task,true);
+        // Ook herhaalde native updates mogen de actie niet dubbel uitvoeren.
+      }else if(type==='habit'){
+        const habit=state.habits.find(h=>h.id===id);
+        if(!habit)continue;
+        if(recoveryRoutineKind(h)){
+          // Minutenroutines kun je niet met een enkel vinkje afronden:
+          // open de bestaande minutenregistratie na het aanklikken.
+          openRecoveryManual(recoveryRoutineKind(habit));
+        }else if(!habit.history?.[today]){
+          habit.history||={};habit.history[today]=true;
+          saveState();renderToday();selfCareSuggest('habit',habit);
+        }
+      }else if(type==='household'){
+        const house=state.householdTasks.find(h=>h.id===id);
+        if(!house)continue;
+        if(!house.history?.[today]){
+          house.history||={};house.history[today]=true;house.deferUntil='';
+          saveState();renderToday();selfCareSuggest('household',house);
+        }
+      }else if(type==='lunch'){
+        const data=selfCareToday();
+        if(!data.lunchDone){data.lunchDone=true;selfCareSuggest('lunch');}
+      }else continue;
+      confirmed.push(op.id);
+    }
+    if(confirmed.length){
+      saveState();renderToday();
+      try{window.AndroidWidgetBridge?.ackQuickUpdates?.(JSON.stringify(confirmed));}catch{}
+    }
+  };
+
   // Door Android-homescreenwidgets opgeslagen afvinkacties toepassen op de echte appdata.
   // Gebeurt vóór de volgende snapshotsynchronisatie vanuit de WebView.
   window.applyNativeDayTimelineChanges=function(raw){
