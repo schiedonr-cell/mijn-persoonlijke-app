@@ -3707,7 +3707,27 @@
     const hdel=e.target.closest('[data-household-delete]');if(hdel){const t=state.householdTasks.find(x=>x.id===hdel.dataset.householdDelete);if(!t)return;if(!confirm(`“${t.name}” verwijderen?`))return;state.householdTasks=state.householdTasks.filter(x=>x.id!==t.id);const c=householdTodayChoiceState();c.taskIds=c.taskIds.filter(id=>id!==t.id);const sk=householdSkipTodayState();sk.taskIds=sk.taskIds.filter(id=>id!==t.id);saveState();renderHousehold();renderHouseholdManage();return showToast('Huishoudklus verwijderd.');}
     if(e.target.closest('[data-close-household]'))return document.getElementById('householdModal').classList.remove('open');
     const habitVersion=e.target.closest('[data-habit-version]');if(habitVersion){const [id,version]=habitVersion.dataset.habitVersion.split('|'),h=state.habits.find(x=>x.id===id);if(h){setHabitSelectedVersion(h,Number(version));syncRecoveryGoals();saveState();renderDailyBasis();renderRecoveryPanel();}return;}
-    const habitUndo=e.target.closest('[data-habit-undo]');if(habitUndo){const h=state.habits.find(x=>x.id===habitUndo.dataset.habitUndo);if(h){const today=localDateKey(),doneVersion=Number(h.versionHistory?.[today]||0);if(doneVersion)setHabitSelectedVersion(h,doneVersion,today);if(h.history)delete h.history[today];if(h.versionHistory)delete h.versionHistory[today];saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderDailyBasis();showToast(`${h.name} staat weer open.`);}return;}
+    const habitUndo=e.target.closest('[data-habit-undo]');
+    if(habitUndo){
+      const h=state.habits.find(x=>x.id===habitUndo.dataset.habitUndo);
+      if(h){
+        const today=localDateKey(),kind=recoveryRoutineKind(h);
+        if(kind){
+          if(!confirm('Wil je ook de geregistreerde minuten van '+h.name+' voor vandaag wissen?'))return;
+          state.recovery.sessions=state.recovery.sessions.filter(x=>x.date!==today
+            ||(kind==='stretch'?x.kind!=='stretchen':x.kind==='stretchen'));
+          delete state.recovery.autoCompleted[kind+'|'+h.id+'|'+today];
+        }
+        const doneVersion=Number(h.versionHistory?.[today]||0);
+        if(doneVersion)setHabitSelectedVersion(h,doneVersion,today);
+        if(h.history)delete h.history[today];
+        if(h.versionHistory)delete h.versionHistory[today];
+        saveState();
+        if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();
+        renderToday();showToast(`${h.name} staat weer open.`);
+      }
+      return;
+    }
     const householdUndo=e.target.closest('[data-household-undo]');if(householdUndo){const h=state.householdTasks.find(x=>x.id===householdUndo.dataset.householdUndo);if(h){h.history||={};delete h.history[localDateKey()];saveState();renderHousehold();showToast(`${h.name} staat weer open.`);}return;}
     const taskUndo=e.target.closest('[data-task-undo]');if(taskUndo){const t=state.tasks.find(x=>x.id===taskUndo.dataset.taskUndo);if(t){markTask(t,false);showToast(`${t.name} staat weer open.`);}return;}
     const progressHabit=e.target.closest('[data-progress-habit]');if(progressHabit){document.getElementById('progressModal').classList.remove('open');return openHabitHistory(progressHabit.dataset.progressHabit);}
