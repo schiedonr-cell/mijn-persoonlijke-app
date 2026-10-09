@@ -195,6 +195,10 @@ final class SnapshotStore {
                             t.put("done",allDone);
                             t.put("completedAt",allDone?System.currentTimeMillis():JSONObject.NULL);
                         }else b.put("done",done);
+                    }else if("habit".equals(type) && isMinuteRoutine(state.optJSONArray("habits"),id)){
+                        // Bij ontspannen en stretchen is een tijdblok afzonderlijk
+                        // afvinkbaar. De WebView telt de minuten later bij het dagdoel.
+                        b.put("done",done);
                     }else if("habit".equals(type)||"household".equals(type)){
                         JSONObject t=findById(state.optJSONArray("habit".equals(type)?"habits":"householdTasks"),id);
                         if(t!=null){
@@ -271,8 +275,10 @@ final class SnapshotStore {
             } else if ("habit".equals(linkType)) {
                 kind = "Routine";
                 JSONObject item = findById(habits, linkId);
-                JSONObject history = item == null ? null : item.optJSONObject("history");
-                if (history != null) done = truthy(history, today);
+                if (!isMinuteRoutine(habits, linkId)) {
+                    JSONObject history = item == null ? null : item.optJSONObject("history");
+                    if (history != null) done = truthy(history, today);
+                }
             } else if ("household".equals(linkType)) {
                 kind = "Huis";
                 JSONObject item = findById(household, linkId);
@@ -297,6 +303,14 @@ final class SnapshotStore {
             } catch (Exception ignored) {}
         }
         return out;
+    }
+
+    private static boolean isMinuteRoutine(JSONArray habits, String id) {
+        if ("basis-relax".equals(id) || "basis-stretch".equals(id)) return true;
+        JSONObject h = findById(habits, id);
+        if (h == null) return false;
+        String name = h.optString("name", "").trim().toLowerCase(Locale.forLanguageTag("nl-NL"));
+        return "stretchen".equals(name) || "stretchen / mobiliteit".equals(name);
     }
 
     private static JSONObject findById(JSONArray array, String id) {
