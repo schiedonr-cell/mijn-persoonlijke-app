@@ -832,6 +832,9 @@
     .day-recovery-grid button,.day-recovery-kinds button{min-height:47px;border:1px solid var(--line);border-radius:11px;background:var(--card,#fff);padding:7px;font-weight:750}
     .day-recovery-grid button.selected,.day-recovery-kinds button.selected{border:2px solid var(--accent-strong);background:var(--accent-soft);color:var(--accent-strong)}
     .day-recovery-kinds{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+    .recovery-habit-progress{margin:9px 0;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+    .recovery-habit-progress span{font-size:13px;font-weight:750;color:var(--accent-strong)}
+    .recovery-habit-progress button{font-size:12px;min-height:35px;background:var(--surface-soft);border:1px solid var(--line);padding:7px 11px;border-radius:10px;font-weight:800}
     .day-recovery-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.day-recovery-actions button{flex:1;min-width:110px;min-height:48px;border-radius:12px;font-weight:800}
     .day-recovery-timer{font-size:38px;font-weight:850;text-align:center;margin:16px 0;font-variant-numeric:tabular-nums}
     .day-plan-next-trigger{width:100%;min-height:50px;border:1.5px solid var(--accent-strong);border-radius:13px;background:var(--accent-soft);color:var(--accent-strong);font-weight:850;font-size:15px;margin:0 0 10px}
@@ -1405,11 +1408,16 @@
       2:{minimum:"15–30 min",detail:"Wandeling, workout of stretchen — kies wat nu past."},
       3:{minimum:"Workout of lange wandeling",detail:"Een grotere beweegversie als die nu bij je past."}
     },history:{},versionHistory:{},startedOn:localDateKey()},
+    {id:"basis-stretch",name:"Stretchen",anchor:"Kleine momenten over de dag",description:"Rustig en soepel bewegen, zonder forceren.",energyAdaptive:true,levels:{
+      1:{minimum:"5 min",detail:"Rustig rekken en mobiliseren, afgestemd op hoe je je voelt."},
+      2:{minimum:"10 min",detail:"In één keer of verspreid over kleine momenten."},
+      3:{minimum:"15 min",detail:"Rustig stretchen, eventueel verdeeld over de dag."}
+    },history:{},versionHistory:{},startedOn:localDateKey()},
     {id:"habit-evening-reset",name:"Avondreset",anchor:"Na het avondeten",description:"Vaatwasser inruimen / aanzetten • aanrecht en keuken leeg en netjes",energyAdaptive:false,levels:{},history:{},versionHistory:{},startedOn:localDateKey()},
     {id:"basis-relax",name:"Bewust ontspannen",anchor:"Na de avondreset",description:"",energyAdaptive:true,levels:{
-      1:{minimum:"5 min",detail:"Kort bewust rusten: rustig zitten, ademhaling, muziek of iets anders kalms."},
-      2:{minimum:"10–30 min",detail:"Bewust ontspannen, creatief bezig zijn, rustig wandelen of iets anders dat helpt afschakelen."},
-      3:{minimum:"Langere ontspanning",detail:"Neem ruimer de tijd voor ontspanning, creativiteit of een rustig moment."}
+      1:{minimum:"10 min",detail:"Kort bewust rusten: rustig zitten, ademhaling, muziek of iets anders kalms."},
+      2:{minimum:"20 min",detail:"Bewust ontspannen, creatief bezig zijn of iets anders dat helpt afschakelen."},
+      3:{minimum:"30 min",detail:"Neem ruimer de tijd voor ontspanning, creativiteit of een rustig moment."}
     },history:{},versionHistory:{},startedOn:localDateKey()},
     {id:"habit-day-close",name:"Dag afsluiten",anchor:"Later op de avond",description:"Korte opruimronde • honden • eventueel kort naar morgen kijken • verder rustig afsluiten",energyAdaptive:false,levels:{},history:{},versionHistory:{},startedOn:localDateKey()}
   ];
@@ -1424,7 +1432,8 @@
   const defaultState = {
     energy: 2,
     tasks: [],
-    recovery: {sessions:[],active:null},
+    recovery: {sessions:[],active:null,autoCompleted:{}},
+    relaxStretchGoalsV1:true,
     householdTasks: structuredClone(DEFAULT_HOUSEHOLD_TASKS),
     habits: [...DEFAULT_BASIS_HABITS],
     unifiedHabitsV15: true,
@@ -1542,6 +1551,26 @@
     return list;
   }
 
+  function migrateRecoveryGoalsV1(saved,habits){
+    if(saved.relaxStretchGoalsV1)return habits;
+    const out=habits.map(h=>normalizeHabit(h));
+    const relax=out.find(h=>h.id==='basis-relax');
+    if(relax){
+      relax.energyAdaptive=true;
+      relax.levels||={};
+      [10,20,30].forEach((minutes,i)=>{
+        const version=i+1;
+        relax.levels[version]={...(relax.levels[version]||{}),minimum:minutes+' min'};
+      });
+    }
+    // Een eventueel al door de gebruiker aangemaakte stretchroutine behouden.
+    if(!out.some(h=>h.id==='basis-stretch'||/^stretchen(?:\s*\/\s*mobiliteit)?$/i.test(h.name||''))){
+      const definition=DEFAULT_BASIS_HABITS.find(h=>h.id==='basis-stretch');
+      const index=out.findIndex(h=>h.id==='basis-move');
+      out.splice(index<0?out.length:index+1,0,normalizeHabit(structuredClone(definition)));
+    }
+    return out;
+  }
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -1549,19 +1578,22 @@
       const saved = JSON.parse(raw), habitsV15=migrateUnifiedHabits(saved), habitsV161=migrateDailyAnchorsV161(saved,habitsV15), habitsV167=migrateDailyAnchorsV167(saved,habitsV161);
       const energyHistory=(saved.energyHistory&&typeof saved.energyHistory==='object')?saved.energyHistory:{};
       if(!Object.keys(energyHistory).length&&saved.dailyBasisHistory&&typeof saved.dailyBasisHistory==='object') Object.entries(saved.dailyBasisHistory).forEach(([date,rec])=>{if(rec?.energy)energyHistory[date]=Number(rec.energy);});
-      const habits=migrateHabitTrackingV168(saved,habitsV167,energyHistory);
+      const habits=migrateRecoveryGoalsV1(saved,migrateHabitTrackingV168(saved,habitsV167,energyHistory));
       return {
         ...structuredClone(defaultState), ...saved,
         unifiedHabitsV15:true,
         dailyAnchorsV161:true,
         dailyAnchorsV167:true,
         progressHistoryV168:true,
+        relaxStretchGoalsV1:true,
         energyHistory,
         habitVersionSelections:(saved.habitVersionSelections&&typeof saved.habitVersionSelections==='object')?saved.habitVersionSelections:{},
         tasks: Array.isArray(saved.tasks) ? saved.tasks.map(t=>normalizeTask({...t,bucket:t.bucket||((saved.todayPlan?.taskIds||[]).includes(t.id)?'A':'inbox')})) : [],
         recovery:{
           sessions:Array.isArray(saved.recovery?.sessions)?saved.recovery.sessions.filter(x=>x&&typeof x.date==='string').slice(-500):[],
-          active:saved.recovery?.active&&Number.isFinite(Number(saved.recovery.active.endsAt))?saved.recovery.active:null
+          active:saved.recovery?.active&&Number.isFinite(Number(saved.recovery.active.endsAt))?saved.recovery.active:null,
+          autoCompleted:saved.recovery?.autoCompleted&&typeof saved.recovery.autoCompleted==='object'
+            ?saved.recovery.autoCompleted:{}
         },
         householdTasks: Array.isArray(saved.householdTasks) ? saved.householdTasks.map(normalizeHouseholdTask) : structuredClone(DEFAULT_HOUSEHOLD_TASKS),
         habits: habits.length?habits:structuredClone(defaultState.habits),
@@ -1776,11 +1808,17 @@
     return `<div class="habit-version-prompt">Welke versie past nu?</div><div class="habit-version-grid">${buttons}</div><div class="basis-detail">${escapeHtml(level.detail||'Kies wat nu haalbaar is.')}</div><div class="habit-choice-note">${escapeHtml(note)}</div>`;
   }
   function dailyHabitCard(h,today){
+    const progressKind=recoveryRoutineKind(h);
+    const progress=progressKind?'<div class="recovery-habit-progress"><span>'+recoveryMinutesTotal(progressKind,today)
+      +' / '+recoveryMinuteGoal(progressKind,today)+' minuten</span>'
+      +'<button type="button" data-recovery-log-for="'+escapeHtml(progressKind)+'">Minuten registreren</button></div>':'';
     const top=[h.time?`⏰ ${h.time}`:'',h.anchor||''].filter(Boolean).join(' · ');
-    return `<div class="basis-item"><input class="check" type="checkbox" data-habit-check="${h.id}" aria-label="${escapeHtml(h.name)} afvinken"/><div class="basis-copy">${top?`<div class="basis-anchor">${escapeHtml(top)}</div>`:''}<div class="basis-name">${escapeHtml(h.name)}</div>${h.energyAdaptive?renderHabitVersionChoices(h,today):`<div class="basis-detail">${escapeHtml(h.description||'Iedere dag dezelfde versie.')}</div>`}</div><div class="focus-item-actions"><button class="focus-list-button" data-focus-habit="${h.id}">Focus</button><button class="basis-options" data-item-action="habit|${h.id}" aria-label="Bewerken en opties">•••</button></div></div>`;
+    return `<div class="basis-item">${progressKind?'<div class="completed-habit-check">◷</div>':`<input class="check" type="checkbox" data-habit-check="${h.id}" aria-label="${escapeHtml(h.name)} afvinken"/>`}<div class="basis-copy">${top?`<div class="basis-anchor">${escapeHtml(top)}</div>`:''}<div class="basis-name">${escapeHtml(h.name)}</div>${h.energyAdaptive?renderHabitVersionChoices(h,today):`<div class="basis-detail">${escapeHtml(h.description||'Iedere dag dezelfde versie.')}</div>`}${progress}</div><div class="focus-item-actions"><button class="focus-list-button" data-focus-habit="${h.id}">Focus</button><button class="basis-options" data-item-action="habit|${h.id}" aria-label="Bewerken en opties">•••</button></div></div>`;
   }
   function completedHabitHtml(h,today){
-    const v=Number(h.versionHistory?.[today]||0),level=v?habitLevel(h,v):null,meta=[h.time?`⏰ ${h.time}`:'',h.anchor,h.energyAdaptive&&v?habitVersionLabel(v):'',level?.minimum||''].filter(Boolean).join(' · ');
+    const kind=recoveryRoutineKind(h);
+    const progress=kind?' · '+recoveryMinutesTotal(kind,today)+' / '+recoveryMinuteGoal(kind,today)+' min':'';
+    const v=Number(h.versionHistory?.[today]||0),level=v?habitLevel(h,v):null,meta=[h.time?`⏰ ${h.time}`:'',h.anchor,h.energyAdaptive&&v?habitVersionLabel(v):'',level?.minimum||'',progress].filter(Boolean).join(' · ');
     return `<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(h.name)}</div>${meta?`<div class="completed-habit-meta">${escapeHtml(meta)}</div>`:''}</div><button class="habit-undo-button" data-habit-undo="${h.id}">Ongedaan</button></div>`;
   }
   function renderHabitGroup(listId,completedId,progressId,habits,emptyText){
@@ -2432,6 +2470,68 @@
   function recoverySessionsForDay(date=localDateKey()){
     return (state.recovery?.sessions||[]).filter(x=>x.date===date);
   }
+
+  function recoveryRoutineKind(h){
+    if(!h)return '';
+    if(h.id==='basis-relax')return 'relax';
+    if(h.id==='basis-stretch'||/^stretchen(?:\s*\/\s*mobiliteit)?$/i.test(h.name||''))return 'stretch';
+    return '';
+  }
+  function recoveryRoutine(kind){
+    return state.habits.find(h=>recoveryRoutineKind(h)===kind)||null;
+  }
+  function recoveryMinuteGoal(kind,date=localDateKey()){
+    const h=recoveryRoutine(kind),energy=h?habitSelectedVersion(h,date):dayEnergyFor(date);
+    return (kind==='stretch'?[0,5,10,15]:[0,10,20,30])[energy]||10;
+  }
+  function recoveryMinutesTotal(kind,date=localDateKey()){
+    return recoverySessionsForDay(date).filter(s=>kind==='stretch'?s.kind==='stretchen':s.kind!=='stretchen')
+      .reduce((sum,s)=>sum+Math.max(0,Math.floor(Number(s.minutes)||0)),0);
+  }
+  function syncRecoveryGoal(kind,date=localDateKey()){
+    const h=recoveryRoutine(kind);if(!h)return;
+    const enough=recoveryMinutesTotal(kind,date)>=recoveryMinuteGoal(kind,date);
+    state.recovery||={sessions:[],active:null,autoCompleted:{}};
+    state.recovery.autoCompleted||={};
+    const key=kind+'|'+h.id+'|'+date;
+    h.history||={};h.versionHistory||={};
+    if(enough){
+      if(!h.history[date]){
+        h.history[date]=true;
+        if(h.energyAdaptive)h.versionHistory[date]=habitSelectedVersion(h,date);
+        state.recovery.autoCompleted[key]=true;
+        if(kind==='relax')queueReminderStateSync();
+      }
+    }else if(state.recovery.autoCompleted[key]){
+      delete h.history[date];delete h.versionHistory[date];
+      delete state.recovery.autoCompleted[key];
+      if(kind==='relax')queueReminderStateSync();
+    }
+  }
+  function syncRecoveryGoals(date=localDateKey()){
+    syncRecoveryGoal('relax',date);syncRecoveryGoal('stretch',date);
+  }
+  function recordRecoverySession(kind,minutes,source='timer',meta={}){
+    const n=Math.max(0,Math.min(360,Math.floor(Number(minutes)||0)));
+    if(!n)return false;
+    const date=meta.date||localDateKey(),time=Date.now();
+    state.recovery.sessions.push({
+      id:meta.id||uid('rest'),date,daypart:meta.daypart||recoveryDaypart(),
+      kind,minutes:n,endedAt:time,source
+    });
+    syncRecoveryGoals(date);
+    saveState();
+    renderToday();
+    return true;
+  }
+  let recoveryManualMode=false;
+  function openRecoveryManual(kind){
+    if(recoveryActive())return showToast('Rond je lopende rustmoment eerst af.');
+    recoveryKind=kind==='stretch'?'stretchen':'zitten';
+    recoveryMinutes=5;
+    recoveryManualMode=true;
+    offerRecovery();
+  }
   function recoveryDaypart(date=new Date()){
     const h=date.getHours();
     return h<12?'ochtend':h<18?'middag':'avond';
@@ -2451,10 +2551,10 @@
       box=document.getElementById('dayPlanRecoveryPanel');
     if(!box||!bar)return;
     const sessions=recoverySessionsForDay();
-    const stretch=sessions.filter(s=>s.kind==='stretchen');
+    const relaxTotal=recoveryMinutesTotal('relax'),stretchTotal=recoveryMinutesTotal('stretch');
     const parts=new Set(sessions.map(s=>s.daypart));
     bar.innerHTML='<div><strong>Even aan jezelf denken</strong><small>'
-      +sessions.length+' rustmoment'+(sessions.length===1?'':'en')+' vandaag · Stretchen: '+(stretch.length?'gedaan':'nog niet')
+      +'Ontspannen '+relaxTotal+'/'+recoveryMinuteGoal('relax')+' min · Stretchen '+stretchTotal+'/'+recoveryMinuteGoal('stretch')+' min'
       +' · '+['ochtend','middag','avond'].map(p=>(parts.has(p)?'✓ ':'○ ')+p).join(' / ')
       +'</small></div><button type="button" data-recovery-open>Rustmoment</button>';
     const active=recoveryActive();
@@ -2469,19 +2569,22 @@
         +'<button class="secondary-button" type="button" data-recovery-stop>Stop zonder afvinken</button></div>';
       return;
     }
-    box.innerHTML='<h4>Eerst even opladen?</h4>'
-      +'<p class="small-muted">Een paar minuten is voldoende. Je mag ook gewoon doorgaan.</p>'
+    box.innerHTML='<h4>'+(recoveryManualMode?'Minuten registreren':'Eerst even opladen?')+'</h4>'
+      +'<p class="small-muted">'+(recoveryManualMode?'Wat heb je al gedaan? Je hoeft de timer niet te gebruiken.':'Een paar minuten is voldoende. Je mag ook gewoon doorgaan.')+'</p>'
       +'<strong>Hoe lang?</strong>'
       +'<div class="day-recovery-grid">'+[5,10,15].map(n=>
         '<button type="button" data-recovery-minutes="'+n+'" class="'+(recoveryMinutes===n?'selected':'')+'">'+n+' minuten</button>').join('')+'</div>'
       +'<strong>Waar heb je zin in?</strong>'
       +'<div class="day-recovery-kinds">'+Object.entries(recoveryLabels).map(([id,label])=>
         '<button type="button" data-recovery-kind="'+id+'" class="'+(id===recoveryKind?'selected':'')+'">'+escapeHtml(label)+'</button>').join('')+'</div>'
-      +'<div class="day-recovery-actions"><button class="primary-button" type="button" data-recovery-start>Begin rustmoment</button>'
-      +'<button class="secondary-button" type="button" data-recovery-skip>Nu niet</button></div>';
+      +'<div class="day-recovery-actions"><button class="primary-button" type="button" data-recovery-'+(recoveryManualMode?'log':'start')+'">'
+      +(recoveryManualMode?'Minuten opslaan':'Begin rustmoment')+'</button>'
+      +'<button class="secondary-button" type="button" data-recovery-skip>Nu niet</button></div>'
+      +(recoveryManualMode?'':'<button class="day-recovery-next" type="button" data-recovery-manual>Al gedaan? Registreer minuten</button>');
   }
   function offerRecovery(){
     if(recoveryActive())return;
+    if(!recoveryManualMode)recoveryKind='zitten';
     recoveryOfferVisible=true;
     dayPlanNextPickerOpen=false;
     renderDayPlanNextPicker();
@@ -2491,6 +2594,7 @@
   }
   function recoveryStart(){
     if(recoveryActive())return;
+    recoveryManualMode=false;
     const now=Date.now(),date=localDateKey();
     state.recovery.active={id:uid('rest'),kind:recoveryKind,minutes:recoveryMinutes,
       date,daypart:recoveryDaypart(new Date(now)),startedAt:now,endsAt:now+recoveryMinutes*60000};
@@ -2505,21 +2609,19 @@
     const active=recoveryActive();if(!active)return;
     recoveryCancelAlarm();
     const now=Date.now();
-    const elapsed=Math.max(1,Math.ceil((now-Number(active.startedAt))/60000));
-    state.recovery.sessions.push({id:active.id,date:active.date,daypart:active.daypart,
-      kind:active.kind,minutes:Math.min(active.minutes,elapsed),endedAt:now});
+    const elapsed=Math.min(Number(active.minutes)||0,Math.floor((now-Number(active.startedAt))/60000));
     state.recovery.active=null;
-    const relax=state.habits.find(h=>h.id==='basis-relax');
-    if(relax){
-      relax.history||={};relax.versionHistory||={};
-      if(!relax.history[active.date]){
-        relax.history[active.date]=true;
-        if(relax.energyAdaptive)relax.versionHistory[active.date]=habitSelectedVersion(relax,active.date);
-        queueReminderStateSync();
-      }
-    }
-    saveState();renderToday();renderDayPlanNextPicker();
-    showToast('Rustmoment afgerond en meegeteld bij Bewust ontspannen.');
+    const done=recordRecoverySession(active.kind,elapsed,'timer',{date:active.date,daypart:active.daypart,id:active.id});
+    if(!done){saveState();renderToday();}
+    recoveryManualMode=false;
+    showToast(done?elapsed+' minuten meegeteld voor '+(active.kind==='stretchen'?'Stretchen':'Bewust ontspannen')+'.':'Geen volledige minuut verstreken; niets opgeteld.');
+    showDayPlanNextPicker(false);
+  }
+  function recoveryLogManually(){
+    if(recoveryActive())return;
+    const done=recordRecoverySession(recoveryKind,recoveryMinutes,'handmatig');
+    recoveryManualMode=false;recoveryOfferVisible=false;
+    if(done)showToast(recoveryMinutes+' minuten geregistreerd voor '+(recoveryKind==='stretchen'?'Stretchen':'Bewust ontspannen')+'.');
     showDayPlanNextPicker(false);
   }
   function recoveryStop(){
@@ -2530,6 +2632,7 @@
     showDayPlanNextPicker(false);
   }
   function recoverySkip(){
+    recoveryManualMode=false;
     recoveryOfferVisible=false;
     renderRecoveryPanel();
     showDayPlanNextPicker(false);
@@ -2833,6 +2936,7 @@
 
   function renderToday(){
     ensureDailyState();
+    syncRecoveryGoals();
     document.querySelectorAll('.energy-btn').forEach(btn=>btn.classList.toggle('selected',Number(btn.dataset.energy)===Number(state.energy)));
     const closed=state.dayClosedDate===localDateKey();
     document.getElementById('dayClosedArea').innerHTML=closed?`<div class="section-card closed-card"><p class="eyebrow">VANDAAG</p><h3>Vandaag is rond.</h3><p class="small-muted">Morgen begint opnieuw bij je energie.</p><button class="secondary-button" id="reopenDayButton">Toch nog iets doen</button></div>`:'';
@@ -3423,7 +3527,7 @@
   document.addEventListener('click',e=>{
     const open=e.target.closest('[data-open]');if(open)return showView(open.dataset.open); if(e.target.closest('[data-back]'))return showView('home');
     const tab=e.target.closest('[data-daily-tab]');if(tab)return setDailyTab(tab.dataset.dailyTab); const foodNav=e.target.closest('[data-food-tab]');if(foodNav)return setFoodTab(foodNav.dataset.foodTab); const foodJump=e.target.closest('[data-food-tab-jump]');if(foodJump)return setFoodTab(foodJump.dataset.foodTabJump);
-    const energy=e.target.closest('[data-energy]');if(energy){state.energy=Number(energy.dataset.energy);state.energyHistory||={};state.energyHistory[localDateKey()]=state.energy;refillTodayPlan(false);saveState();queueReminderStateSync();return renderToday();}
+    const energy=e.target.closest('[data-energy]');if(energy){state.energy=Number(energy.dataset.energy);state.energyHistory||={};state.energyHistory[localDateKey()]=state.energy;refillTodayPlan(false);syncRecoveryGoals();saveState();queueReminderStateSync();return renderToday();}
     if(e.target.closest('#addTaskButton')||e.target.closest('#addTaskFromListButton')||e.target.closest('#focusAddTaskButton'))return openInputModal('task');
     const manageTaskSteps=e.target.closest('[data-manage-task-steps]');if(manageTaskSteps)return openTaskStepsManage(manageTaskSteps.dataset.manageTaskSteps);
     if(e.target.closest('[data-close-task-steps]'))return closeTaskStepsManage();
@@ -3528,7 +3632,7 @@
     const hpause=e.target.closest('[data-household-pause]');if(hpause){const t=state.householdTasks.find(x=>x.id===hpause.dataset.householdPause);if(t){t.paused=!t.paused;if(!t.paused)t.deferUntil='';saveState();renderHousehold();renderHouseholdManage();showToast(t.paused?'Huishoudklus gepauzeerd.':'Huishoudklus weer actief.');}return;}
     const hdel=e.target.closest('[data-household-delete]');if(hdel){const t=state.householdTasks.find(x=>x.id===hdel.dataset.householdDelete);if(!t)return;if(!confirm(`“${t.name}” verwijderen?`))return;state.householdTasks=state.householdTasks.filter(x=>x.id!==t.id);const c=householdTodayChoiceState();c.taskIds=c.taskIds.filter(id=>id!==t.id);const sk=householdSkipTodayState();sk.taskIds=sk.taskIds.filter(id=>id!==t.id);saveState();renderHousehold();renderHouseholdManage();return showToast('Huishoudklus verwijderd.');}
     if(e.target.closest('[data-close-household]'))return document.getElementById('householdModal').classList.remove('open');
-    const habitVersion=e.target.closest('[data-habit-version]');if(habitVersion){const [id,version]=habitVersion.dataset.habitVersion.split('|'),h=state.habits.find(x=>x.id===id);if(h){setHabitSelectedVersion(h,Number(version));saveState();renderDailyBasis();}return;}
+    const habitVersion=e.target.closest('[data-habit-version]');if(habitVersion){const [id,version]=habitVersion.dataset.habitVersion.split('|'),h=state.habits.find(x=>x.id===id);if(h){setHabitSelectedVersion(h,Number(version));syncRecoveryGoals();saveState();renderDailyBasis();renderRecoveryPanel();}return;}
     const habitUndo=e.target.closest('[data-habit-undo]');if(habitUndo){const h=state.habits.find(x=>x.id===habitUndo.dataset.habitUndo);if(h){const today=localDateKey(),doneVersion=Number(h.versionHistory?.[today]||0);if(doneVersion)setHabitSelectedVersion(h,doneVersion,today);if(h.history)delete h.history[today];if(h.versionHistory)delete h.versionHistory[today];saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderDailyBasis();showToast(`${h.name} staat weer open.`);}return;}
     const householdUndo=e.target.closest('[data-household-undo]');if(householdUndo){const h=state.householdTasks.find(x=>x.id===householdUndo.dataset.householdUndo);if(h){h.history||={};delete h.history[localDateKey()];saveState();renderHousehold();showToast(`${h.name} staat weer open.`);}return;}
     const taskUndo=e.target.closest('[data-task-undo]');if(taskUndo){const t=state.tasks.find(x=>x.id===taskUndo.dataset.taskUndo);if(t){markTask(t,false);showToast(`${t.name} staat weer open.`);}return;}
@@ -3562,7 +3666,11 @@
     }
     if(e.target.closest('[data-dayplan-focus-stop]'))return stopDayPlanFocus();
     if(e.target.closest('[data-dayplan-focus-open]'))return setDailyTab('focus');
-    if(e.target.closest('[data-recovery-open]'))return offerRecovery();
+    const logFor=e.target.closest('[data-recovery-log-for]');
+    if(logFor)return openRecoveryManual(logFor.dataset.recoveryLogFor);
+    if(e.target.closest('[data-recovery-open]')){recoveryManualMode=false;return offerRecovery();}
+    if(e.target.closest('[data-recovery-manual]')){recoveryManualMode=true;return renderRecoveryPanel();}
+    if(e.target.closest('[data-recovery-log]'))return recoveryLogManually();
     const recoveryDuration=e.target.closest('[data-recovery-minutes]');
     if(recoveryDuration){recoveryMinutes=Number(recoveryDuration.dataset.recoveryMinutes);return renderRecoveryPanel();}
     const recoveryChoice=e.target.closest('[data-recovery-kind]');
