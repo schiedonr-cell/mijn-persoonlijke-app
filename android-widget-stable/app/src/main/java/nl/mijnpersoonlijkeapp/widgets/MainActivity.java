@@ -56,6 +56,7 @@ public class MainActivity extends Activity {
     private final Runnable syncLoop = new Runnable() {
         @Override public void run() {
             applyPendingTimelineChanges();
+            applyPendingQuickChanges();
             syncWidget();
             handler.postDelayed(this, 1200);
         }
@@ -241,6 +242,7 @@ public class MainActivity extends Activity {
                     ensureCurrentNotesModule();
                     syncWidget();
                     applyPendingTimelineChanges();
+                    applyPendingQuickChanges();
                     startSync();
                     requestCalendarIfNeeded();
                 }
@@ -391,6 +393,14 @@ public class MainActivity extends Activity {
         try{webView.evaluateJavascript(js,null);}catch(Exception ignored){}
     }
 
+    private void applyPendingQuickChanges(){
+        if(webView==null||!imported())return;
+        String pending=SnapshotStore.quickPending(this);
+        if("[]".equals(pending))return;
+        String js="if(window.applyNativeQuickChanges)window.applyNativeQuickChanges("+JSONObject.quote(pending)+");";
+        try{webView.evaluateJavascript(js,null);}catch(Exception ignored){}
+    }
+
     private void syncWidget() {
         if (webView == null || !imported()) return;
         try {
@@ -436,6 +446,9 @@ public class MainActivity extends Activity {
     private final class Bridge {
         @JavascriptInterface public void ackDayTimelineUpdates(String idsJson) {
             SnapshotStore.acknowledge(getApplicationContext(),idsJson);
+        }
+        @JavascriptInterface public void ackQuickUpdates(String idsJson){
+            SnapshotStore.acknowledgeQuick(getApplicationContext(),idsJson);
         }
 
         @JavascriptInterface public void update(String stateJson, String calendarJson, String liveHouseholdJson) {
