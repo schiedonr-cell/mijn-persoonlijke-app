@@ -206,7 +206,10 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             String rawTime=row.optString("time","").trim();
             String clock=displayTime(rawTime);
             v.setImageViewResource(ICON_IDS[i], iconFor(kind));
-            v.setTextViewText(TIME_IDS[i], clock.isEmpty() ? "—" : clock);
+            // Zonder kloktijden is de tijdkolom overbodig. Verberg hem volledig:
+            // zo staat de activiteit direct naast het pictogram en verdwijnt het streepje.
+            v.setViewVisibility(TIME_IDS[i], usingDayPlan ? View.VISIBLE : View.GONE);
+            v.setTextViewText(TIME_IDS[i], usingDayPlan ? (clock.isEmpty() ? "—" : clock) : "");
             boolean completed=row.optBoolean("done",false);
             v.setTextViewText(TEXT_IDS[i], row.optString("text",""));
             if(usingDayPlan && !"agenda".equals(row.optString("linkType")) && !row.optString("blockId").isEmpty()){
