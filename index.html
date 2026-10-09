@@ -1882,6 +1882,77 @@
   function renderDailyBasis(){
     renderHabitGroup('habitList','completedHabitsWrap','basisProgress',state.habits,'Alle routines zijn voor vandaag afgerond.');
   }
+  function selfCareToday(){
+    const date=localDateKey();
+    if(!state.selfCare||state.selfCare.date!==date)state.selfCare={date,lunchDone:false,anchors:{},later:{},lastOffered:'',offer:null};
+    return state.selfCare;
+  }
+  function selfCareDone(kind){
+    if(kind==='move')return Boolean(state.habits.find(h=>h.id==='basis-move')?.history?.[localDateKey()]);
+    return recoveryMinutesTotal(kind)>=recoveryMinuteGoal(kind);
+  }
+  function renderSelfCare(){
+    const data=selfCareToday(),summary=document.getElementById('selfCareSummary'),offer=document.getElementById('selfCareOffer'),lunch=document.querySelector('[data-self-care-lunch]');
+    if(!summary||!offer||!lunch)return;
+    const rows=[['stretch','Stretchen',recoveryMinutesTotal('stretch')+' / '+recoveryMinuteGoal('stretch')+' min'],
+      ['move','Bewegen',selfCareDone('move')?'Afgerond':'Nog doen'],
+      ['relax','Bewust ontspannen',recoveryMinutesTotal('relax')+' / '+recoveryMinuteGoal('relax')+' min']];
+    summary.innerHTML=rows.map(([kind,label,progress])=>'<div class="self-care-row"><strong>'+escapeHtml(label)+'</strong><span class="'+(selfCareDone(kind)?'is-done':'')+'">'+(selfCareDone(kind)?'✓ ':'')+escapeHtml(progress)+'</span></div>').join('');
+    lunch.textContent=data.lunchDone?'✓ Lunch gehad':'Lunch gehad';
+    lunch.setAttribute('aria-pressed',String(data.lunchDone));
+    if(!data.offer||selfCareDone(data.offer)){data.offer=null;offer.hidden=true;offer.innerHTML='';return;}
+    const repeat=Number(data.later[data.offer]||0)>0;
+    const names={stretch:'stretchen',move:'bewegen',relax:'bewust ontspannen'};
+    const first={stretch:'Ochtendroutine afgerond. Tijd om even te stretchen?',move:'Lunch gehad. Tijd voor je beweegmoment?',relax:'Avondreset afgerond. Nu even ontspannen?'};
+    const title=repeat?'Je wilde vandaag nog '+names[data.offer]+'.':first[data.offer];
+    const detail=repeat?'Zullen we gewoon met 5 minuutjes beginnen?':'Begin gerust met 5 minuten. Meer mag altijd.';
+    offer.hidden=false;
+    offer.innerHTML='<strong>'+escapeHtml(title)+'</strong><p>'+escapeHtml(detail)+'</p>'
+      +'<div class="self-care-offer-actions"><button type="button" class="primary-button" data-self-care-now>Nu doen</button><button type="button" class="secondary-button" data-self-care-later>Later</button></div>';
+  }
+  function selfCareSuggest(source,item){
+    const info=selfCareToday();
+    let anchor='';
+    const name=dayPlanNormalizeText(item?.text||'');
+    if(source==='lunch'||(source==='timeline'&&/^(lunch|lunchen|middageten)( |$)/.test(name)))anchor='move';
+    else if((source==='habit'&&item?.id==='habit-morning')||(source==='timeline'&&item?.linkType==='habit'&&item?.linkId==='habit-morning'))anchor='stretch';
+    else if((source==='habit'&&item?.id==='habit-evening-reset')||(source==='timeline'&&item?.linkType==='habit'&&item?.linkId==='habit-evening-reset'))anchor='relax';
+    if(anchor)info.anchors[anchor]=true;
+    if(recoveryActive()||state.focus.running||activeDayPlanFocus()){saveState();renderSelfCare();return false;}
+    const choices=['stretch','move','relax'].filter(kind=>info.anchors[kind]&&!selfCareDone(kind));
+    if(!choices.length){info.offer=null;saveState();renderSelfCare();return false;}
+    let selected=anchor&&choices.includes(anchor)?anchor:null;
+    if(!selected){const index=choices.indexOf(info.lastOffered);selected=choices[(index+1)%choices.length];}
+    info.offer=selected;info.lastOffered=selected;
+    saveState();
+    if(dailyTab!=='start')setDailyTab('start');
+    renderSelfCare();
+    document.getElementById('selfCareOffer')?.scrollIntoView({behavior:'smooth',block:'nearest'});
+    return true;
+  }
+  function selfCareLunchToggle(){
+    const info=selfCareToday();
+    info.lunchDone=!info.lunchDone;
+    if(info.lunchDone)return selfCareSuggest('lunch');
+    info.anchors.move=false;
+    if(info.offer==='move')info.offer=null;
+    saveState();renderSelfCare();
+  }
+  function selfCareLater(){
+    const info=selfCareToday(),kind=info.offer;
+    if(!kind)return;
+    info.later[kind]=Number(info.later[kind]||0)+1;
+    info.offer=null;saveState();renderSelfCare();
+  }
+  function selfCareNow(){
+    const info=selfCareToday(),kind=info.offer;
+    if(!kind)return;
+    const id={stretch:'basis-stretch',move:'basis-move',relax:'basis-relax'}[kind];
+    if(!state.habits.some(h=>h.id===id))return showToast('Deze routine is niet gevonden.');
+    info.offer=null;saveState();renderSelfCare();
+    state.focus.durationSec=300;state.focus.remainingSec=300;
+    selectFocusItem('habit',id);
+  }
   function householdLimit(){ return Math.max(1,Math.min(3,Number(state.energy)||1)); }
   function householdEffortLabel(n){ return ({1:'Licht',2:'Normaal',3:'Meer energie'})[Number(n)]||'Licht'; }
   function householdFrequencyLabel(n){ n=Number(n)||1; return n===1?'Dagelijks':n===2?'Om de 2 dagen':n===3?'Om de 3 dagen':n===4?'Om de 4 dagen':n===5?'Om de 5 dagen':n===7?'Wekelijks':n===14?'Om de 2 weken':n===28?'Elke 4 weken':n===30?'Maandelijks':`Om de ${n} dagen`; }
@@ -2169,8 +2240,7 @@
     setDayPlanLinkedDone(block,true);
     setDailyTab('start');
     // Een kleine adempauze aanbieden vóór de keuze voor de volgende taak.
-    if(['task','household'].includes(block.linkType)||(!block.linkType&&!dayPlanRestLike(block.text)))offerRecovery();
-    else showDayPlanNextPicker();
+    if(!selfCareSuggest('timeline',block))showDayPlanNextPicker();
   }
   function stopDayPlanFocus(){
     if(!state.dayTimelineFocus)return;
@@ -3066,6 +3136,7 @@
   function renderToday(){
     ensureDailyState();
     syncRecoveryGoals();
+    renderSelfCare();
     document.querySelectorAll('.energy-btn').forEach(btn=>btn.classList.toggle('selected',Number(btn.dataset.energy)===Number(state.energy)));
     const closed=state.dayClosedDate===localDateKey();
     document.getElementById('dayClosedArea').innerHTML=closed?`<div class="section-card closed-card"><p class="eyebrow">VANDAAG</p><h3>Vandaag is rond.</h3><p class="small-muted">Morgen begint opnieuw bij je energie.</p><button class="secondary-button" id="reopenDayButton">Toch nog iets doen</button></div>`:'';
@@ -3322,9 +3393,9 @@
       if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}
       else delete h.versionHistory[today];
       saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();
-      renderDailyBasis();renderFocus();renderShutdown();showToast(`${h.name} afgerond.`);return;
+      renderDailyBasis();renderFocus();renderShutdown();showToast(`${h.name} afgerond.`);selfCareSuggest('habit',h);return;
     }
-    if(type==='household'){const h=state.householdTasks.find(x=>x.id===id);if(!h)return;h.history||={};h.history[today]=true;h.deferUntil='';saveState();renderHousehold();renderFocus();showToast(`${h.name} afgerond.`);}
+    if(type==='household'){const h=state.householdTasks.find(x=>x.id===id);if(!h)return;h.history||={};h.history[today]=true;h.deferUntil='';saveState();renderHousehold();renderFocus();showToast(`${h.name} afgerond.`);selfCareSuggest('household',h);}
   }
   function renderFocus(){
     const activeDay=activeDayPlanFocus();
@@ -3486,7 +3557,7 @@
     }
     if(done&&state.focus.taskId===task.id)state.focus.running=false;
     refillTodayPlan(false);saveState();renderToday();renderAllTasks();renderFocus();renderShutdown();
-    if(done&&!fromDayPlan)offerRecovery();
+    if(done&&!fromDayPlan)selfCareSuggest('task',task);
   }
 
   setInterval(()=>{ tickDayPlanFocus();tickRecovery(); if(state.focus.running){ state.focus.remainingSec=Math.max(0,(state.focus.remainingSec||0)-1); const task=state.tasks.find(t=>t.id===state.focus.taskId); if(task)task.elapsed=(task.elapsed||0)+1; const el=document.getElementById('focusClockText');if(el)el.textContent=formatTime(state.focus.remainingSec); if(state.focus.remainingSec<=0){state.focus.running=false;playFocusFinishedSignal();showToast('Focusblok klaar.');saveState();renderFocus();} if(state.focus.remainingSec%10===0)saveState(); } },1000);
@@ -3837,6 +3908,9 @@
     if(e.target.closest('[data-dayplan-focus-open]'))return setDailyTab('focus');
     const logFor=e.target.closest('[data-recovery-log-for]');
     if(logFor)return openRecoveryManual(logFor.dataset.recoveryLogFor);
+    if(e.target.closest('[data-self-care-lunch]'))return selfCareLunchToggle();
+    if(e.target.closest('[data-self-care-now]'))return selfCareNow();
+    if(e.target.closest('[data-self-care-later]'))return selfCareLater();
     if(e.target.closest('[data-recovery-open]')){recoveryManualMode=false;return offerRecovery();}
     if(e.target.closest('[data-recovery-manual]')){recoveryManualMode=true;return renderRecoveryPanel();}
     const recoveryDuration=e.target.closest('[data-recovery-minutes]');
@@ -3907,8 +3981,7 @@
       if(b){
         setDayPlanLinkedDone(b,e.target.checked);
         if(e.target.checked&&dayPlanBlockDone(b)){
-          if(['task','household'].includes(b.linkType)||(!b.linkType&&!dayPlanRestLike(b.text)))offerRecovery();
-          else showDayPlanNextPicker();
+          if(!selfCareSuggest('timeline',b))showDayPlanNextPicker();
         }else replanDayFromNow({silent:true});
       }
     }
@@ -3918,8 +3991,8 @@
     if(e.target.matches('[data-task-check]')){const t=state.tasks.find(x=>x.id===e.target.dataset.taskCheck);if(t)markTask(t,e.target.checked);}
     if(e.target.matches('[data-subtask-check]')){const [tid,sid]=e.target.dataset.subtaskCheck.split('|'),t=state.tasks.find(x=>x.id===tid),s=t?.subtasks?.find(x=>x.id===sid);if(s){s.done=e.target.checked;saveState();renderToday();renderAllTasks();renderFocus();}}
     if(e.target.matches('[data-saved-step-check]')){const task=activeTaskForSteps(),st=task?.subtasks?.find(x=>x.id===e.target.dataset.savedStepCheck);if(st){st.done=e.target.checked;saveState();renderSavedTaskStepEditor();renderToday();renderAllTasks();renderFocus();}}
-    if(e.target.matches('[data-habit-check]')){const h=state.habits.find(x=>x.id===e.target.dataset.habitCheck);if(h){const today=localDateKey();h.history||={};h.versionHistory||={};if(e.target.checked){h.history[today]=true;if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}else delete h.versionHistory[today];if(state.focus.targetType==='habit'&&state.focus.targetId===h.id)state.focus.running=false;}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderDailyBasis();renderDayTimeline();}}
-    if(e.target.matches('[data-household-check]')){const h=state.householdTasks.find(x=>x.id===e.target.dataset.householdCheck);if(h){h.history||={};if(e.target.checked){h.history[localDateKey()]=true;h.deferUntil='';if(state.focus.targetType==='household'&&state.focus.targetId===h.id)state.focus.running=false;}else delete h.history[localDateKey()];saveState();renderHousehold();renderDayTimeline();if(e.target.checked)offerRecovery();}}
+    if(e.target.matches('[data-habit-check]')){const h=state.habits.find(x=>x.id===e.target.dataset.habitCheck);if(h){const today=localDateKey();h.history||={};h.versionHistory||={};if(e.target.checked){h.history[today]=true;if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}else delete h.versionHistory[today];if(state.focus.targetType==='habit'&&state.focus.targetId===h.id)state.focus.running=false;}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderDailyBasis();renderDayTimeline();if(e.target.checked)selfCareSuggest('habit',h);else renderSelfCare();}}
+    if(e.target.matches('[data-household-check]')){const h=state.householdTasks.find(x=>x.id===e.target.dataset.householdCheck);if(h){h.history||={};if(e.target.checked){h.history[localDateKey()]=true;h.deferUntil='';if(state.focus.targetType==='household'&&state.focus.targetId===h.id)state.focus.running=false;}else delete h.history[localDateKey()];saveState();renderHousehold();renderDayTimeline();if(e.target.checked)selfCareSuggest('household',h);}}
     if(e.target.matches('#taskActionBucket')){const t=state.tasks.find(x=>x.id===activeTaskActionId),bucket=e.target.value;if(t&&['A','B','C','D'].includes(bucket)){t.bucket=bucket;t.paused=false;t.deferUntil='';if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderAllTasks();renderToday();document.getElementById('taskActionMeta').textContent='Taak verplaatst.';}}
     if(e.target.matches('[data-move-task]')){const t=state.tasks.find(x=>x.id===e.target.dataset.moveTask),bucket=e.target.value;if(t&&['A','B','C','D'].includes(bucket)){t.bucket=bucket;t.paused=false;t.deferUntil='';if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderAllTasks();renderToday();showToast('Taak verplaatst.');}}
     if(e.target.matches('[data-shopping-check]')){const item=state.shopping.find(x=>x.id===e.target.dataset.shoppingCheck);if(item){item.done=e.target.checked;saveState();renderShopping();}}
