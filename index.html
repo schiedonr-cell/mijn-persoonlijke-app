@@ -832,6 +832,8 @@
     .day-recovery-grid button,.day-recovery-kinds button{min-height:47px;border:1px solid var(--line);border-radius:11px;background:var(--card,#fff);padding:7px;font-weight:750}
     .day-recovery-grid button.selected,.day-recovery-kinds button.selected{border:2px solid var(--accent-strong);background:var(--accent-soft);color:var(--accent-strong)}
     .day-recovery-kinds{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+    .day-recovery-custom{display:block;font-size:13px;font-weight:750;margin:12px 0;color:var(--text)}
+    .day-recovery-custom input{display:block;margin-top:6px;width:100%;min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--card,#fff);color:var(--text);font:inherit;font-size:17px}
     .recovery-habit-progress{margin:9px 0;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
     .recovery-habit-progress span{font-size:13px;font-weight:750;color:var(--accent-strong)}
     .recovery-habit-progress button{font-size:12px;min-height:35px;background:var(--surface-soft);border:1px solid var(--line);padding:7px 11px;border-radius:10px;font-weight:800}
@@ -1696,7 +1698,7 @@
   async function getReminderRegistration(){
     if(new URLSearchParams(location.search).has('nativev'))throw new Error('Android gebruikt native herinneringen.');
     let reg=await navigator.serviceWorker.getRegistration('./');
-    if(!reg)reg=await navigator.serviceWorker.register('./service-worker.js?v=46');
+    if(!reg)reg=await navigator.serviceWorker.register('./service-worker.js?v=47');
     await navigator.serviceWorker.ready;
     return reg;
   }
@@ -1829,15 +1831,14 @@
   }
   function dailyHabitCard(h,today){
     const progressKind=recoveryRoutineKind(h);
-    const progress=progressKind?'<div class="recovery-habit-progress"><span>'+recoveryMinutesTotal(progressKind,today)
-      +' / '+recoveryMinuteGoal(progressKind,today)+' minuten</span>'
+    const progress=progressKind?'<div class="recovery-habit-progress"><span>'+recoveryProgressText(progressKind,today)+'</span>'
       +'<button type="button" data-recovery-log-for="'+escapeHtml(progressKind)+'">Minuten registreren</button></div>':'';
     const top=[h.time?`⏰ ${h.time}`:'',h.anchor||''].filter(Boolean).join(' · ');
     return `<div class="basis-item">${progressKind?'<div class="completed-habit-check">◷</div>':`<input class="check" type="checkbox" data-habit-check="${h.id}" aria-label="${escapeHtml(h.name)} afvinken"/>`}<div class="basis-copy">${top?`<div class="basis-anchor">${escapeHtml(top)}</div>`:''}<div class="basis-name">${escapeHtml(h.name)}</div>${h.energyAdaptive?renderHabitVersionChoices(h,today):`<div class="basis-detail">${escapeHtml(h.description||'Iedere dag dezelfde versie.')}</div>`}${progress}</div><div class="focus-item-actions"><button class="focus-list-button" data-focus-habit="${h.id}">Focus</button><button class="basis-options" data-item-action="habit|${h.id}" aria-label="Bewerken en opties">•••</button></div></div>`;
   }
   function completedHabitHtml(h,today){
     const kind=recoveryRoutineKind(h);
-    const progress=kind?recoveryMinutesTotal(kind,today)+' / '+recoveryMinuteGoal(kind,today)+' min':'';
+    const progress=kind?recoveryProgressText(kind,today):'';
     const v=Number(h.versionHistory?.[today]||0),level=v?habitLevel(h,v):null,meta=[h.time?`⏰ ${h.time}`:'',h.anchor,h.energyAdaptive&&v?habitVersionLabel(v):'',level?.minimum||'',progress].filter(Boolean).join(' · ');
     return `<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(h.name)}</div>${meta?`<div class="completed-habit-meta">${escapeHtml(meta)}</div>`:''}</div><button class="habit-undo-button" data-habit-undo="${h.id}">Ongedaan</button></div>`;
   }
@@ -2513,6 +2514,11 @@
     return recoverySessionsForDay(date).filter(s=>kind==='stretch'?s.kind==='stretchen':s.kind!=='stretchen')
       .reduce((sum,s)=>sum+Math.max(0,Math.floor(Number(s.minutes)||0)),0);
   }
+  function recoveryProgressText(kind,date=localDateKey()){
+    const logged=recoveryMinutesTotal(kind,date),goal=recoveryMinuteGoal(kind,date);
+    return Math.min(logged,goal)+' / '+goal+' minuten'
+      +(logged>goal?' ('+logged+' minuten geregistreerd)':'');
+  }
   function syncRecoveryGoal(kind,date=localDateKey()){
     const h=recoveryRoutine(kind);if(!h)return;
     const enough=recoveryMinutesTotal(kind,date)>=recoveryMinuteGoal(kind,date);
@@ -2576,10 +2582,10 @@
       box=document.getElementById('dayPlanRecoveryPanel');
     if(!box||!bar)return;
     const sessions=recoverySessionsForDay();
-    const relaxTotal=recoveryMinutesTotal('relax'),stretchTotal=recoveryMinutesTotal('stretch');
+    const relaxProgress=recoveryProgressText('relax'),stretchProgress=recoveryProgressText('stretch');
     const parts=new Set(sessions.map(s=>s.daypart));
     bar.innerHTML='<div><strong>Even aan jezelf denken</strong><small>'
-      +'Ontspannen '+relaxTotal+'/'+recoveryMinuteGoal('relax')+' min · Stretchen '+stretchTotal+'/'+recoveryMinuteGoal('stretch')+' min'
+      +'Ontspannen '+relaxProgress+' · Stretchen '+stretchProgress
       +' · '+['ochtend','middag','avond'].map(p=>(parts.has(p)?'✓ ':'○ ')+p).join(' / ')
       +'</small></div><button type="button" data-recovery-open>Rustmoment</button>';
     const active=recoveryActive();
@@ -2599,6 +2605,7 @@
       +'<strong>Hoe lang?</strong>'
       +'<div class="day-recovery-grid">'+[5,10,15].map(n=>
         '<button type="button" data-recovery-minutes="'+n+'" class="'+(recoveryMinutes===n?'selected':'')+'">'+n+' minuten</button>').join('')+'</div>'
+      +(recoveryManualMode?'<label class="day-recovery-custom">Andere tijd (minuten)<input type="number" min="1" max="360" step="1" inputmode="numeric" placeholder="Bijv. 20" data-recovery-custom-minutes aria-label="Zelf minuten invullen"></label>':'')
       +'<strong>Waar heb je zin in?</strong>'
       +'<div class="day-recovery-kinds">'+Object.entries(recoveryLabels).map(([id,label])=>
         '<button type="button" data-recovery-kind="'+id+'" class="'+(id===recoveryKind?'selected':'')+'">'+escapeHtml(label)+'</button>').join('')+'</div>'
@@ -2643,11 +2650,24 @@
     showDayPlanNextPicker(false);
   }
   function recoveryLogManually(){
-    if(recoveryActive())return;
-    const done=recordRecoverySession(recoveryKind,recoveryMinutes,'handmatig');
+    if(recoveryActive())return showToast('Rond je lopende rustmoment eerst af.');
+    const field=document.querySelector('#dayPlanRecoveryPanel [data-recovery-custom-minutes]');
+    const custom=field?field.value.trim():'';
+    const minutes=custom?Number(custom):recoveryMinutes;
+    if((custom&&!/^[0-9]+$/.test(custom))||!Number.isInteger(minutes)||minutes<1||minutes>360){
+      return showToast('Vul een heel aantal minuten in van 1 tot 360.');
+    }
+    // Sluit de invoer vóór het opnieuw tekenen van de dag; de log blijft volledig bewaard.
     recoveryManualMode=false;recoveryOfferVisible=false;
+    let done=false;
+    try{done=recordRecoverySession(recoveryKind,minutes,'handmatig');}
+    catch(error){console.error('Minuten registreren mislukt',error);}
+    if(!done){
+      recoveryManualMode=true;recoveryOfferVisible=true;renderRecoveryPanel();
+      return showToast('Opslaan is niet gelukt. Probeer het opnieuw.');
+    }
     renderRecoveryPanel();
-    if(done)showToast(recoveryMinutes+' minuten geregistreerd voor '+(recoveryKind==='stretchen'?'Stretchen':'Bewust ontspannen')+'.');
+    showToast(minutes+' minuten geregistreerd voor '+(recoveryKind==='stretchen'?'Stretchen':'Bewust ontspannen')+'.');
     showDayPlanNextPicker(false);
   }
   function recoveryStop(){
@@ -3743,6 +3763,12 @@
 
 
   document.getElementById('dayPlanInput').addEventListener('input',showDayPlanPasteStatus);
+  // Directe handler op het rustpaneel voor betrouwbaar opslaan in Android WebView.
+  document.getElementById('dayPlanRecoveryPanel')?.addEventListener('click',e=>{
+    if(!e.target.closest('[data-recovery-log]'))return;
+    e.stopPropagation();
+    recoveryLogManually();
+  });
   document.addEventListener('click',e=>{
     const startFocus=e.target.closest('[data-dayplan-focus-start]');
     if(startFocus)return startDayPlanFocus(startFocus.dataset.dayplanFocusStart);
@@ -3872,7 +3898,7 @@
   document.getElementById('inputModal').addEventListener('click',e=>{if(e.target.id==='inputModal')closeInputModal();});document.getElementById('taskStepsModal').addEventListener('click',e=>{if(e.target.id==='taskStepsModal')closeTaskStepsManage();});document.getElementById('recipeModal').addEventListener('click',e=>{if(e.target.id==='recipeModal')closeRecipeModal();});document.getElementById('habitModal').addEventListener('click',e=>{if(e.target.id==='habitModal'){activeHabitId=null;e.target.classList.remove('open');}});document.getElementById('progressModal').addEventListener('click',e=>{if(e.target.id==='progressModal')e.target.classList.remove('open');});document.getElementById('reminderModal').addEventListener('click',e=>{if(e.target.id==='reminderModal')closeReminderModal();});document.getElementById('taskReminderModal').addEventListener('click',e=>{if(e.target.id==='taskReminderModal'){activeReminderItemId=null;e.target.classList.remove('open');}});document.getElementById('taskActionModal').addEventListener('click',e=>{if(e.target.id==='taskActionModal')closeTaskAction();});document.getElementById('itemActionModal').addEventListener('click',e=>{if(e.target.id==='itemActionModal')closeItemAction();});document.getElementById('foodSettingsModal').addEventListener('click',e=>{if(e.target.id==='foodSettingsModal'){foodDraft=null;e.target.classList.remove('open');}});document.getElementById('replaceMealModal').addEventListener('click',e=>{if(e.target.id==='replaceMealModal'){replacePlanIndex=null;e.target.classList.remove('open');}});
 
   let deferredInstallPrompt=null; const installCard=document.getElementById('installCard'),installButton=document.getElementById('installAppButton');window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;installCard?.classList.add('show');});installButton?.addEventListener('click',async()=>{if(!deferredInstallPrompt)return showToast('Deze app staat al op je telefoon of installeren is hier niet beschikbaar.');deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installCard?.classList.remove('show');});window.addEventListener('appinstalled',()=>installCard?.classList.remove('show'));
-  if('serviceWorker'in navigator&&location.protocol.startsWith('http')&&!new URLSearchParams(location.search).has('nativev'))window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=46').then(()=>{if(reminderSettings.enabled)setTimeout(syncReminderState,900);}).catch(()=>{}));
+  if('serviceWorker'in navigator&&location.protocol.startsWith('http')&&!new URLSearchParams(location.search).has('nativev'))window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=47').then(()=>{if(reminderSettings.enabled)setTimeout(syncReminderState,900);}).catch(()=>{}));
 
   const dateFmt=new Intl.DateTimeFormat('nl-NL',{weekday:'long',day:'numeric',month:'long'}),dateText=dateFmt.format(new Date());document.getElementById('todayLabel').textContent=dateText.charAt(0).toUpperCase()+dateText.slice(1);
   setupSpeech(); ensureDailyState(); ensureFoodPrefs(); renderToday(); renderDump(); renderAllTasks(); renderFocus(); renderShutdown(); renderFoodAll(); renderProjects(); openWidgetTargetFromUrl();
