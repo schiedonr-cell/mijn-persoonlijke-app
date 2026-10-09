@@ -26,6 +26,7 @@ final class SnapshotStore {
     private static final String PREFS = "widget_snapshot_store";
     private static final String KEY = "today_snapshot";
     private static final String PENDING = "day_timeline_pending";
+    private static final String QUICK_PENDING = "today_quick_pending";
     private static final String CACHED_STATE = "last_web_state";
     private static final String CACHED_CALENDAR = "last_calendar_state";
     private static final String CACHED_HOUSEHOLD = "last_household_state";
@@ -45,6 +46,7 @@ final class SnapshotStore {
                     .putString(CACHED_HOUSEHOLD, liveHouseholdJson == null ? "" : liveHouseholdJson)
                     .commit();
             applyPendingToSnapshotState(context, state);
+            applyPendingQuickToSnapshotState(context, state);
             JSONObject snapshot = build(context, state, calendarJson, liveHouseholdJson);
             persistAndRefresh(context, snapshot);
         } catch (Exception ignored) {}
@@ -101,6 +103,99 @@ final class SnapshotStore {
                 if(!found)remain.put(op);
             }
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(PENDING,remain.toString()).commit();
+        }catch(Exception ignored){}
+    }
+
+
+    static synchronized String quickPending(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(QUICK_PENDING, "[]");
+    }
+
+    static synchronized void acknowledgeQuick(Context context, String idsJson) {
+        try {
+            JSONArray ids = new JSONArray(idsJson), items = new JSONArray(quickPending(context)), remain = new JSONArray();
+            for(int i=0;i<items.length();i++){
+                JSONObject op=items.optJSONObject(i);
+                if(op==null)continue;
+                boolean acknowledged=false;
+                for(int j=0;j<ids.length();j++)if(op.optString("id").equals(ids.optString(j)))acknowledged=true;
+                if(!acknowledged)remain.put(op);
+            }
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(QUICK_PENDING,remain.toString()).commit();
+        }catch(Exception ignored){}
+    }
+
+    // Afvinken zonder tijdplanning werkt direct in de widget, ook wanneer de app gesloten is.
+    // De actie wordt later exact eenmaal toegepast op dezelfde gegevens in de WebView.
+    static synchronized boolean toggleQuick(Context context, String date, String type, String itemId) {
+        if(!todayKey().equals(date)||itemId==null||itemId.isEmpty())return false;
+        if(!("task".equals(type)||"habit".equals(type)||"household".equals(type)||"lunch".equals(type)))return false;
+        try {
+            JSONObject snapshot=read(context);
+            if(!date.equals(snapshot.optString("date")))return false;
+            JSONArray rows=snapshot.optJSONArray("mixedRows");
+            boolean exists=false;
+            if(rows!=null)for(int i=0;i<rows.length();i++){
+                JSONObject row=rows.optJSONObject(i);
+                if(row!=null&&type.equals(row.optString("itemType"))&&itemId.equals(row.optString("itemId"))){
+                    exists=true;break;
+                }
+            }
+            if(!exists)return false;
+            SharedPreferences prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE);
+            JSONArray old=new JSONArray(quickPending(context)),next=new JSONArray();
+            for(int i=0;i<old.length();i++){
+                JSONObject op=old.optJSONObject(i);
+                if(op!=null && !(date.equals(op.optString("date"))&&type.equals(op.optString("itemType"))
+                        &&itemId.equals(op.optString("itemId"))))next.put(op);
+            }
+            JSONObject op=new JSONObject();
+            op.put("id",java.util.UUID.randomUUID().toString());
+            op.put("date",date);op.put("itemType",type);op.put("itemId",itemId);op.put("done",true);
+            next.put(op);
+            prefs.edit().putString(QUICK_PENDING,next.toString()).commit();
+            String saved=prefs.getString(CACHED_STATE,"");
+            if(!saved.isEmpty()){
+                JSONObject state=new JSONObject(saved);
+                applyPendingToSnapshotState(context,state);
+                applyPendingQuickToSnapshotState(context,state);
+                persistAndRefresh(context,build(context,state,prefs.getString(CACHED_CALENDAR,""),
+                        prefs.getString(CACHED_HOUSEHOLD,"")));
+            }
+            return true;
+        }catch(Exception ignored){return false;}
+    }
+
+    private static void applyPendingQuickToSnapshotState(Context context, JSONObject state) {
+        try{
+            JSONArray ops=new JSONArray(quickPending(context));
+            String date=todayKey();
+            for(int i=0;i<ops.length();i++){
+                JSONObject op=ops.optJSONObject(i);
+                if(op==null||!date.equals(op.optString("date"))||!op.optBoolean("done",false))continue;
+                String type=op.optString("itemType"),id=op.optString("itemId");
+                if("lunch".equals(type)){
+                    JSONObject info=state.optJSONObject("selfCare");
+                    if(info==null||!date.equals(info.optString("date"))){
+                        info=new JSONObject();info.put("date",date);
+                        info.put("anchors",new JSONObject());info.put("later",new JSONObject());
+                        state.put("selfCare",info);
+                    }
+                    info.put("lunchDone",true);
+                }else{
+                    JSONArray list=state.optJSONArray("task".equals(type)?"tasks":"habit".equals(type)?"habits":"householdTasks");
+                    JSONObject item=findById(list,id);
+                    if(item==null)continue;
+                    if("task".equals(type)){
+                        item.put("done",true);item.put("completedAt",System.currentTimeMillis());
+                    }else{
+                        JSONObject history=item.optJSONObject("history");
+                        if(history==null){history=new JSONObject();item.put("history",history);}
+                        history.put(date,true);
+                        if("household".equals(type))item.put("deferUntil","");
+                    }
+                }
+            }
         }catch(Exception ignored){}
     }
 
@@ -233,6 +328,7 @@ final class SnapshotStore {
         snapshot.put("energy", energy);
         snapshot.put("updatedAt", System.currentTimeMillis());
         snapshot.put("rows", rows);
+        snapshot.put("mixedRows", buildMixedRows(rows, state, today));
 
         JSONObject plan = state.optJSONObject("dayTimeline");
         JSONArray blocks = plan == null ? null : plan.optJSONArray("blocks");
@@ -305,6 +401,57 @@ final class SnapshotStore {
         return out;
     }
 
+    // Een rustige dagvolgorde zonder tijden. De bestaande losse vier widgets
+    // blijven de originele categoriegegevens uit "rows" gebruiken.
+    private static JSONArray buildMixedRows(JSONArray source, JSONObject state, String today) {
+        JSONArray out=new JSONArray();
+        List<JSONObject> tasks=new ArrayList<>(),house=new ArrayList<>(),other=new ArrayList<>(),agenda=new ArrayList<>();
+        JSONObject morning=null,stretch=null,move=null,relax=null,evening=null,close=null;
+        for(int i=0;i<source.length();i++){
+            JSONObject row=source.optJSONObject(i);
+            if(row==null)continue;
+            String type=row.optString("itemType"),id=row.optString("itemId");
+            if("Agenda".equals(row.optString("kind")))agenda.add(row);
+            else if("habit".equals(type)){
+                if("habit-morning".equals(id))morning=row;
+                else if("basis-stretch".equals(id))stretch=row;
+                else if("basis-move".equals(id))move=row;
+                else if("basis-relax".equals(id))relax=row;
+                else if("habit-evening-reset".equals(id))evening=row;
+                else if("habit-day-close".equals(id))close=row;
+                else other.add(row);
+            }else if("task".equals(type))tasks.add(row);
+            else if("household".equals(type))house.add(row);
+            else other.add(row);
+        }
+        for(JSONObject row:agenda)out.put(row);
+        if(morning!=null)out.put(morning);
+        if(stretch!=null)out.put(stretch);
+        if(!tasks.isEmpty())out.put(tasks.remove(0));
+        if(!house.isEmpty())out.put(house.remove(0));
+        JSONObject selfCare=state.optJSONObject("selfCare");
+        if(selfCare==null||!today.equals(selfCare.optString("date"))||!selfCare.optBoolean("lunchDone",false)){
+            JSONObject lunch=new JSONObject();
+            try{
+                lunch.put("kind","Zelfzorg");lunch.put("text","Lunch gehad?");
+                lunch.put("itemType","lunch");lunch.put("itemId","lunch");lunch.put("time","");
+                out.put(lunch);
+            }catch(Exception ignored){}
+        }
+        if(move!=null)out.put(move);
+        if(!tasks.isEmpty())out.put(tasks.remove(0));
+        if(!house.isEmpty())out.put(house.remove(0));
+        if(relax!=null)out.put(relax);
+        while(!tasks.isEmpty()||!house.isEmpty()){
+            if(!tasks.isEmpty())out.put(tasks.remove(0));
+            if(!house.isEmpty())out.put(house.remove(0));
+        }
+        for(JSONObject row:other)out.put(row);
+        if(evening!=null)out.put(evening);
+        if(close!=null)out.put(close);
+        return out;
+    }
+
     private static boolean isMinuteRoutine(JSONArray habits, String id) {
         if ("basis-relax".equals(id) || "basis-stretch".equals(id)) return true;
         JSONObject h = findById(habits, id);
@@ -327,12 +474,16 @@ final class SnapshotStore {
     }
 
     private static void addRow(JSONArray rows, String kind, String text, String time) {
+        addRow(rows,kind,text,time,"","");
+    }
+    private static void addRow(JSONArray rows, String kind, String text, String time, String type, String id) {
         if (text == null || text.trim().isEmpty()) return;
         JSONObject row = new JSONObject();
         try {
             row.put("kind", kind);
             row.put("text", text.trim());
             row.put("time", time == null ? "" : time.trim());
+            if(!type.isEmpty()&&!id.isEmpty()){row.put("itemType",type);row.put("itemId",id);}
             rows.put(row);
         } catch (Exception ignored) {}
     }
@@ -352,7 +503,16 @@ final class SnapshotStore {
                     if(house!=null && name.equalsIgnoreCase(house.optString("name",""))
                             && doneToday(house,today)){completed=true;break;}
                 }
-                if(!completed)addRow(rows, "Huis", name, item.optString("time", ""));
+                if(!completed){
+                    String linkedId="";
+                    if(allHousehold!=null)for(int j=0;j<allHousehold.length();j++){
+                        JSONObject entry=allHousehold.optJSONObject(j);
+                        if(entry!=null&&name.equalsIgnoreCase(entry.optString("name",""))){
+                            linkedId=entry.optString("id","");break;
+                        }
+                    }
+                    addRow(rows,"Huis",name,item.optString("time",""),linkedId.isEmpty()?"":"household",linkedId);
+                }
             }
             return true;
         } catch (Exception e) {
@@ -370,7 +530,7 @@ final class SnapshotStore {
             if (!startedOn.isEmpty() && startedOn.compareTo(today) > 0) continue;
             JSONObject history = h.optJSONObject("history");
             if (history != null && truthy(history, today)) continue;
-            addRow(rows, "Routine", h.optString("name", "Gewoonte"), h.optString("time", ""));
+            addRow(rows, "Routine", h.optString("name", "Gewoonte"), h.optString("time", ""),"habit",h.optString("id",""));
         }
     }
 
@@ -401,10 +561,11 @@ final class SnapshotStore {
             }
         });
 
-        for (JSONObject item : fixed) addRow(rows, "Huis", item.optString("name", "Huishouden"), item.optString("time", ""));
+        for (JSONObject item : fixed) addRow(rows, "Huis", item.optString("name", "Huishouden"), item.optString("time", ""),"household",item.optString("id",""));
         int openSlots = Math.max(0, energy - doneRegular);
         for (int i = 0; i < Math.min(openSlots, due.size()); i++) {
-            addRow(rows, "Huis", due.get(i).optString("name", "Huishouden"), due.get(i).optString("time", ""));
+            JSONObject task=due.get(i);
+            addRow(rows, "Huis", task.optString("name", "Huishouden"), task.optString("time", ""),"household",task.optString("id",""));
         }
     }
 
@@ -456,7 +617,7 @@ final class SnapshotStore {
         }
 
         for (JSONObject task : chosen) {
-            addRow(rows, "Taak", task.optString("name", "Taak"), task.optString("time", ""));
+            addRow(rows, "Taak", task.optString("name", "Taak"), task.optString("time", ""),"task",task.optString("id",""));
         }
     }
 
