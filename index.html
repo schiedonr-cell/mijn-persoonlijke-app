@@ -1404,8 +1404,8 @@
   const DEFAULT_BASIS_HABITS = [
     {id:"habit-morning",name:"Ochtendroutine",anchor:"Ochtend",description:"Opstaan • medicijnen nemen • wassen/douchen • aankleden • honden",energyAdaptive:false,levels:{},history:{},versionHistory:{},startedOn:localDateKey()},
     {id:"basis-move",name:"Bewegen",anchor:"Na de lunch",description:"",energyAdaptive:true,levels:{
-      1:{minimum:"5–10 min",detail:"Korte wandeling, rustig bewegen of stretchen."},
-      2:{minimum:"15–30 min",detail:"Wandeling, workout of stretchen — kies wat nu past."},
+      1:{minimum:"5–10 min",detail:"Korte wandeling of rustig bewegen."},
+      2:{minimum:"15–30 min",detail:"Wandeling of workout — kies wat nu past."},
       3:{minimum:"Workout of lange wandeling",detail:"Een grotere beweegversie als die nu bij je past."}
     },history:{},versionHistory:{},startedOn:localDateKey()},
     {id:"basis-stretch",name:"Stretchen",anchor:"Kleine momenten over de dag",description:"Rustig en soepel bewegen, zonder forceren.",energyAdaptive:true,levels:{
@@ -1562,6 +1562,26 @@
         const version=i+1;
         relax.levels[version]={...(relax.levels[version]||{}),minimum:minutes+' min'};
       });
+      // Vorige versie vinkte de routine na het eerste rustmoment af.
+      // Corrigeer uitsluitend vandaag wanneer er rustmomenten zijn gelogd
+      // maar het nieuwe dagdoel nog niet is gehaald. Historie blijft bewaard.
+      const today=localDateKey(),sessions=Array.isArray(saved.recovery?.sessions)?saved.recovery.sessions:[];
+      const logged=sessions.filter(x=>x&&x.date===today&&x.kind!=='stretchen');
+      const total=logged.reduce((sum,x)=>sum+Math.max(0,Math.floor(Number(x.minutes)||0)),0);
+      const selected=Number(saved.habitVersionSelections?.[today]?.['basis-relax']
+        ||saved.energyHistory?.[today]||saved.energy||2);
+      const target=([0,10,20,30][selected]||20);
+      if(logged.length&&total<target&&relax.history?.[today]){
+        delete relax.history[today];
+        if(relax.versionHistory)delete relax.versionHistory[today];
+      }
+    }
+    const move=out.find(h=>h.id==='basis-move');
+    if(move){
+      if(move.levels?.[1]?.detail==='Korte wandeling, rustig bewegen of stretchen.')
+        move.levels[1].detail='Korte wandeling of rustig bewegen.';
+      if(move.levels?.[2]?.detail==='Wandeling, workout of stretchen — kies wat nu past.')
+        move.levels[2].detail='Wandeling of workout — kies wat nu past.';
     }
     // Een eventueel al door de gebruiker aangemaakte stretchroutine behouden.
     if(!out.some(h=>h.id==='basis-stretch'||/^stretchen(?:\s*\/\s*mobiliteit)?$/i.test(h.name||''))){
@@ -2621,6 +2641,7 @@
     if(recoveryActive())return;
     const done=recordRecoverySession(recoveryKind,recoveryMinutes,'handmatig');
     recoveryManualMode=false;recoveryOfferVisible=false;
+    renderRecoveryPanel();
     if(done)showToast(recoveryMinutes+' minuten geregistreerd voor '+(recoveryKind==='stretchen'?'Stretchen':'Bewust ontspannen')+'.');
     showDayPlanNextPicker(false);
   }
