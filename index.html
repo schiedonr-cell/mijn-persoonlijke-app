@@ -825,6 +825,7 @@
     .day-plan-choice-row input{width:22px;height:22px;flex-shrink:0;accent-color:var(--accent-strong)}
     .day-plan-choice-row span{min-width:0;font-weight:730}
     .day-plan-choice-row small{display:block;font-weight:400;color:var(--muted);margin-top:3px}
+    .day-plan-choice-feedback{padding:10px 11px;border-radius:10px;background:var(--card,#fff);font-size:13px;line-height:1.5;margin:7px 0 12px!important}
     .day-plan-deferred{margin-top:12px;border-top:1px solid var(--line);padding:9px 0}
     .day-plan-deferred summary{font-weight:750;cursor:pointer}
     .day-plan-deferred-item{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-top:9px;padding:8px 0;border-bottom:1px solid var(--line)}
@@ -1974,7 +1975,16 @@
     })).filter(x=>x.start!==null).sort((a,b)=>a.start-b.start);
     const changes=new Map();
     let cursor=startMinutes;
-    for(const b of ordered){
+    function shortageFrom(index,overflow){
+      const remaining=ordered.slice(index+1).filter(x=>!finished(x));
+      const remainingMinutes=remaining.reduce((sum,x)=>{
+        const st=dayPlanMinutes(x.start),en=dayPlanMinutes(x.end);
+        return sum+(st!==null&&en!==null&&en>=st?en-st:0);
+      },0);
+      return Math.max(1,Math.ceil(overflow+remainingMinutes));
+    }
+    for(let blockIndex=0;blockIndex<ordered.length;blockIndex++){
+      const b=ordered[blockIndex];
       if(finished(b))continue;
       const mode=dayPlanBlockMode(b);
       const originalStart=dayPlanMinutes(b.originalStart||b.start);
@@ -2011,10 +2021,10 @@
         return {ok:false,reason:window.name+' past niet meer binnen het afgesproken tijdvenster. Er is te weinig ruimte zonder iets te verplaatsen of in te korten.',type:'meal',block:b};
       }
       if(candidate+duration>=1440){
-        return {ok:false,reason:'De resterende planning past niet meer vóór middernacht. Kies welke onderdelen vandaag belangrijk blijven.',type:'midnight',block:b};
+        return {ok:false,reason:'Je planning past nog niet vóór middernacht.',type:'midnight',block:b,shortageMinutes:shortageFrom(blockIndex,candidate+duration-1439)};
       }
       if(candidate+duration>1410&&!options.allowLateDay){
-        return {ok:false,reason:'Je dag zou na 23:30 doorgaan. Er is te weinig ruimte om alles rustig af te ronden.',type:'dayEnd',block:b};
+        return {ok:false,reason:'Je dag zou na 23:30 doorgaan.',type:'dayEnd',block:b,shortageMinutes:shortageFrom(blockIndex,candidate+duration-1410)};
       }
       changes.set(b.id,{start:candidate,end:candidate+duration,hasEnd:!!b.end});
       cursor=candidate+duration;
@@ -2025,7 +2035,7 @@
     if(!b||b.postponedTo||dayPlanBlockDone(b)||dayPlanBlockMode(b)!=='flex')return false;
     if(b.linkType==='habit'||b.linkType==='agenda')return false;
     const name=dayPlanNormalizeText(b.text);
-    if(/\b(rust|pauze|ontspanning|ontspannen|bewegen|wandelen|lunch|avondeten|vrij(e|e)? tijd|vrije avond|ochtendroutine|avondroutine|avondreset)\b/.test(name))return false;
+    if(/(^| )(rust\w*|pauze\w*|ontspann\w*|beweg\w*|wandel\w*|lunch\w*|avondeten\w*|vrij\w*|ochtendroutine|avondroutine|avondreset|afbouw\w*|slapen|honden)( |$)/.test(name))return false;
     return true;
   }
   function dayPlanPostponeChoices(){
@@ -2040,6 +2050,27 @@
       group.minutes+=start!==null&&end!==null?Math.max(0,end-start):0;
     }
     return [...groups.values()];
+  }
+  function selectedPostponeIds(){
+    const box=document.getElementById('dayPlanConflict');
+    return box?[...box.querySelectorAll('[data-dayplan-postpone-group]:checked')].flatMap(e=>e.dataset.dayplanPostponeGroup.split('|')):[];
+  }
+  function dayPlanChoiceFeedback(ids,options={}){
+    const minutes=dayPlanPostponeChoices().filter(g=>g.ids.some(id=>ids.includes(id))).reduce((total,g)=>total+g.minutes,0);
+    if(!ids.length)return 'Kies één of meer taken die naar morgen mogen.';
+    const now=new Date(),current=now.getHours()*60+now.getMinutes();
+    const test=calculateDayPlanFromNow(current,{...options,postponeIds:ids});
+    const prefix='Je hebt '+minutes+' minuten voor morgen gekozen. ';
+    if(test.ok)return prefix+'De rest past nu. Tik op Herplan met mijn keuzes.';
+    if(test.shortageMinutes)return prefix+'Er is nog minimaal '+test.shortageMinutes+' minuten extra ruimte nodig. Kies eventueel nog een taak.';
+    return prefix+test.reason+' Pas je keuzes gerust aan.';
+  }
+  function refreshDayPlanChoiceFeedback(){
+    const target=document.getElementById('dayPlanChoiceFeedback');if(!target)return;
+    const ids=selectedPostponeIds();
+    target.textContent=dayPlanChoiceFeedback(ids,dayPlanPendingChoice||{});
+    const button=document.querySelector('[data-dayplan-apply-choices]');
+    if(button)button.disabled=!ids.length;
   }
   let dayPlanPendingChoice=null;
   function hideDayPlanConflict(){
@@ -2068,13 +2099,16 @@
           +'<span>'+escapeHtml(g.text)+(g.ids.length>1?' ('+g.ids.length+' tijdblokken)':'')
           +'<small>'+escapeHtml(g.kind)+(g.minutes?' · '+g.minutes+' minuten':'')+'</small></span></label>';
       }).join('')+'</div>'
+      +'<p id="dayPlanChoiceFeedback" class="day-plan-choice-feedback" aria-live="polite"></p>'
       +'<button type="button" class="primary-button" data-dayplan-apply-choices>Herplan met mijn keuzes</button>'
       +'</div>':'<p>Er zijn geen gewone taken meer die eenvoudig naar morgen kunnen. Pas je planning zelf aan om ruimte te maken.</p>';
     box.hidden=false;
-    box.innerHTML='<strong>Even kiezen wat past</strong><p>'+escapeHtml(failure.reason)+'</p>'
+    box.innerHTML='<strong>Even kiezen wat past</strong><p>'+escapeHtml(failure.reason)
+      +(failure.shortageMinutes?' Er is nog minimaal '+failure.shortageMinutes+' minuten extra ruimte nodig.':'')+'</p>'
       +'<p>Er is nog niets veranderd. Je kiest zelf wat belangrijk blijft.</p>'
       +choices+'<div class="day-plan-actions">'+extra
       +'<button type="button" class="secondary-button" data-dayplan-dismiss>Planning behouden</button></div>';
+    refreshDayPlanChoiceFeedback();
     box.scrollIntoView({block:'nearest',behavior:'smooth'});
   }
   function postponeDayPlanBlocks(ids){
@@ -2135,7 +2169,15 @@
     const selected=[...new Set(requested)].filter(id=>eligible.has(id));
     const safeOptions={...options,postponeIds:selected};
     const result=calculateDayPlanFromNow(minutes,safeOptions);
-    if(!result.ok){showDayPlanConflict(result,safeOptions);return false;}
+    if(!result.ok){
+      const feedback=document.getElementById('dayPlanChoiceFeedback');
+      if(selected.length&&feedback){
+        dayPlanPendingChoice=safeOptions;
+        feedback.textContent='Nog niet passend: '+dayPlanChoiceFeedback(selected,safeOptions);
+        feedback.scrollIntoView({block:'center',behavior:'smooth'});
+      }else showDayPlanConflict(result,safeOptions);
+      return false;
+    }
     hideDayPlanConflict();
     cancelDayPlanAlarms(plan);
     if(selected.length)postponeDayPlanBlocks(selected);
@@ -2952,9 +2994,7 @@
     if(e.target.closest('[data-dayplan-dismiss]'))return hideDayPlanConflict();
     const pick=e.target.closest('[data-dayplan-apply-choices]');
     if(pick){
-      const box=document.getElementById('dayPlanConflict');
-      const ids=[...box.querySelectorAll('[data-dayplan-postpone-group]:checked')]
-        .flatMap(input=>input.dataset.dayplanPostponeGroup.split('|'));
+      const ids=selectedPostponeIds();
       if(!ids.length)return showToast('Vink één of meer taken aan die naar morgen mogen.');
       return replanDayFromNow({...dayPlanPendingChoice,postponeIds:ids});
     }
@@ -2982,6 +3022,7 @@
     if(e.target.closest('#clearDayPlanButton'))return clearDayPlan();
   });
   document.addEventListener('change',e=>{
+    if(e.target.matches('[data-dayplan-postpone-group]'))return refreshDayPlanChoiceFeedback();
     if(e.target.matches('[data-day-plan-check]')){
       const b=state.dayTimeline?.blocks?.find(x=>x.id===e.target.dataset.dayPlanCheck);
       if(b){setDayPlanLinkedDone(b,e.target.checked);if(e.target.checked&&dayPlanBlockDone(b))replanDayFromNow({silent:true});}
