@@ -2627,11 +2627,15 @@
         const entry=box.querySelector('[data-recovery-custom-minutes]');
         if(entry)recoveryCustomMinutes=entry.value.trim();
         saveButton.textContent='Bezig met opslaan…';
-        try{recoveryLogManually();}
+        let done=false;
+        try{done=recoveryLogManually();}
         catch(error){
           console.error('Opslaan rustminuten mislukt',error);
-          saveButton.textContent='Minuten opslaan';
           showToast('Opslaan ging mis. Probeer het opnieuw.');
+        }
+        if(!done){
+          handled=false;
+          saveButton.textContent='Minuten opslaan';
         }
       };
       saveButton.addEventListener('click',submit);
@@ -2677,12 +2681,13 @@
     showDayPlanNextPicker(false);
   }
   function recoveryLogManually(){
-    if(recoveryActive())return showToast('Rond je lopende rustmoment eerst af.');
+    if(recoveryActive()){showToast('Rond je lopende rustmoment eerst af.');return false;}
     const field=document.querySelector('#dayPlanRecoveryPanel [data-recovery-custom-minutes]');
     const custom=field?field.value.trim():recoveryCustomMinutes;
     const minutes=custom?Number(custom):recoveryMinutes;
     if((custom&&!/^[0-9]+$/.test(custom))||!Number.isInteger(minutes)||minutes<1||minutes>360){
-      return showToast('Vul een heel aantal minuten in van 1 tot 360.');
+      showToast('Vul een heel aantal minuten in van 1 tot 360.');
+      return false;
     }
     // Sluit de invoer vóór het opnieuw tekenen van de dag; de log blijft volledig bewaard.
     recoveryManualMode=false;recoveryOfferVisible=false;
@@ -2691,12 +2696,14 @@
     catch(error){console.error('Minuten registreren mislukt',error);}
     if(!done){
       recoveryManualMode=true;recoveryOfferVisible=true;renderRecoveryPanel();
-      return showToast('Opslaan is niet gelukt. Probeer het opnieuw.');
+      showToast('Opslaan is niet gelukt. Probeer het opnieuw.');
+      return false;
     }
     recoveryCustomMinutes='';
     renderRecoveryPanel();
     showToast(minutes+' minuten geregistreerd voor '+(recoveryKind==='stretchen'?'Stretchen':'Bewust ontspannen')+'.');
     showDayPlanNextPicker(false);
+    return true;
   }
   function recoveryStop(){
     recoveryCancelAlarm();
