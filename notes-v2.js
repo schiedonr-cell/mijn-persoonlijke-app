@@ -11,6 +11,7 @@
   let data = loadData();
   let activeFolder = ALL;
   let editingId = null;
+  let actionNoteId = null;
 
   function uid(prefix='note') {
     return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
@@ -43,31 +44,41 @@
     };
   }
   function loadData() {
-    let raw={folders:[],notes:[]};
-    try { raw=JSON.parse(localStorage.getItem(STORE_KEY)||'{}')||{}; } catch {}
+    // De eigen notitieopslag is leidend. Ook een lege lijst is een geldige,
+    // expliciet opgeslagen toestand (bijvoorbeeld nadat alles is verwijderd).
+    // Oude notities slechts één keer importeren, als deze opslag nog niet bestaat.
+    let stored=null,raw={folders:[],notes:[]};
+    try { stored=localStorage.getItem(STORE_KEY); } catch {}
+    if(stored!==null){try{raw=JSON.parse(stored)||{};}catch{raw={folders:[],notes:[]};}}
     const out={
       folders:Array.isArray(raw.folders)?raw.folders.map(normalizeFolder):[],
       notes:Array.isArray(raw.notes)?raw.notes.map(normalizeNote):[]
     };
 
-    // Eenmalige, veilige migratie van de oude eenvoudige notities.
-    try {
-      const main=JSON.parse(localStorage.getItem(MAIN_KEY)||'{}')||{};
-      const old=Array.isArray(main.notes)?main.notes:[];
-      const ids=new Set(out.notes.map(n=>n.id));
-      old.forEach(n=>{
-        const nn=normalizeNote(n);
-        if(!ids.has(nn.id) && (nn.plainText||nn.title)){ out.notes.push(nn); ids.add(nn.id); }
-      });
-    } catch {}
+    if(stored===null){
+      try {
+        const main=JSON.parse(localStorage.getItem(MAIN_KEY)||'{}')||{};
+        const old=Array.isArray(main.notes)?main.notes:[];
+        const ids=new Set(out.notes.map(n=>n.id));
+        old.forEach(n=>{
+          const nn=normalizeNote(n);
+          if(!ids.has(nn.id) && (nn.plainText||nn.title)){out.notes.push(nn);ids.add(nn.id);}
+        });
+      } catch {}
+    }
 
-    // Lege test-/placeholdernotities uit oudere versies niet meenemen.
+    // Bestaande notities en mappen behouden; alleen daadwerkelijk lege
+    // placeholders overslaan bij de eerste migratie.
     out.notes=out.notes.filter(n=>(n.title||'').trim()||(n.plainText||'').trim()||stripHtml(n.html||''));
-    saveData(out);
+    if(stored===null || Array.isArray(raw.notes))saveData(out);
     return out;
   }
   function saveData(value=data) {
-    try { localStorage.setItem(STORE_KEY,JSON.stringify(value)); } catch {}
+    try {
+      const serialized=JSON.stringify(value);
+      localStorage.setItem(STORE_KEY,serialized);
+      return localStorage.getItem(STORE_KEY)===serialized;
+    }catch{return false;}
   }
 
   function toast(message) {
@@ -107,7 +118,14 @@
       .note-v2-preview{font-size:14px;line-height:1.5;color:var(--text);max-height:96px;overflow:hidden;word-break:break-word}
       .note-v2-preview ul,.note-v2-preview ol{padding-left:21px;margin:4px 0}
       .note-v2-preview p,.note-v2-preview div{margin:2px 0}
-      .note-v2-pin{width:38px;height:38px;border:0;border-radius:12px;background:var(--surface-soft);color:var(--accent-strong);font-size:18px;cursor:pointer}
+      .note-v2-tools{display:flex;align-items:flex-start;gap:6px}
+      .note-v2-pin,.note-v2-more{width:42px;height:42px;flex:0 0 42px;border:0;border-radius:12px;background:var(--surface-soft);color:var(--accent-strong);font-size:20px;cursor:pointer}
+      .note-v2-more{font-size:25px;font-weight:850;line-height:1}
+      .note-action-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+      .note-action-grid button{min-height:54px;border-radius:14px;font-weight:850;padding:10px 12px}
+      .note-action-delete{grid-column:1/-1;border:1px solid #ead7d3;background:#fff7f5;color:var(--danger)}
+      .note-action-title{overflow-wrap:anywhere}
+
       .note-v2-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:9px}
       .note-folder-badge{background:var(--accent-soft);color:var(--accent-strong);border-radius:999px;padding:5px 8px;font-weight:800}
       .note-editor-sheet{max-height:92vh;overflow:auto}
@@ -224,6 +242,19 @@
           </div>
         </div>
 
+        <div class="modal-backdrop" id="noteActionModal" role="dialog" aria-modal="true" aria-labelledby="noteActionHeading">
+          <div class="sheet">
+            <div class="sheet-head">
+              <div><h3 id="noteActionHeading" class="note-action-title">Notitie</h3><p class="small-muted" style="margin:5px 0 0">Wat wil je met deze notitie doen?</p></div>
+              <button class="close-button" id="closeNoteAction" aria-label="Sluiten">×</button>
+            </div>
+            <div class="note-action-grid">
+              <button class="primary-button" id="noteActionEdit">Bewerken</button>
+              <button class="secondary-button" id="noteActionPin">Vastzetten</button>
+              <button class="note-action-delete" id="noteActionDelete">Verwijderen</button>
+            </div>
+          </div>
+        </div>
         <div class="modal-backdrop" id="noteFoldersModal" role="dialog" aria-modal="true" aria-labelledby="noteFoldersHeading">
           <div class="sheet">
             <div class="sheet-head">
@@ -278,7 +309,10 @@
             <div class="note-v2-title">${esc(noteTitle(n))}</div>
             <div class="note-v2-preview">${n.html||plainToHtml(n.plainText)}</div>
           </button>
-          <button class="note-v2-pin" data-rich-note-pin="${esc(n.id)}" aria-label="${n.pinned?'Losmaken':'Vastzetten'}">${n.pinned?'📌':'○'}</button>
+          <div class="note-v2-tools">
+            <button class="note-v2-pin" data-rich-note-pin="${esc(n.id)}" aria-label="${n.pinned?'Losmaken':'Vastzetten'}">${n.pinned?'📌':'○'}</button>
+            <button class="note-v2-more" data-rich-note-action="${esc(n.id)}" aria-label="Acties voor ${esc(noteTitle(n))}">⋯</button>
+          </div>
         </div>
         <div class="note-v2-meta"><span class="note-folder-badge">${esc(folderName(n.folderId))}</span><span>${esc(formatDate(n.updatedAt))}</span></div>
       </div>
@@ -326,13 +360,30 @@
     if(!existing)data.notes.push(note);
     saveData(); closeEditor(); renderNotes(); toast(existing?'Notitie bijgewerkt.':'Notitie bewaard.');
   }
+  function openNoteAction(id) {
+    const note=data.notes.find(n=>n.id===id);if(!note)return;
+    actionNoteId=id;
+    document.getElementById('noteActionHeading').textContent=noteTitle(note);
+    document.getElementById('noteActionPin').textContent=note.pinned?'Losmaken':'Vastzetten';
+    document.getElementById('noteActionModal').classList.add('open');
+  }
+  function closeNoteAction() {
+    actionNoteId=null;
+    document.getElementById('noteActionModal')?.classList.remove('open');
+  }
+  function deleteNote(id) {
+    const note=data.notes.find(n=>n.id===id);if(!note)return;
+    if(!confirm('“'+noteTitle(note)+'” verwijderen?'))return;
+    const next={...data,notes:data.notes.filter(n=>n.id!==id)};
+    if(!saveData(next)){toast('Verwijderen is niet opgeslagen. Probeer het opnieuw.');return;}
+    data=next;
+    if(editingId===id)closeEditor();
+    if(actionNoteId===id)closeNoteAction();
+    renderNotes();
+    toast('Notitie definitief verwijderd.');
+  }
   function deleteEditorNote() {
-    if(!editingId) return;
-    const note=data.notes.find(n=>n.id===editingId);
-    if(!note) return;
-    if(!confirm('“'+noteTitle(note)+'” verwijderen?')) return;
-    data.notes=data.notes.filter(n=>n.id!==editingId);
-    saveData(); closeEditor(); renderNotes(); toast('Notitie verwijderd.');
+    if(editingId)deleteNote(editingId);
   }
 
   function openFolders() {
@@ -399,11 +450,28 @@
     if(e.target.closest('#closeNoteEditor')){closeEditor();return;}
     if(e.target.closest('#saveRichNoteButton')){saveEditor();return;}
     if(e.target.closest('#deleteRichNoteButton')){deleteEditorNote();return;}
+    const action=e.target.closest('[data-rich-note-action]');
+    if(action){openNoteAction(action.dataset.richNoteAction);return;}
+    if(e.target.closest('#closeNoteAction')){closeNoteAction();return;}
+    if(e.target.closest('#noteActionEdit')){
+      const id=actionNoteId;closeNoteAction();if(id)openEditor(id);
+      return;
+    }
+    if(e.target.closest('#noteActionPin')){
+      const note=data.notes.find(n=>n.id===actionNoteId);
+      if(note){
+        note.pinned=!note.pinned;note.updatedAt=Date.now();
+        if(!saveData()){note.pinned=!note.pinned;toast('Niet opgeslagen. Probeer opnieuw.');return;}
+        closeNoteAction();renderNotes();toast(note.pinned?'Notitie vastgezet.':'Notitie losgemaakt.');
+      }
+      return;
+    }
+    if(e.target.closest('#noteActionDelete')){if(actionNoteId)deleteNote(actionNoteId);return;}
 
     const open=e.target.closest('[data-rich-note-open]');
     if(open){openEditor(open.dataset.richNoteOpen);return;}
     const pin=e.target.closest('[data-rich-note-pin]');
-    if(pin){const n=data.notes.find(x=>x.id===pin.dataset.richNotePin);if(n){n.pinned=!n.pinned;n.updatedAt=Date.now();saveData();renderNotes();}return;}
+    if(pin){const n=data.notes.find(x=>x.id===pin.dataset.richNotePin);if(n){const prev=n.pinned;n.pinned=!n.pinned;n.updatedAt=Date.now();if(!saveData()){n.pinned=prev;toast('Niet opgeslagen. Probeer opnieuw.');return;}renderNotes();}return;}
 
     const cmd=e.target.closest('[data-note-command]');
     if(cmd){execCommand(cmd.dataset.noteCommand);return;}
@@ -437,7 +505,11 @@
   });
 
   document.addEventListener('keydown',e=>{
+    if(e.key==='Escape' && actionNoteId){closeNoteAction();return;}
     if(e.target?.id==='newFolderName'&&e.key==='Enter'){e.preventDefault();document.getElementById('createFolderButton')?.click();}
+  });
+  document.addEventListener('click',e=>{
+    if(e.target?.id==='noteActionModal')closeNoteAction();
   });
 
   document.addEventListener('paste',e=>{
