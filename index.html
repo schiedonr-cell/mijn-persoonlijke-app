@@ -850,6 +850,8 @@
     .day-plan-choice-row span{min-width:0;font-weight:730}
     .day-plan-choice-row small{display:block;font-weight:400;color:var(--muted);margin-top:3px}
     .day-plan-choice-feedback{padding:10px 11px;border-radius:10px;background:var(--card,#fff);font-size:13px;line-height:1.5;margin:7px 0 12px!important}
+    .day-plan-remove-button{border:1px solid var(--line);background:var(--surface-soft);color:var(--muted);padding:6px 10px;min-height:34px;border-radius:9px;font-size:12px;font-weight:700}
+    .day-plan-remove-button:active{opacity:.8}
     .day-plan-deferred{margin-top:12px;border-top:1px solid var(--line);padding:9px 0}
     .day-plan-deferred summary{font-weight:750;cursor:pointer}
     .day-plan-deferred-item{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-top:9px;padding:8px 0;border-bottom:1px solid var(--line)}
@@ -2535,6 +2537,44 @@
     state.dayTimeline={date,alarms:allAlerts,blocks,sourceText,overnightAllowed:false,preferredMealFirstId:'',manualOrderIds:[]};
     saveState();scheduleDayPlanAlarms();closeDayPlanModal();renderToday();showToast(blocks.length+' blokken ingepland ('+blocks[0].start+'–'+blocks[blocks.length-1].start+').');
   }
+  function removeDayPlanBlocks(ids){
+    const plan=state.dayTimeline;
+    if(!plan||!Array.isArray(plan.blocks)||!ids?.length)return 0;
+    const remove=new Set(ids);
+    const toRemove=plan.blocks.filter(b=>remove.has(b.id));
+    if(!toRemove.length)return 0;
+    if(state.dayTimelineFocus&&toRemove.some(b=>b.id===state.dayTimelineFocus.blockId)){
+      clearDayPlanFocus();
+    }
+    toRemove.forEach(b=>{
+      try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}
+    });
+    plan.blocks=plan.blocks.filter(b=>!remove.has(b.id));
+    plan.manualOrderIds=(plan.manualOrderIds||[]).filter(id=>!remove.has(id));
+    if(remove.has(plan.preferredMealFirstId))plan.preferredMealFirstId='';
+    plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
+      .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+    hideDayPlanConflict();
+    return toRemove.length;
+  }
+  function dayPlanBlocksForDeletedTask(task){
+    if(!task)return [];
+    const plan=state.dayTimeline;
+    const name=dayPlanNormalizeText(task.name);
+    const sameNamedTaskRemaining=state.tasks.some(t=>t.id!==task.id&&dayPlanNormalizeText(t.name)===name);
+    return (plan?.blocks||[]).filter(b=>b.linkType==='task'&&b.linkId===task.id
+      ||(!b.linkType&&name&&!sameNamedTaskRemaining&&dayPlanNormalizeText(b.text)===name))
+      .map(b=>b.id);
+  }
+  function removeSingleDayPlanBlock(blockId){
+    const block=state.dayTimeline?.blocks?.find(b=>b.id===blockId);
+    if(!block)return;
+    if(!confirm('Alleen tijdsblok “'+block.text+'” uit je dagplanning verwijderen? Je gewone taken en routines blijven bestaan.'))return;
+    const removed=removeDayPlanBlocks([blockId]);
+    if(!removed)return;
+    saveState();renderToday();
+    showToast('Tijdsblok verwijderd uit de planning.');
+  }
   function clearDayPlan(){
     if(!state.dayTimeline?.blocks?.length)return;
     if(!confirm('Dagplanning wissen? Je gewone taken, routines en huishoudklusjes blijven bestaan.'))return;
@@ -2573,7 +2613,8 @@
        +'<div class="day-plan-settings"><button type="button" class="day-plan-focus-start '+(activeDayPlanFocus()?.block.id===b.id?'active':'')+'" data-dayplan-focus-start="'+escapeHtml(b.id)+'">▶ '+(activeDayPlanFocus()?.block.id===b.id?'Focus bezig':'Start Focus')+'</button>'
        +(dayPlanFocusDuration(b)?'':'<input type="number" min="1" max="360" placeholder="min" class="day-plan-start-duration" data-dayplan-duration-for="'+escapeHtml(b.id)+'" aria-label="Focusduur in minuten"/>')
        +'<button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>'
-       +(b.linkType!=='agenda'?'<button type="button" class="day-plan-mini '+(b.remind?'on':'')+'" data-dayplan-remind="'+escapeHtml(b.id)+'">'+(b.remind?'Herinnering aan':'Herinnering uit')+'</button>':'')+'</div>'
+       +(b.linkType!=='agenda'?'<button type="button" class="day-plan-mini '+(b.remind?'on':'')+'" data-dayplan-remind="'+escapeHtml(b.id)+'">'+(b.remind?'Herinnering aan':'Herinnering uit')+'</button>':'')
+       +'<button type="button" class="day-plan-remove-button" data-dayplan-remove="'+escapeHtml(b.id)+'">Blok verwijderen</button></div>'
        +'</div></div>';
     }).join(''):'<div class="empty-state">Alles voor vandaag is afgevinkt.</div>')
     +(moved.length?'<details class="day-plan-deferred"><summary>Doorgeschoven naar morgen ('+moved.length+')</summary>'
@@ -3298,7 +3339,19 @@
     if(e.target.closest('#taskActionDone')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(t){closeTaskAction();return markTask(t,true);}}
     if(e.target.closest('#taskActionPause')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(t){t.paused=!t.paused;if(t.paused)t.deferUntil='';refillTodayPlan(true);saveState();closeTaskAction();renderAllTasks();renderToday();return;}}
     if(e.target.closest('#taskActionTomorrow')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(t){t.deferUntil=addDaysKey(1);t.paused=false;state.todayPlan.taskIds=state.todayPlan.taskIds.filter(id=>id!==t.id);refillTodayPlan(false);saveState();closeTaskAction();renderToday();renderAllTasks();showToast('Taak staat voor morgen.');return;}}
-    if(e.target.closest('#taskActionDelete')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(!t)return;if(!confirm(`“${t.name}” verwijderen?`))return;cancelItemReminders('task',t);cancelTimedAlarm('task',t.id);state.tasks=state.tasks.filter(x=>x.id!==t.id);state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(id=>id!==t.id);if(state.focus?.targetId===t.id||state.focus?.taskId===t.id){state.focus.targetId='';state.focus.taskId='';state.focus.running=false;}saveState();closeTaskAction();refillTodayPlan(false);renderAllTasks();renderToday();showToast('Taak verwijderd.');return;}
+    if(e.target.closest('#taskActionDelete')){
+      const t=state.tasks.find(x=>x.id===activeTaskActionId);if(!t)return;
+      if(!confirm(`“${t.name}” verwijderen?`))return;
+      const linkedBlockIds=dayPlanBlocksForDeletedTask(t);
+      cancelItemReminders('task',t);cancelTimedAlarm('task',t.id);
+      if(linkedBlockIds.length)removeDayPlanBlocks(linkedBlockIds);
+      state.tasks=state.tasks.filter(x=>x.id!==t.id);
+      state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(id=>id!==t.id);
+      if(state.focus?.targetId===t.id||state.focus?.taskId===t.id){state.focus.targetId='';state.focus.taskId='';state.focus.running=false;}
+      saveState();closeTaskAction();refillTodayPlan(false);renderAllTasks();renderToday();
+      showToast(linkedBlockIds.length?'Taak en gekoppelde tijdsblokken verwijderd.':'Taak verwijderd.');
+      return;
+    }
     const itemAction=e.target.closest('[data-item-action]');if(itemAction){const [type,id]=itemAction.dataset.itemAction.split('|');return openItemAction(type,id);}
     if(e.target.closest('[data-close-item-action]'))return closeItemAction();
     if(e.target.closest('#itemActionEdit')){const type=activeItemActionType,id=activeItemActionId;closeItemAction();if(type==='habit')return openInputModal('habit-edit',id);if(type==='household')return openInputModal('household-edit',id);}
@@ -3380,6 +3433,8 @@
     }
     const restore=e.target.closest('[data-dayplan-restore]');
     if(restore)return restorePostponedDayPlanBlock(restore.dataset.dayplanRestore);
+    const removeBlock=e.target.closest('[data-dayplan-remove]');
+    if(removeBlock)return removeSingleDayPlanBlock(removeBlock.dataset.dayplanRemove);
     const undo=e.target.closest('[data-dayplan-undo]');
     if(undo){
       const b=state.dayTimeline?.blocks?.find(x=>x.id===undo.dataset.dayplanUndo);
