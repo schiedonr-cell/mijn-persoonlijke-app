@@ -453,8 +453,29 @@ final class SnapshotStore {
         for (int i = 0; i < events.length(); i++) {
             JSONObject e = events.optJSONObject(i);
             if (e == null || "cancelled".equals(e.optString("status", ""))) continue;
+            // De kleine widgets zijn een overzicht voor VANDAAG.
+            // De app zelf blijft komende afspraken via CalendarData.todayEvents() tonen.
+            if (!isEventOnDate(e, today)) continue;
             String title = e.optString("summary", "Afspraak");
             addRow(rows, "Agenda", title, eventTime(e));
+        }
+    }
+
+    private static boolean isEventOnDate(JSONObject event, String date) {
+        try {
+            JSONObject start = event.optJSONObject("start");
+            if (start == null) return false;
+            String day = start.optString("date", "").trim();
+            if (!day.isEmpty()) return date.equals(day);
+
+            String value = start.optString("dateTime", "").trim();
+            if (value.isEmpty()) return false;
+            LocalDate local = OffsetDateTime.parse(value)
+                    .atZoneSameInstant(ZoneId.systemDefault()).toLocalDate();
+            return date.equals(local.toString());
+        } catch (Exception ignored) {
+            // Onbekende of ongeldige datum nooit als een afspraak van vandaag tonen.
+            return false;
         }
     }
 
