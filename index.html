@@ -1920,7 +1920,7 @@
   }
   function dayPlanBlockDone(block){
     const today=state.dayTimeline?.date||localDateKey();
-    if(block.linkType==='task')return Boolean(state.tasks.find(x=>x.id===block.linkId)?.done);
+    if(block.linkType==='task')return Boolean(block.done||state.tasks.find(x=>x.id===block.linkId)?.done);
     if(block.linkType==='habit')return Boolean(state.habits.find(x=>x.id===block.linkId)?.history?.[today]);
     if(block.linkType==='household')return Boolean(state.householdTasks.find(x=>x.id===block.linkId)?.history?.[today]);
     return Boolean(block.done);
@@ -2499,7 +2499,22 @@
   function setDayPlanLinkedDone(block,checked){
     if(checked&&state.dayTimelineFocus?.blockId===block.id){clearDayPlanFocus();saveState();}
     const today=state.dayTimeline?.date||localDateKey();
-    if(block.linkType==='task'){const t=state.tasks.find(x=>x.id===block.linkId);if(t){if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}markTask(t,checked);return;}}
+    if(block.linkType==='task'){
+      const t=state.tasks.find(x=>x.id===block.linkId);
+      if(t){
+        const related=(state.dayTimeline?.blocks||[]).filter(b=>b.linkType==='task'&&b.linkId===block.linkId);
+        // Migratie: eerder betekende een voltooide taak dat alle gekoppelde
+        // blokken voltooid waren, ook als hun eigen "done" nog niet was gezet.
+        if(t.done)related.forEach(b=>b.done=true);
+        block.done=checked;
+        // Eén tijdblok afvinken mag het andere tijdblok niet afsluiten.
+        const allDone=related.length>0&&related.every(b=>Boolean(b.done));
+        if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
+        else scheduleDayPlanAlarms();
+        markTask(t,allDone,true);
+        return;
+      }
+    }
     if(block.linkType==='habit'){const h=state.habits.find(x=>x.id===block.linkId);if(h){h.history||={};h.versionHistory||={};if(checked){h.history[today]=true;if(h.energyAdaptive)h.versionHistory[today]=habitSelectedVersion(h,today);}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();}}
     if(block.linkType==='household'){const h=state.householdTasks.find(x=>x.id===block.linkId);if(h){h.history||={};if(checked){h.history[today]=true;h.deferUntil='';}else delete h.history[today];saveState();}}
     if(!['task','habit','household','agenda'].includes(block.linkType)){block.done=checked;saveState();}
@@ -2939,7 +2954,16 @@
     else {state.projects.push({id:uid('project'),name:value});saveState();closeInputModal();renderProjects();}
   }
 
-  function markTask(task,done){ task.done=done; task.completedAt=done?Date.now():null; task.running=false; if(done&&state.focus.taskId===task.id)state.focus.running=false; refillTodayPlan(false); saveState(); renderToday(); renderAllTasks(); renderFocus(); renderShutdown(); }
+  function markTask(task,done,fromDayPlan=false){
+    task.done=done;task.completedAt=done?Date.now():null;task.running=false;
+    if(!fromDayPlan){
+      // Een vinkje in het gewone takenoverzicht geldt wél voor de hele taak.
+      (state.dayTimeline?.blocks||[]).filter(b=>b.linkType==='task'&&b.linkId===task.id)
+        .forEach(b=>b.done=done);
+    }
+    if(done&&state.focus.taskId===task.id)state.focus.running=false;
+    refillTodayPlan(false);saveState();renderToday();renderAllTasks();renderFocus();renderShutdown();
+  }
 
   setInterval(()=>{ tickDayPlanFocus(); if(state.focus.running){ state.focus.remainingSec=Math.max(0,(state.focus.remainingSec||0)-1); const task=state.tasks.find(t=>t.id===state.focus.taskId); if(task)task.elapsed=(task.elapsed||0)+1; const el=document.getElementById('focusClockText');if(el)el.textContent=formatTime(state.focus.remainingSec); if(state.focus.remainingSec<=0){state.focus.running=false;playFocusFinishedSignal();showToast('Focusblok klaar.');saveState();renderFocus();} if(state.focus.remainingSec%10===0)saveState(); } },1000);
 
