@@ -1404,7 +1404,7 @@
     dailyBasisHistory: {},
     reflections: {},
     todayPlan: { date: null, taskIds: [] },
-    dayTimeline: { date: null, alarms: false, blocks: [], sourceText: '' },
+    dayTimeline: { date: null, alarms: false, blocks: [], sourceText: '', overnightAllowed: false },
     dayTimelineFocus: null,
     dump: [],
     dayClosedDate: null,
@@ -1537,7 +1537,7 @@
           && typeof saved.dayTimelineFocus.blockId==='string' && Number.isFinite(Number(saved.dayTimelineFocus.endsAt))
           ? {date:saved.dayTimelineFocus.date||'',blockId:saved.dayTimelineFocus.blockId,
              startedAt:Number(saved.dayTimelineFocus.startedAt)||0,endsAt:Number(saved.dayTimelineFocus.endsAt)||0} : null,
-        dayTimeline: saved.dayTimeline && Array.isArray(saved.dayTimeline.blocks) ? {date:saved.dayTimeline.date||null,alarms:saved.dayTimeline.alarms===true,sourceText:typeof saved.dayTimeline.sourceText==='string'?saved.dayTimeline.sourceText:'',blocks:saved.dayTimeline.blocks.map(b=>({id:b.id||uid('plan'),start:b.start||'',end:b.end||'',originalStart:b.originalStart||b.start||'',originalEnd:b.originalEnd||b.end||'',text:b.text||'',linkType:b.linkType||'',linkId:b.linkId||'',kind:b.kind||'Plan',matchedName:b.matchedName||'',done:Boolean(b.done),fixed:b.fixed===true?true:b.fixed===false?false:null,remind:b.remind===true,postponedTo:b.postponedTo||'',postponedCreatedTask:Boolean(b.postponedCreatedTask)}))} : {date:null,alarms:false,blocks:[],sourceText:''},
+        dayTimeline: saved.dayTimeline && Array.isArray(saved.dayTimeline.blocks) ? {date:saved.dayTimeline.date||null,alarms:saved.dayTimeline.alarms===true,overnightAllowed:saved.dayTimeline.overnightAllowed===true,sourceText:typeof saved.dayTimeline.sourceText==='string'?saved.dayTimeline.sourceText:'',blocks:saved.dayTimeline.blocks.map(b=>({id:b.id||uid('plan'),start:b.start||'',end:b.end||'',originalStart:b.originalStart||b.start||'',originalEnd:b.originalEnd||b.end||'',text:b.text||'',linkType:b.linkType||'',linkId:b.linkId||'',kind:b.kind||'Plan',matchedName:b.matchedName||'',done:Boolean(b.done),fixed:b.fixed===true?true:b.fixed===false?false:null,remind:b.remind===true,postponedTo:b.postponedTo||'',postponedCreatedTask:Boolean(b.postponedCreatedTask)}))} : {date:null,alarms:false,blocks:[],sourceText:''},
         focus: {...structuredClone(defaultState.focus), ...(saved.focus||{}), targetType:saved.focus?.targetType||(saved.focus?.taskId?'task':null), targetId:saved.focus?.targetId||saved.focus?.taskId||null, running:false},
         weekMenu: Array.isArray(saved.weekMenu)?saved.weekMenu:[], shopping:Array.isArray(saved.shopping)?saved.shopping:[], projects:Array.isArray(saved.projects)?saved.projects:[], notes:Array.isArray(saved.notes)?saved.notes:[],
         foodPrefs: {...structuredClone(defaultState.foodPrefs), ...(saved.foodPrefs||{}), selectedDays:Array.isArray(saved.foodPrefs?.selectedDays)?saved.foodPrefs.selectedDays:[]},
@@ -1895,7 +1895,7 @@
       const m=line.match(/(?:^|[\s|])(\d{1,2}[:.]\d{2})(?:\s*[-–—−]\s*(\d{1,2}[:.]\d{2}))?\s*(?:[|:;]\s*)?(.+?)\s*$/);
       if(!m){ignored.push({line:index+1,text:original.trim()});return;}
       const clock=x=>x?x.replace('.',':').padStart(5,'0'):'';
-      const valid=x=>!x||(/^\d{2}:\d{2}$/.test(x)&&Number(x.slice(0,2))<24&&Number(x.slice(3,5))<60);
+      const valid=x=>!x||(/^\d{2}:\d{2}$/.test(x)&&Number(x.slice(0,2))<48&&Number(x.slice(3,5))<60);
       let st=clock(m[1]),end=clock(m[2]),name=m[3].trim().replace(/^\|[ \t]*/,'').replace(/[ \t]*\|[ \t]*$/,'').replace(/\*{1,2}$/,'').trim();
       // Tabellen kunnen de eindtijd in een tweede kolom zetten.
       const secondColumn=!end&&name.match(/^(\d{1,2}[:.]\d{2})\s*\|\s*(.+)$/);
@@ -1919,7 +1919,7 @@
       +(result.ignored.length?'\nNiet herkend ('+result.ignored.length+'): '+result.ignored.slice(0,3).map(x=>'regel '+x.line+': '+x.text).join(' / '):'');
   }
   function dayPlanBlockDone(block){
-    const today=localDateKey();
+    const today=state.dayTimeline?.date||localDateKey();
     if(block.linkType==='task')return Boolean(state.tasks.find(x=>x.id===block.linkId)?.done);
     if(block.linkType==='habit')return Boolean(state.habits.find(x=>x.id===block.linkId)?.history?.[today]);
     if(block.linkType==='household')return Boolean(state.householdTasks.find(x=>x.id===block.linkId)?.history?.[today]);
@@ -1935,7 +1935,7 @@
   const DAY_FOCUS_ALARM_ID='dayplan-focus-active';
   function activeDayPlanFocus(){
     const f=state.dayTimelineFocus,plan=state.dayTimeline;
-    if(!f||!plan||f.date!==localDateKey()||plan.date!==f.date)return null;
+    if(!f||!plan||!dayPlanIsCurrent(plan)||plan.date!==f.date)return null;
     const block=(plan.blocks||[]).find(b=>b.id===f.blockId);
     if(!block||block.postponedTo||dayPlanBlockDone(block))return null;
     return {focus:f,block};
@@ -1995,7 +1995,7 @@
   }
   function startDayPlanFocus(blockId){
     const plan=state.dayTimeline,block=plan?.blocks?.find(b=>b.id===blockId);
-    if(!block||plan.date!==localDateKey()||block.postponedTo||dayPlanBlockDone(block))return;
+    if(!block||!dayPlanIsCurrent(plan)||block.postponedTo||dayPlanBlockDone(block))return;
     const active=activeDayPlanFocus();
     if(active&&active.block.id!==block.id &&
        !confirm('Er loopt nog Focus voor "'+active.block.text+'". Stoppen en dit blok starten?'))return;
@@ -2025,8 +2025,8 @@
     if(!Number.isInteger(extra)||extra<1||extra>360)return showToast('Kies 1 tot 360 minuten extra.');
     const now=Date.now(),ending=now+extra*60000;
     const fixed=(state.dayTimeline?.blocks||[]).find(b=>!dayPlanBlockDone(b)&&b.id!==active.block.id&&dayPlanBlockMode(b)==='fixed'
-      &&dayPlanMinutes(b.start)!==null&&new Date(localDateKey()+'T'+b.start+':00').getTime()>=now
-      &&new Date(localDateKey()+'T'+b.start+':00').getTime()<ending);
+      &&dayPlanMinutes(b.start)!==null&&dayPlanTimeAt(state.dayTimeline,dayPlanMinutes(b.start))>=now
+      &&dayPlanTimeAt(state.dayTimeline,dayPlanMinutes(b.start))<ending);
     if(fixed&&!confirm('Er staat een vaste afspraak "'+fixed.text+'" tijdens deze extra tijd. Toch doorgaan?'))return;
     active.focus.endsAt=ending;
     saveState();dayPlanFocusReminder(active.block,ending);
@@ -2068,8 +2068,8 @@
     const plan=state.dayTimeline;if(!plan?.date)return;
     (plan.blocks||[]).forEach(b=>{
       if(!b.start||!b.remind||dayPlanBlockDone(b)||b.postponedTo)return;
-      const at=new Date(plan.date+'T'+b.start+':00').getTime();if(!Number.isFinite(at)||at<=Date.now()+1000)return;
-      const range=b.end?b.start+'–'+b.end:b.start;
+      const at=dayPlanTimeAt(plan,dayPlanMinutes(b.start));if(!Number.isFinite(at)||at<=Date.now()+1000)return;
+      const range=dayPlanRangeLabel(b.start,b.end);
       try{window.AndroidWidgetBridge?.scheduleReminder?.(dayPlanAlarmId(plan,b),b.text,'Dagplanning · '+range,at,'today');}catch{}
     });
   }
@@ -2078,11 +2078,40 @@
     const m=/^(\d{1,2}):(\d{2})$/.exec(value||'');
     if(!m)return null;
     const minutes=Number(m[1])*60+Number(m[2]);
-    return Number(m[1])<24&&Number(m[2])<60?minutes:null;
+    // 24:20 staat intern voor 00:20 op de volgende kalenderdag.
+    return Number(m[1])<48&&Number(m[2])<60?minutes:null;
   }
   function dayPlanClock(minutes){
-    if(!Number.isFinite(minutes)||minutes<0||minutes>=1440)return '';
+    if(!Number.isFinite(minutes)||minutes<0||minutes>=2880)return '';
     return String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');
+  }
+  function dayPlanClockLabel(value){
+    const min=typeof value==='number'?value:dayPlanMinutes(value);
+    if(min===null||!Number.isFinite(min))return String(value||'');
+    const label=dayPlanClock(min%1440);
+    return min>=1440?label+' (+1 dag)':label;
+  }
+  function dayPlanRangeLabel(start,end){
+    return dayPlanClockLabel(start)+(end?'–'+dayPlanClockLabel(end):'');
+  }
+  function dayPlanIsCurrent(plan=state.dayTimeline){
+    if(!plan?.date||!plan.blocks?.length)return false;
+    const today=localDateKey();
+    if(plan.date===today)return true;
+    // Na middernacht blijft alleen een bewust verlengde planning nog actief.
+    return plan.overnightAllowed===true&&addDaysToKey(plan.date,1)===today
+      &&new Date().getHours()<12
+      &&plan.blocks.some(b=>dayPlanMinutes(b.end||b.start)>=1440&&!b.postponedTo&&!dayPlanBlockDone(b));
+  }
+  function dayPlanElapsedMinutes(plan=state.dayTimeline){
+    const now=new Date(),offset=plan?.date===localDateKey()?0:1440;
+    return offset+now.getHours()*60+now.getMinutes();
+  }
+  function dayPlanTimeAt(plan,minutes){
+    const date=new Date((plan?.date||localDateKey())+'T00:00:00');
+    if(!Number.isFinite(date.getTime())||minutes===null)return NaN;
+    date.setMinutes(minutes);
+    return date.getTime();
   }
   function dayPlanMealWindow(block){
     const name=dayPlanNormalizeText(block.text);
@@ -2171,11 +2200,14 @@
       if(window&&!options.allowLateMeals&&candidate+duration>window.end){
         return {ok:false,reason:window.name+' past niet meer binnen het afgesproken tijdvenster. Er is te weinig ruimte zonder iets te verplaatsen of in te korten.',type:'meal',block:b};
       }
-      if(candidate+duration>=1440){
-        return {ok:false,reason:'Je planning past nog niet vóór middernacht.',type:'midnight',block:b,shortageMinutes:shortageFrom(blockIndex,candidate+duration-1439)};
+      if(candidate+duration>=2880){
+        return {ok:false,reason:'Deze planning komt zelfs voorbij de volgende middernacht. Verdeel hem eerst over twee dagen.',type:'twoDays',block:b};
       }
-      if(candidate+duration>1410&&!options.allowLateDay){
-        return {ok:false,reason:'Je dag zou na 23:30 doorgaan.',type:'dayEnd',block:b,shortageMinutes:shortageFrom(blockIndex,candidate+duration-1410)};
+      if(candidate+duration>=1440&&!options.allowOvernight){
+        return {ok:false,reason:'Je planning loopt door na 00:00. Wil je zelf kiezen om door te gaan?',type:'midnight',block:b,proposedEnd:dayPlanClockLabel(candidate+duration)};
+      }
+      if(candidate+duration>1410&&!options.allowLateDay&&!options.allowOvernight){
+        return {ok:false,reason:'Je dagafsluiting ligt rond 23:30. Wil je wat langer doorgaan?',type:'dayEnd',block:b,proposedEnd:dayPlanClockLabel(candidate+duration)};
       }
       changes.set(b.id,{start:candidate,end:candidate+duration,hasEnd:!!b.end});
       cursor=candidate+duration;
@@ -2238,7 +2270,10 @@
       if(eligible&&!options?.prioritizeMealId)extra+='<button type="button" class="primary-button" data-dayplan-meal-first="'+escapeHtml(failure.block.id)+'">Eerst '+escapeHtml(dayPlanMealWindow(failure.block)?.name.toLowerCase()||'eten')+', andere taken daarna</button>';
       if(!options.allowLateMeals)extra+='<button type="button" class="secondary-button" data-dayplan-allow-meals>Deze keer later eten</button>';
     }
-    if(failure.type==='dayEnd'&&!options.allowLateDay)extra+='<button type="button" class="secondary-button" data-dayplan-allow-longer>Vandaag langer doorgaan</button>';
+    if((failure.type==='dayEnd'||failure.type==='midnight')&&!options.allowOvernight){
+      extra+='<button type="button" class="primary-button" data-dayplan-allow-overnight>Doorgaan, ook na 00:00</button>';
+      if(failure.type==='dayEnd'&&!options.allowLateDay)extra+='<button type="button" class="secondary-button" data-dayplan-allow-longer>Alleen vandaag wat langer</button>';
+    }
     const groups=dayPlanPostponeChoices();
     const previously=new Set(options.postponeIds||[]);
     const choices=groups.length?'<div class="day-plan-choice-section">'
@@ -2255,6 +2290,7 @@
       +'</div>':'<p>Er zijn geen gewone taken meer die eenvoudig naar morgen kunnen. Pas je planning zelf aan om ruimte te maken.</p>';
     box.hidden=false;
     box.innerHTML='<strong>Even kiezen wat past</strong><p>'+escapeHtml(failure.reason)
+      +(failure.proposedEnd?' Eindtijd van dit blok: '+escapeHtml(failure.proposedEnd)+'.':'')
       +(failure.shortageMinutes?' Er is nog minimaal '+failure.shortageMinutes+' minuten extra ruimte nodig.':'')+'</p>'
       +'<p>Er is nog niets veranderd. Je kiest zelf wat belangrijk blijft.</p>'
       +choices+'<div class="day-plan-actions">'+extra
@@ -2313,9 +2349,9 @@
   }
   function replanDayFromNow(options={}){
     const plan=state.dayTimeline;
-    if(!plan||plan.date!==localDateKey()||!plan.blocks?.length)return showToast('Er staat nog geen dagplanning voor vandaag.');
+    if(!plan||!dayPlanIsCurrent(plan))return showToast('Er staat nog geen dagplanning voor vandaag.');
     if(activeDayPlanFocus())return showToast('Rond eerst je actieve Focus af of kies Stop zonder afvinken.');
-    const now=new Date(),minutes=now.getHours()*60+now.getMinutes();
+    const minutes=dayPlanElapsedMinutes(plan);
     const requested=Array.isArray(options.postponeIds)?options.postponeIds:[];
     const eligible=new Set(dayPlanPostponeChoices().flatMap(g=>g.ids));
     const selected=[...new Set(requested)].filter(id=>eligible.has(id));
@@ -2347,14 +2383,16 @@
         ||dayPlanMinutes(x.b.start)-dayPlanMinutes(y.b.start)||x.index-y.index)
       .map(x=>x.b);
     plan.alarms=false;
+    if(options.allowOvernight||plan.blocks.some(b=>dayPlanMinutes(b.start)>=1440||dayPlanMinutes(b.end)>=1440))plan.overnightAllowed=true;
     plan.sourceText=plan.blocks.filter(b=>!b.postponedTo).map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
     saveState();
     scheduleDayPlanAlarms();
     renderToday();
     const status=document.getElementById('dayPlanReplanStatus');
-    if(status)status.textContent=selected.length
-      ? selected.length+' tijdblok(ken) naar morgen · rest aangepast vanaf '+dayPlanClock(minutes)+'.'
-      :'Planning aangepast vanaf '+dayPlanClock(minutes)+'. Afgeronde blokken en vaste afspraken bleven staan.';
+    if(status)status.textContent=(selected.length?selected.length+' tijdblok(ken) naar morgen · ':'')
+      +'Planning aangepast vanaf '+dayPlanClockLabel(minutes)+'.'
+      +(plan.blocks.some(b=>!b.postponedTo&&(dayPlanMinutes(b.end||b.start)||0)>=1440)
+        ?' Je hebt gekozen om na 00:00 door te gaan.':' Afgeronde blokken en vaste afspraken bleven staan.');
     if(!options.silent)showToast(selected.length?'Je keuzes zijn opgeslagen. De rest van je dag is herpland.':'Je planning schuift mee vanaf '+dayPlanClock(minutes)+'.');
     return true;
   }
@@ -2380,20 +2418,20 @@
     cancelDayPlanAlarms(state.dayTimeline);
     const allAlerts=document.getElementById('dayPlanAlarmToggle').checked;
     blocks.forEach(b=>{b.remind=allAlerts&&b.linkType!=='agenda';});
-    state.dayTimeline={date,alarms:allAlerts,blocks,sourceText};
+    state.dayTimeline={date,alarms:allAlerts,blocks,sourceText,overnightAllowed:false};
     saveState();scheduleDayPlanAlarms();closeDayPlanModal();renderToday();showToast(blocks.length+' blokken ingepland ('+blocks[0].start+'–'+blocks[blocks.length-1].start+').');
   }
   function clearDayPlan(){
     if(!state.dayTimeline?.blocks?.length)return;
     if(!confirm('Dagplanning wissen? Je gewone taken, routines en huishoudklusjes blijven bestaan.'))return;
-    clearDayPlanFocus();cancelDayPlanAlarms(state.dayTimeline);state.dayTimeline={date:null,alarms:false,blocks:[],sourceText:''};saveState();renderToday();showToast('Dagplanning gewist.');
+    clearDayPlanFocus();cancelDayPlanAlarms(state.dayTimeline);state.dayTimeline={date:null,alarms:false,blocks:[],sourceText:'',overnightAllowed:false};saveState();renderToday();showToast('Dagplanning gewist.');
   }
   function renderDayTimeline(){
     const box=document.getElementById('dayPlanList'),clear=document.getElementById('clearDayPlanButton');if(!box)return;
-    const status=document.getElementById('dayPlanReplanStatus'),hasPlan=state.dayTimeline?.date===localDateKey()&&state.dayTimeline?.blocks?.length;
+    const status=document.getElementById('dayPlanReplanStatus'),hasPlan=dayPlanIsCurrent();
     for(const id of ['startMyDayNowButton','replanDayNowButton']){const button=document.getElementById(id);if(button)button.disabled=!hasPlan;}
     if(status)status.textContent=hasPlan?'Start of herplan wanneer jij daar klaar voor bent. Vaste afspraken blijven staan.':'Plak eerst een dagplanning om vanaf nu te plannen.';
-    const plan=state.dayTimeline||{blocks:[]},active=plan.date===localDateKey()&&Array.isArray(plan.blocks)&&plan.blocks.length;
+    const plan=state.dayTimeline||{blocks:[]},active=dayPlanIsCurrent(plan);
     refreshDayPlanFocusPanels();
     if(active)(plan.blocks||[]).filter(dayPlanBlockDone).forEach(b=>{try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}});
     if(clear)clear.style.display=plan.blocks?.length?'inline-flex':'none';
@@ -2409,12 +2447,12 @@
     const moved=plan.blocks.filter(b=>b.postponedTo);
     const first=visible[0],last=visible[visible.length-1];
     const countHtml='<p class="day-plan-count">'+visible.length+' nog open vandaag'
-      +(first&&last?' · van '+escapeHtml(first.start)+' tot '+escapeHtml(last.end||last.start):'')
+      +(first&&last?' · van '+escapeHtml(dayPlanClockLabel(first.start))+' tot '+escapeHtml(dayPlanClockLabel(last.end||last.start)):'')
       +(completed.length?' · '+completed.length+' afgerond':'')
       +(moved.length?' · '+moved.length+' naar morgen':'')+'</p>';
     box.innerHTML=countHtml
     +(visible.length?visible.map(b=>{
-      const linked=b.linkType!=='agenda',time=escapeHtml(b.start+(b.end?'–'+b.end:''));
+      const linked=b.linkType!=='agenda',time=escapeHtml(dayPlanRangeLabel(b.start,b.end));
       const mark=linked?'<input class="check" type="checkbox" data-day-plan-check="'+b.id+'" aria-label="Afvinken"/>':(b.linkType==='agenda'?'▣':'•');
       return '<div class="day-plan-row"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div><div class="day-plan-name">'+escapeHtml(b.text)+'</div><div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
        +'<div class="day-plan-settings"><button type="button" class="day-plan-focus-start '+(activeDayPlanFocus()?.block.id===b.id?'active':'')+'" data-dayplan-focus-start="'+escapeHtml(b.id)+'">▶ '+(activeDayPlanFocus()?.block.id===b.id?'Focus bezig':'Start Focus')+'</button>'
@@ -2432,7 +2470,7 @@
   }
   function setDayPlanLinkedDone(block,checked){
     if(checked&&state.dayTimelineFocus?.blockId===block.id){clearDayPlanFocus();saveState();}
-    const today=localDateKey();
+    const today=state.dayTimeline?.date||localDateKey();
     if(block.linkType==='task'){const t=state.tasks.find(x=>x.id===block.linkId);if(t){if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}markTask(t,checked);return;}}
     if(block.linkType==='habit'){const h=state.habits.find(x=>x.id===block.linkId);if(h){h.history||={};h.versionHistory||={};if(checked){h.history[today]=true;if(h.energyAdaptive)h.versionHistory[today]=habitSelectedVersion(h,today);}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();}}
     if(block.linkType==='household'){const h=state.householdTasks.find(x=>x.id===block.linkId);if(h){h.history||={};if(checked){h.history[today]=true;h.deferUntil='';}else delete h.history[today];saveState();}}
@@ -2450,7 +2488,7 @@
     if(!Array.isArray(operations)||!operations.length)return;
     const confirmed=[];
     for(const op of operations){
-      if(!op||!op.id||!op.blockId||op.date!==localDateKey())continue;
+      if(!op||!op.id||!op.blockId||!dayPlanIsCurrent())continue;
       const plan=state.dayTimeline;
       if(!plan||plan.date!==op.date)continue;
       const block=(plan.blocks||[]).find(b=>b.id===op.blockId);
@@ -3209,6 +3247,7 @@
     const mealFirst=e.target.closest('[data-dayplan-meal-first]');
     if(mealFirst)return replanDayFromNow({...dayPlanPendingChoice,prioritizeMealId:mealFirst.dataset.dayplanMealFirst});
     if(e.target.closest('[data-dayplan-allow-meals]'))return replanDayFromNow({...dayPlanPendingChoice,allowLateMeals:true});
+    if(e.target.closest('[data-dayplan-allow-overnight]'))return replanDayFromNow({...dayPlanPendingChoice,allowLateDay:true,allowOvernight:true});
     if(e.target.closest('[data-dayplan-allow-longer]'))return replanDayFromNow({...dayPlanPendingChoice,allowLateDay:true});
     const lock=e.target.closest('[data-dayplan-fixed]');
     if(lock){
