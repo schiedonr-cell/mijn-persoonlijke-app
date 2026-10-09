@@ -2546,13 +2546,29 @@
     const n=Math.max(0,Math.min(360,Math.floor(Number(minutes)||0)));
     if(!n)return false;
     const date=meta.date||localDateKey(),time=Date.now();
+    const sessionId=meta.id||uid('rest');
     state.recovery.sessions.push({
-      id:meta.id||uid('rest'),date,daypart:meta.daypart||recoveryDaypart(),
+      id:sessionId,date,daypart:meta.daypart||recoveryDaypart(),
       kind,minutes:n,endedAt:time,source
     });
     syncRecoveryGoals(date);
     saveState();
-    renderToday();
+    // Controleer ook dat de minuten echt in de permanente opslag staan.
+    let persisted=false;
+    try{
+      const snapshot=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
+      persisted=Boolean(snapshot?.recovery?.sessions?.some(x=>x.id===(meta.id||sessionId)));
+    }catch(error){console.error('Rustregistratie controleren mislukt',error);}
+    if(!persisted){
+      state.recovery.sessions=state.recovery.sessions.filter(x=>x.id!==(meta.id||sessionId));
+      syncRecoveryGoals(date);
+      return false;
+    }
+    try{renderToday();}
+    catch(error){
+      console.error('Dagoverzicht vernieuwen mislukt',error);
+      try{renderDailyBasis();renderRecoveryPanel();}catch(_){}
+    }
     return true;
   }
   let recoveryManualMode=false,recoveryCustomMinutes='';
@@ -2613,11 +2629,15 @@
       +'<div class="day-recovery-actions"><button class="primary-button" type="button" data-recovery-'+(recoveryManualMode?'log':'start')+'">'
       +(recoveryManualMode?'Minuten opslaan':'Begin rustmoment')+'</button>'
       +'<button class="secondary-button" type="button" data-recovery-skip>Nu niet</button></div>'
-      +(recoveryManualMode?'':'<button class="day-recovery-next" type="button" data-recovery-manual>Al gedaan? Registreer minuten</button>');
+      +(recoveryManualMode?'<p class="small-muted" data-recovery-save-status style="margin:8px 0 0;font-size:12px">Registratiecontrole R3 · klaar om op te slaan</p>':'<button class="day-recovery-next" type="button" data-recovery-manual>Al gedaan? Registreer minuten</button>');
     // Directe knopafhandeling. Touch is een vangnet voor oudere Android WebViews.
     const saveButton=box.querySelector('[data-recovery-log]');
     if(saveButton){
       let handled=false;
+      const status=box.querySelector('[data-recovery-save-status]');
+      saveButton.addEventListener('pointerdown',()=>{
+        if(status)status.textContent='Aanraking herkend · even loslaten om op te slaan';
+      });
       const submit=e=>{
         if(handled)return;
         handled=true;
@@ -2627,15 +2647,19 @@
         const entry=box.querySelector('[data-recovery-custom-minutes]');
         if(entry)recoveryCustomMinutes=entry.value.trim();
         saveButton.textContent='Bezig met opslaan…';
+        if(status)status.textContent='Knop reageert · registratie wordt opgeslagen';
         let done=false;
         try{done=recoveryLogManually();}
         catch(error){
           console.error('Opslaan rustminuten mislukt',error);
+          if(status)status.textContent='Opslaan mislukt ('+String(error?.message||'onbekende fout')+').';
           showToast('Opslaan ging mis. Probeer het opnieuw.');
         }
         if(!done){
           handled=false;
           saveButton.textContent='Minuten opslaan';
+          const current=box.querySelector('[data-recovery-save-status]');
+          if(current&&!current.textContent.includes('mislukt'))current.textContent='Niet opgeslagen · controleer de invoer of opslag.';
         }
       };
       saveButton.addEventListener('click',submit);
