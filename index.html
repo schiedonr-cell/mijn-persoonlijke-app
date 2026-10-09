@@ -2555,11 +2555,12 @@
     renderToday();
     return true;
   }
-  let recoveryManualMode=false;
+  let recoveryManualMode=false,recoveryCustomMinutes='';
   function openRecoveryManual(kind){
     if(recoveryActive())return showToast('Rond je lopende rustmoment eerst af.');
     recoveryKind=kind==='stretch'?'stretchen':'zitten';
     recoveryMinutes=5;
+    recoveryCustomMinutes='';
     recoveryManualMode=true;
     offerRecovery();
   }
@@ -2605,7 +2606,7 @@
       +'<strong>Hoe lang?</strong>'
       +'<div class="day-recovery-grid">'+[5,10,15].map(n=>
         '<button type="button" data-recovery-minutes="'+n+'" class="'+(recoveryMinutes===n?'selected':'')+'">'+n+' minuten</button>').join('')+'</div>'
-      +(recoveryManualMode?'<label class="day-recovery-custom">Andere tijd (minuten)<input type="number" min="1" max="360" step="1" inputmode="numeric" placeholder="Bijv. 20" data-recovery-custom-minutes aria-label="Zelf minuten invullen"></label>':'')
+      +(recoveryManualMode?'<label class="day-recovery-custom">Andere tijd (minuten)<input type="number" min="1" max="360" step="1" inputmode="numeric" placeholder="Bijv. 20" value="'+escapeHtml(recoveryCustomMinutes)+'" data-recovery-custom-minutes aria-label="Zelf minuten invullen"></label>':'')
       +'<strong>Waar heb je zin in?</strong>'
       +'<div class="day-recovery-kinds">'+Object.entries(recoveryLabels).map(([id,label])=>
         '<button type="button" data-recovery-kind="'+id+'" class="'+(id===recoveryKind?'selected':'')+'">'+escapeHtml(label)+'</button>').join('')+'</div>'
@@ -2613,6 +2614,32 @@
       +(recoveryManualMode?'Minuten opslaan':'Begin rustmoment')+'</button>'
       +'<button class="secondary-button" type="button" data-recovery-skip>Nu niet</button></div>'
       +(recoveryManualMode?'':'<button class="day-recovery-next" type="button" data-recovery-manual>Al gedaan? Registreer minuten</button>');
+    // Directe knopafhandeling. Touch is een vangnet voor oudere Android WebViews.
+    const saveButton=box.querySelector('[data-recovery-log]');
+    if(saveButton){
+      let handled=false;
+      const submit=e=>{
+        if(handled)return;
+        handled=true;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation?.();
+        const entry=box.querySelector('[data-recovery-custom-minutes]');
+        if(entry)recoveryCustomMinutes=entry.value.trim();
+        saveButton.textContent='Bezig met opslaan…';
+        try{recoveryLogManually();}
+        catch(error){
+          console.error('Opslaan rustminuten mislukt',error);
+          saveButton.textContent='Minuten opslaan';
+          showToast('Opslaan ging mis. Probeer het opnieuw.');
+        }
+      };
+      saveButton.addEventListener('click',submit);
+      saveButton.addEventListener('touchend',e=>{
+        if(e.cancelable)e.preventDefault();
+        submit(e);
+      },{passive:false});
+    }
   }
   function offerRecovery(){
     if(recoveryActive())return;
@@ -2652,7 +2679,7 @@
   function recoveryLogManually(){
     if(recoveryActive())return showToast('Rond je lopende rustmoment eerst af.');
     const field=document.querySelector('#dayPlanRecoveryPanel [data-recovery-custom-minutes]');
-    const custom=field?field.value.trim():'';
+    const custom=field?field.value.trim():recoveryCustomMinutes;
     const minutes=custom?Number(custom):recoveryMinutes;
     if((custom&&!/^[0-9]+$/.test(custom))||!Number.isInteger(minutes)||minutes<1||minutes>360){
       return showToast('Vul een heel aantal minuten in van 1 tot 360.');
@@ -2666,6 +2693,7 @@
       recoveryManualMode=true;recoveryOfferVisible=true;renderRecoveryPanel();
       return showToast('Opslaan is niet gelukt. Probeer het opnieuw.');
     }
+    recoveryCustomMinutes='';
     renderRecoveryPanel();
     showToast(minutes+' minuten geregistreerd voor '+(recoveryKind==='stretchen'?'Stretchen':'Bewust ontspannen')+'.');
     showDayPlanNextPicker(false);
@@ -2679,6 +2707,7 @@
   }
   function recoverySkip(){
     recoveryManualMode=false;
+    recoveryCustomMinutes='';
     recoveryOfferVisible=false;
     renderRecoveryPanel();
     showDayPlanNextPicker(false);
@@ -3763,11 +3792,8 @@
 
 
   document.getElementById('dayPlanInput').addEventListener('input',showDayPlanPasteStatus);
-  // Directe handler op het rustpaneel voor betrouwbaar opslaan in Android WebView.
-  document.getElementById('dayPlanRecoveryPanel')?.addEventListener('click',e=>{
-    if(!e.target.closest('[data-recovery-log]'))return;
-    e.stopPropagation();
-    recoveryLogManually();
+  document.addEventListener('input',e=>{
+    if(e.target.matches('[data-recovery-custom-minutes]'))recoveryCustomMinutes=e.target.value.trim();
   });
   document.addEventListener('click',e=>{
     const startFocus=e.target.closest('[data-dayplan-focus-start]');
