@@ -832,6 +832,7 @@
     .day-recovery-grid button,.day-recovery-kinds button{min-height:47px;border:1px solid var(--line);border-radius:11px;background:var(--card,#fff);padding:7px;font-weight:750}
     .day-recovery-grid button.selected,.day-recovery-kinds button.selected{border:2px solid var(--accent-strong);background:var(--accent-soft);color:var(--accent-strong)}
     .day-recovery-kinds{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+    .day-recovery-kinds .recovery-save-option{grid-column:1/-1;min-height:52px;font-size:16px;font-weight:700;background:var(--accent);color:white;border-color:var(--accent-strong)}
     .day-recovery-custom{display:block;font-size:13px;font-weight:750;margin:12px 0;color:var(--text)}
     .day-recovery-custom input{display:block;margin-top:6px;width:100%;min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--card,#fff);color:var(--text);font:inherit;font-size:17px}
     .recovery-habit-progress{margin:9px 0;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
@@ -2572,49 +2573,6 @@
     return true;
   }
   let recoveryManualMode=false,recoveryCustomMinutes='';
-  let recoveryLastPressAt=0;
-  // Android kan de klik op een knop verliezen bij het sluiten van het toetsenbord.
-  // Leg de aanraking daarom vast vóór de gebruikelijke click-gebeurtenis.
-  function recoverySaveTouchCapture(e){
-    if(!recoveryManualMode||!recoveryOfferVisible||recoveryActive())return;
-    const panel=document.getElementById('dayPlanRecoveryPanel');
-    const button=panel?.querySelector('[data-recovery-log]');
-    if(!button||panel.hidden)return;
-    const target=e.target;
-    let hit=Boolean(target?.closest?.('[data-recovery-log]'));
-    if(!hit){
-      // Een eventuele onzichtbare laag mag de zichtbare knop niet blokkeren.
-      const touch=e.changedTouches?.[0]||e.touches?.[0]||e;
-      const x=touch.clientX,y=touch.clientY;
-      const rect=button.getBoundingClientRect();
-      const over=Number.isFinite(x)&&Number.isFinite(y)
-        &&x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom;
-      if(!over||target?.closest?.('button,input,textarea,select,a'))return;
-      hit=true;
-    }
-    if(!hit||Date.now()-recoveryLastPressAt<900)return;
-    recoveryLastPressAt=Date.now();
-    if(e.cancelable)e.preventDefault();
-    e.stopPropagation?.();
-    e.stopImmediatePropagation?.();
-    const custom=panel.querySelector('[data-recovery-custom-minutes]');
-    if(custom)recoveryCustomMinutes=custom.value.trim();
-    const message=panel.querySelector('[data-recovery-save-status]');
-    if(message)message.textContent='Aanraking herkend · opslaan wordt uitgevoerd';
-    button.textContent='Bezig met opslaan…';
-    let ok=false;
-    try{ok=recoveryLogManually();}
-    catch(error){console.error('Aanraakopslag mislukt',error);showToast('Registreren mislukte.');}
-    if(!ok){
-      const liveButton=panel.querySelector('[data-recovery-log]');
-      if(liveButton)liveButton.textContent='Minuten opslaan';
-      const liveMessage=panel.querySelector('[data-recovery-save-status]');
-      if(liveMessage)liveMessage.textContent='Aanraking herkend, maar niet opgeslagen. Controleer je minuten.';
-      recoveryLastPressAt=0;
-    }
-  }
-  document.addEventListener('pointerdown',recoverySaveTouchCapture,true);
-  document.addEventListener('touchstart',recoverySaveTouchCapture,{capture:true,passive:false});
   function openRecoveryManual(kind){
     if(recoveryActive())return showToast('Rond je lopende rustmoment eerst af.');
     recoveryKind=kind==='stretch'?'stretchen':'zitten';
@@ -2668,49 +2626,12 @@
       +(recoveryManualMode?'<label class="day-recovery-custom">Andere tijd (minuten)<input type="number" min="1" max="360" step="1" inputmode="numeric" placeholder="Bijv. 20" value="'+escapeHtml(recoveryCustomMinutes)+'" data-recovery-custom-minutes aria-label="Zelf minuten invullen"></label>':'')
       +'<strong>Waar heb je zin in?</strong>'
       +'<div class="day-recovery-kinds">'+Object.entries(recoveryLabels).map(([id,label])=>
-        '<button type="button" data-recovery-kind="'+id+'" class="'+(id===recoveryKind?'selected':'')+'">'+escapeHtml(label)+'</button>').join('')+'</div>'
-      +'<div class="day-recovery-actions"><button class="primary-button" type="button" data-recovery-'+(recoveryManualMode?'log':'start')+'">'
-      +(recoveryManualMode?'Minuten opslaan':'Begin rustmoment')+'</button>'
+        '<button type="button" data-recovery-kind="'+id+'" class="'+(id===recoveryKind?'selected':'')+'">'+escapeHtml(label)+'</button>').join('')
+      +(recoveryManualMode?'<button type="button" data-recovery-kind="opslaan" class="recovery-save-option">Minuten opslaan</button>':'')+'</div>'
+      +'<div class="day-recovery-actions">'
+      +(recoveryManualMode?'':'<button class="primary-button" type="button" data-recovery-start>Begin rustmoment</button>')
       +'<button class="secondary-button" type="button" data-recovery-skip>Nu niet</button></div>'
-      +(recoveryManualMode?'<p class="small-muted" data-recovery-save-status style="margin:8px 0 0;font-size:12px">Registratiecontrole R4 · aanraking wordt direct verwerkt</p>':'<button class="day-recovery-next" type="button" data-recovery-manual>Al gedaan? Registreer minuten</button>');
-    // Directe knopafhandeling. Touch is een vangnet voor oudere Android WebViews.
-    const saveButton=box.querySelector('[data-recovery-log]');
-    if(saveButton){
-      let handled=false;
-      const status=box.querySelector('[data-recovery-save-status]');
-      saveButton.addEventListener('pointerdown',()=>{
-        if(status)status.textContent='Aanraking herkend · even loslaten om op te slaan';
-      });
-      const submit=e=>{
-        if(handled)return;
-        handled=true;
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation?.();
-        const entry=box.querySelector('[data-recovery-custom-minutes]');
-        if(entry)recoveryCustomMinutes=entry.value.trim();
-        saveButton.textContent='Bezig met opslaan…';
-        if(status)status.textContent='Knop reageert · registratie wordt opgeslagen';
-        let done=false;
-        try{done=recoveryLogManually();}
-        catch(error){
-          console.error('Opslaan rustminuten mislukt',error);
-          if(status)status.textContent='Opslaan mislukt ('+String(error?.message||'onbekende fout')+').';
-          showToast('Opslaan ging mis. Probeer het opnieuw.');
-        }
-        if(!done){
-          handled=false;
-          saveButton.textContent='Minuten opslaan';
-          const current=box.querySelector('[data-recovery-save-status]');
-          if(current&&!current.textContent.includes('mislukt'))current.textContent='Niet opgeslagen · controleer de invoer of opslag.';
-        }
-      };
-      saveButton.addEventListener('click',submit);
-      saveButton.addEventListener('touchend',e=>{
-        if(e.cancelable)e.preventDefault();
-        submit(e);
-      },{passive:false});
-    }
+      +(recoveryManualMode?'':'<button class="day-recovery-next" type="button" data-recovery-manual>Al gedaan? Registreer minuten</button>');
   }
   function offerRecovery(){
     if(recoveryActive())return;
@@ -3890,11 +3811,14 @@
     if(logFor)return openRecoveryManual(logFor.dataset.recoveryLogFor);
     if(e.target.closest('[data-recovery-open]')){recoveryManualMode=false;return offerRecovery();}
     if(e.target.closest('[data-recovery-manual]')){recoveryManualMode=true;return renderRecoveryPanel();}
-    if(e.target.closest('[data-recovery-log]'))return recoveryLogManually();
     const recoveryDuration=e.target.closest('[data-recovery-minutes]');
     if(recoveryDuration){recoveryMinutes=Number(recoveryDuration.dataset.recoveryMinutes);return renderRecoveryPanel();}
     const recoveryChoice=e.target.closest('[data-recovery-kind]');
-    if(recoveryChoice){recoveryKind=recoveryChoice.dataset.recoveryKind;return renderRecoveryPanel();}
+    if(recoveryChoice){
+      if(recoveryChoice.dataset.recoveryKind==='opslaan')return recoveryLogManually();
+      recoveryKind=recoveryChoice.dataset.recoveryKind;
+      return renderRecoveryPanel();
+    }
     if(e.target.closest('[data-recovery-start]'))return recoveryStart();
     if(e.target.closest('[data-recovery-finish]'))return recoveryFinish();
     if(e.target.closest('[data-recovery-stop]'))return recoveryStop();
