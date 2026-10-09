@@ -809,6 +809,16 @@
     .day-plan-count{font-size:12px;color:var(--muted);margin:5px 0 3px}
     .day-plan-paste-status{font-size:13px;line-height:1.55;margin:8px 0 0;color:var(--muted);white-space:pre-line}
     #dayPlanInput{min-height:230px}
+    .day-plan-focus-start{border:1px solid var(--accent-strong);color:var(--accent-strong);background:var(--card,#fff);border-radius:9px;padding:5px 9px;font-weight:750;font-size:12px;min-height:32px}
+    .day-plan-focus-start.active{background:var(--accent-strong);color:white}
+    .day-plan-start-duration{width:66px;min-height:32px;border:1px solid var(--line);border-radius:8px;padding:3px 5px;font-size:12px}
+    .day-plan-focus-panel{border:1px solid var(--line);background:var(--surface-soft);border-radius:14px;padding:14px;margin:12px 0}
+    .day-plan-focus-panel h4{font-size:19px;margin:5px 0}
+    .day-plan-focus-clock{font-size:35px;font-weight:850;text-align:center;font-variant-numeric:tabular-nums;margin:12px 0}
+    .day-plan-focus-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+    .day-plan-focus-actions button{min-height:47px;padding:7px;border-radius:10px;font-size:13px;font-weight:800}
+    .day-plan-focus-custom{display:flex;gap:8px;align-items:center;margin-top:10px}
+    .day-plan-focus-custom input{width:90px;padding:9px;min-height:44px}
     .day-plan-replan-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 9px}
     .day-plan-replan-actions button{min-height:48px;border-radius:12px;font-weight:800;font-size:13px;padding:8px 6px}
     .day-plan-replan-status{font-size:12px;color:var(--muted);line-height:1.45;margin:5px 0 12px}
@@ -899,6 +909,7 @@
                 <button class="secondary-button" id="replanDayNowButton" type="button">Herplan vanaf nu</button>
               </div>
               <div class="day-plan-replan-status" id="dayPlanReplanStatus">Openstaande tijdsblokken kunnen met je dag meeschuiven.</div>
+              <div id="dayPlanActiveFocus" aria-live="polite"></div>
               <div class="day-plan-conflict" id="dayPlanConflict" hidden aria-live="polite"></div>
               <div class="day-plan-actions">
                 <button class="secondary-button" id="openDayPlanPasteButton">Planning plakken</button>
@@ -1393,6 +1404,7 @@
     reflections: {},
     todayPlan: { date: null, taskIds: [] },
     dayTimeline: { date: null, alarms: false, blocks: [], sourceText: '' },
+    dayTimelineFocus: null,
     dump: [],
     dayClosedDate: null,
     focus: { taskId: null, targetType: null, targetId: null, durationSec: 300, remainingSec: 300, running: false, soundEnabled: true },
@@ -1520,6 +1532,10 @@
         reflections: saved.reflections && typeof saved.reflections==='object' ? saved.reflections : {},
         dump: Array.isArray(saved.dump) ? saved.dump : [],
         todayPlan: saved.todayPlan && Array.isArray(saved.todayPlan.taskIds) ? saved.todayPlan : {date:null,taskIds:[]},
+        dayTimelineFocus: saved.dayTimelineFocus && typeof saved.dayTimelineFocus==='object'
+          && typeof saved.dayTimelineFocus.blockId==='string' && Number.isFinite(Number(saved.dayTimelineFocus.endsAt))
+          ? {date:saved.dayTimelineFocus.date||'',blockId:saved.dayTimelineFocus.blockId,
+             startedAt:Number(saved.dayTimelineFocus.startedAt)||0,endsAt:Number(saved.dayTimelineFocus.endsAt)||0} : null,
         dayTimeline: saved.dayTimeline && Array.isArray(saved.dayTimeline.blocks) ? {date:saved.dayTimeline.date||null,alarms:saved.dayTimeline.alarms===true,sourceText:typeof saved.dayTimeline.sourceText==='string'?saved.dayTimeline.sourceText:'',blocks:saved.dayTimeline.blocks.map(b=>({id:b.id||uid('plan'),start:b.start||'',end:b.end||'',originalStart:b.originalStart||b.start||'',originalEnd:b.originalEnd||b.end||'',text:b.text||'',linkType:b.linkType||'',linkId:b.linkId||'',kind:b.kind||'Plan',matchedName:b.matchedName||'',done:Boolean(b.done),fixed:b.fixed===true?true:b.fixed===false?false:null,remind:b.remind===true,postponedTo:b.postponedTo||'',postponedCreatedTask:Boolean(b.postponedCreatedTask)}))} : {date:null,alarms:false,blocks:[],sourceText:''},
         focus: {...structuredClone(defaultState.focus), ...(saved.focus||{}), targetType:saved.focus?.targetType||(saved.focus?.taskId?'task':null), targetId:saved.focus?.targetId||saved.focus?.taskId||null, running:false},
         weekMenu: Array.isArray(saved.weekMenu)?saved.weekMenu:[], shopping:Array.isArray(saved.shopping)?saved.shopping:[], projects:Array.isArray(saved.projects)?saved.projects:[], notes:Array.isArray(saved.notes)?saved.notes:[],
@@ -1912,6 +1928,140 @@
     return block.linkType==='task'?'Taak':block.linkType==='habit'?'Routine':block.linkType==='household'?'Huishouden':block.linkType==='agenda'?'Agenda':'Dagblok';
   }
   function dayPlanAlarmId(plan,block){return 'dayplan-'+(plan?.date||'')+'-'+block.id;}
+
+  // Focus op een tijdblok gebruikt de bestaande Android-herinneringsbrug.
+  // De eindtijd is een timestamp en blijft kloppen als de app op de achtergrond staat.
+  const DAY_FOCUS_ALARM_ID='dayplan-focus-active';
+  function activeDayPlanFocus(){
+    const f=state.dayTimelineFocus,plan=state.dayTimeline;
+    if(!f||!plan||f.date!==localDateKey()||plan.date!==f.date)return null;
+    const block=(plan.blocks||[]).find(b=>b.id===f.blockId);
+    if(!block||block.postponedTo||dayPlanBlockDone(block))return null;
+    return {focus:f,block};
+  }
+  function clearDayPlanFocus(){
+    state.dayTimelineFocus=null;
+    try{window.AndroidWidgetBridge?.cancelReminder?.(DAY_FOCUS_ALARM_ID);}catch{}
+  }
+  function dayPlanFocusReminder(block,endsAt){
+    try{
+      window.AndroidWidgetBridge?.cancelReminder?.(DAY_FOCUS_ALARM_ID);
+      if(endsAt>Date.now()+1000){
+        window.AndroidWidgetBridge?.scheduleReminder?.(
+          DAY_FOCUS_ALARM_ID,'Focus: '+block.text,
+          'Je geplande tijd is voorbij. Open Mijn dag voor Klaar of extra tijd.',
+          endsAt,'focus'
+        );
+      }
+    }catch{}
+  }
+  function dayPlanFocusDuration(block){
+    const start=dayPlanMinutes(block.start),end=dayPlanMinutes(block.end);
+    return start===null||end===null||end<=start?0:end-start;
+  }
+  function dayPlanFocusRemaining(f){
+    return Math.max(0,Math.ceil((f.endsAt-Date.now())/1000));
+  }
+  function dayPlanFocusClock(seconds){
+    const total=Math.max(0,Math.floor(seconds));
+    const hrs=Math.floor(total/3600),min=Math.floor(total%3600/60),sec=total%60;
+    return (hrs?String(hrs).padStart(2,'0')+':':'')+String(min).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+  }
+  function dayPlanFocusMarkup(active,embedded=false){
+    const {focus,block}=active,remaining=dayPlanFocusRemaining(focus),expired=remaining===0;
+    return '<div class="day-plan-focus-panel">'
+      +'<div class="eyebrow">'+(expired?'GEPLANDE TIJD VOORBIJ':'FOCUS LOOPT')+'</div>'
+      +'<h4>'+escapeHtml(block.text)+'</h4>'
+      +'<p class="small-muted">'+(expired?'Wil je afronden of doorgaan?':'Je werkt aan dit dagblok. De andere flexibele startmeldingen wachten.')+'</p>'
+      +'<div class="day-plan-focus-clock" data-dayplan-focus-clock>'+dayPlanFocusClock(remaining)+'</div>'
+      +'<div class="day-plan-focus-actions">'
+      +'<button class="primary-button" type="button" data-dayplan-focus-done>Klaar</button>'
+      +'<button class="secondary-button" type="button" data-dayplan-focus-extra="15">15 min extra</button>'
+      +'<button class="secondary-button" type="button" data-dayplan-focus-extra="30">30 min extra</button>'
+      +'<button class="secondary-button" type="button" data-dayplan-focus-show-custom>Andere tijd</button>'
+      +'</div>'
+      +'<div class="day-plan-focus-custom" data-dayplan-focus-custom hidden><input class="text-input" type="number" min="1" max="360" placeholder="min" data-dayplan-focus-custom-minutes aria-label="Extra minuten"/><button class="secondary-button" type="button" data-dayplan-focus-custom-apply>Toevoegen</button></div>'
+      +(embedded?'<button class="day-plan-focus-start" type="button" data-dayplan-focus-open style="margin-top:12px">Open Focus</button>':'')
+      +'<button class="day-plan-focus-start" type="button" data-dayplan-focus-stop style="margin-top:12px">Stop zonder afvinken</button>'
+      +'</div>';
+  }
+  function refreshDayPlanFocusPanels(){
+    const active=activeDayPlanFocus();
+    // Een oud of afgerond dagblok mag geen alarm blijven geven.
+    if(!active && state.dayTimelineFocus){clearDayPlanFocus();saveState();}
+    const el=document.getElementById('dayPlanActiveFocus');
+    if(el)el.innerHTML=active?dayPlanFocusMarkup(active,true):'';
+  }
+  function startDayPlanFocus(blockId){
+    const plan=state.dayTimeline,block=plan?.blocks?.find(b=>b.id===blockId);
+    if(!block||plan.date!==localDateKey()||block.postponedTo||dayPlanBlockDone(block))return;
+    const active=activeDayPlanFocus();
+    if(active&&active.block.id!==block.id &&
+       !confirm('Er loopt nog Focus voor "'+active.block.text+'". Stoppen en dit blok starten?'))return;
+    let duration=dayPlanFocusDuration(block);
+    if(!duration){
+      const field=document.querySelector('[data-dayplan-duration-for="'+blockId+'"]');
+      duration=Number(field?.value||0);
+      if(!Number.isInteger(duration)||duration<1||duration>360)return showToast('Vul eerst een Focus-duur van 1 tot 360 minuten in.');
+    }
+    if(duration>360)return showToast('Focus kan maximaal 360 minuten duren.');
+    // Er is maximaal één actieve Focus-timer: voorkom dubbele alarmen.
+    state.focus.running=false;
+    try{window.AndroidWidgetBridge?.cancelFocus?.();}catch{}
+    clearDayPlanFocus();
+    const now=Date.now(),endsAt=now+duration*60000;
+    state.dayTimelineFocus={date:plan.date,blockId:block.id,startedAt:now,endsAt};
+    cancelDayPlanAlarms(plan); // optionele startmeldingen van flexibele blokken niet stapelen
+    saveState();
+    dayPlanFocusReminder(block,endsAt);
+    renderToday();
+    setDailyTab('focus');
+    showToast('Focus gestart: '+duration+' minuten.');
+  }
+  function extendDayPlanFocus(minutes){
+    const active=activeDayPlanFocus();if(!active)return;
+    const extra=Number(minutes);
+    if(!Number.isInteger(extra)||extra<1||extra>360)return showToast('Kies 1 tot 360 minuten extra.');
+    const now=Date.now(),ending=now+extra*60000;
+    const fixed=(state.dayTimeline?.blocks||[]).find(b=>!dayPlanBlockDone(b)&&b.id!==active.block.id&&dayPlanBlockMode(b)==='fixed'
+      &&dayPlanMinutes(b.start)!==null&&new Date(localDateKey()+'T'+b.start+':00').getTime()>=now
+      &&new Date(localDateKey()+'T'+b.start+':00').getTime()<ending);
+    if(fixed&&!confirm('Er staat een vaste afspraak "'+fixed.text+'" tijdens deze extra tijd. Toch doorgaan?'))return;
+    active.focus.endsAt=ending;
+    saveState();dayPlanFocusReminder(active.block,ending);
+    renderFocus();refreshDayPlanFocusPanels();
+    showToast(extra+' minuten extra voor '+active.block.text+'.');
+  }
+  function finishDayPlanFocus(){
+    const active=activeDayPlanFocus();if(!active)return;
+    const block=active.block;
+    clearDayPlanFocus();saveState();
+    setDayPlanLinkedDone(block,true);
+    setDailyTab('start');
+    // Als een vaste afspraak of een eetvenster niet past, blijft de keuze bij jou.
+    replanDayFromNow({silent:true});
+  }
+  function stopDayPlanFocus(){
+    if(!state.dayTimelineFocus)return;
+    clearDayPlanFocus();saveState();
+    scheduleDayPlanAlarms();
+    refreshDayPlanFocusPanels();renderFocus();renderDayTimeline();
+    showToast('Focus gestopt. Het blok staat nog open.');
+  }
+  function tickDayPlanFocus(){
+    const active=activeDayPlanFocus();
+    if(!active)return;
+    const seconds=dayPlanFocusRemaining(active.focus);
+    document.querySelectorAll('[data-dayplan-focus-clock]').forEach(el=>{
+      el.textContent=dayPlanFocusClock(seconds);
+    });
+    if(seconds===0 && !active.focus.expiryShown){
+      active.focus.expiryShown=true; // Alleen een UI-toestand; het Android-alarm werkt onafhankelijk.
+      renderFocus();refreshDayPlanFocusPanels();
+      if(!window.AndroidWidgetBridge)playFocusFinishedSignal();
+    }
+  }
+
   function cancelDayPlanAlarms(plan){(plan?.blocks||[]).forEach(b=>{try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}});}
   function scheduleDayPlanAlarms(){
     const plan=state.dayTimeline;if(!plan?.date)return;
@@ -2163,6 +2313,7 @@
   function replanDayFromNow(options={}){
     const plan=state.dayTimeline;
     if(!plan||plan.date!==localDateKey()||!plan.blocks?.length)return showToast('Er staat nog geen dagplanning voor vandaag.');
+    if(activeDayPlanFocus())return showToast('Rond eerst je actieve Focus af of kies Stop zonder afvinken.');
     const now=new Date(),minutes=now.getHours()*60+now.getMinutes();
     const requested=Array.isArray(options.postponeIds)?options.postponeIds:[];
     const eligible=new Set(dayPlanPostponeChoices().flatMap(g=>g.ids));
@@ -2224,6 +2375,7 @@
       showToast(result.ignored.length+' regel(s) niet herkend. Controleer de tekst boven de knop.');
       return;
     }
+    clearDayPlanFocus();
     cancelDayPlanAlarms(state.dayTimeline);
     const allAlerts=document.getElementById('dayPlanAlarmToggle').checked;
     blocks.forEach(b=>{b.remind=allAlerts&&b.linkType!=='agenda';});
@@ -2233,7 +2385,7 @@
   function clearDayPlan(){
     if(!state.dayTimeline?.blocks?.length)return;
     if(!confirm('Dagplanning wissen? Je gewone taken, routines en huishoudklusjes blijven bestaan.'))return;
-    cancelDayPlanAlarms(state.dayTimeline);state.dayTimeline={date:null,alarms:false,blocks:[],sourceText:''};saveState();renderToday();showToast('Dagplanning gewist.');
+    clearDayPlanFocus();cancelDayPlanAlarms(state.dayTimeline);state.dayTimeline={date:null,alarms:false,blocks:[],sourceText:''};saveState();renderToday();showToast('Dagplanning gewist.');
   }
   function renderDayTimeline(){
     const box=document.getElementById('dayPlanList'),clear=document.getElementById('clearDayPlanButton');if(!box)return;
@@ -2241,6 +2393,7 @@
     for(const id of ['startMyDayNowButton','replanDayNowButton']){const button=document.getElementById(id);if(button)button.disabled=!hasPlan;}
     if(status)status.textContent=hasPlan?'Start of herplan wanneer jij daar klaar voor bent. Vaste afspraken blijven staan.':'Plak eerst een dagplanning om vanaf nu te plannen.';
     const plan=state.dayTimeline||{blocks:[]},active=plan.date===localDateKey()&&Array.isArray(plan.blocks)&&plan.blocks.length;
+    refreshDayPlanFocusPanels();
     if(active)(plan.blocks||[]).filter(dayPlanBlockDone).forEach(b=>{try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}});
     if(clear)clear.style.display=plan.blocks?.length?'inline-flex':'none';
     if(!active){
@@ -2263,7 +2416,9 @@
       const linked=b.linkType!=='agenda',time=escapeHtml(b.start+(b.end?'–'+b.end:''));
       const mark=linked?'<input class="check" type="checkbox" data-day-plan-check="'+b.id+'" aria-label="Afvinken"/>':(b.linkType==='agenda'?'▣':'•');
       return '<div class="day-plan-row"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div><div class="day-plan-name">'+escapeHtml(b.text)+'</div><div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
-       +'<div class="day-plan-settings"><button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>'
+       +'<div class="day-plan-settings"><button type="button" class="day-plan-focus-start '+(activeDayPlanFocus()?.block.id===b.id?'active':'')+'" data-dayplan-focus-start="'+escapeHtml(b.id)+'">▶ '+(activeDayPlanFocus()?.block.id===b.id?'Focus bezig':'Start Focus')+'</button>'
+       +(dayPlanFocusDuration(b)?'':'<input type="number" min="1" max="360" placeholder="min" class="day-plan-start-duration" data-dayplan-duration-for="'+escapeHtml(b.id)+'" aria-label="Focusduur in minuten"/>')
+       +'<button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>'
        +(b.linkType!=='agenda'?'<button type="button" class="day-plan-mini '+(b.remind?'on':'')+'" data-dayplan-remind="'+escapeHtml(b.id)+'">'+(b.remind?'Herinnering aan':'Herinnering uit')+'</button>':'')+'</div>'
        +'</div></div>';
     }).join(''):'<div class="empty-state">Alles voor vandaag is afgevinkt.</div>')
@@ -2275,6 +2430,7 @@
        +'</details>':'');
   }
   function setDayPlanLinkedDone(block,checked){
+    if(checked&&state.dayTimelineFocus?.blockId===block.id){clearDayPlanFocus();saveState();}
     const today=localDateKey();
     if(block.linkType==='task'){const t=state.tasks.find(x=>x.id===block.linkId);if(t){if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}markTask(t,checked);return;}}
     if(block.linkType==='habit'){const h=state.habits.find(x=>x.id===block.linkId);if(h){h.history||={};h.versionHistory||={};if(checked){h.history[today]=true;if(h.energyAdaptive)h.versionHistory[today]=habitSelectedVersion(h,today);}else{delete h.history[today];delete h.versionHistory[today];}saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();}}
@@ -2552,7 +2708,12 @@
     }
     if(navigator.vibrate){ try{ navigator.vibrate([180,100,180,100,320]); }catch{} }
   }
-  function selectFocusItem(type,id){ state.focus.targetType=type;state.focus.targetId=id;state.focus.taskId=type==='task'?id:null;state.focus.remainingSec=state.focus.durationSec||300;state.focus.running=false;saveState();setDailyTab('focus'); }
+  function selectFocusItem(type,id){
+    if(activeDayPlanFocus()){
+      if(!confirm('Er loopt nog een dagblok in Focus. Stoppen en een ander onderdeel kiezen?'))return;
+      clearDayPlanFocus();
+    }
+    state.focus.targetType=type;state.focus.targetId=id;state.focus.taskId=type==='task'?id:null;state.focus.remainingSec=state.focus.durationSec||300;state.focus.running=false;saveState();setDailyTab('focus'); }
   function selectFocusTask(id){selectFocusItem('task',id);}
   function completeFocusItem(type,id){
     if(type==='task'){const t=state.tasks.find(x=>x.id===id);if(t)return markTask(t,true);return;}
@@ -2560,7 +2721,14 @@
     if(type==='habit'){const h=state.habits.find(x=>x.id===id);if(!h)return;h.history||={};h.versionHistory||={};h.history[today]=true;if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}else delete h.versionHistory[today];saveState();if(['basis-move','basis-relax','habit-day-close'].includes(h.id))queueReminderStateSync();renderDailyBasis();renderFocus();renderShutdown();showToast(`${h.name} afgerond.`);return;}
     if(type==='household'){const h=state.householdTasks.find(x=>x.id===id);if(!h)return;h.history||={};h.history[today]=true;h.deferUntil='';saveState();renderHousehold();renderFocus();showToast(`${h.name} afgerond.`);}
   }
-  function renderFocus(){ const entry=focusItem(); if(entry&&(state.focus.targetType!==entry.type||state.focus.targetId!==entry.id)){state.focus.targetType=entry.type;state.focus.targetId=entry.id;state.focus.taskId=entry.type==='task'?entry.id:null;state.focus.running=false;state.focus.remainingSec=state.focus.durationSec||300;} const wrap=document.getElementById('focusCard'); if(!entry){wrap.innerHTML=`<div class="empty-state">Geen open onderdeel om op te focussen.</div><button class="primary-button" id="chooseFocusTaskButton">Terug naar je dag</button>`;return;} const dur=Math.round((state.focus.durationSec||300)/60),item=entry.item; wrap.innerHTML=`<div class="focus-hero"><p class="eyebrow">${escapeHtml(focusItemLabel(entry.type).toUpperCase())} · NU AAN DE BEURT</p><div class="focus-task-name">${escapeHtml(item.name)}</div><div class="focus-step">${escapeHtml(focusItemStep(entry))}</div><div class="focus-clock"><div><span class="small-muted">${state.focus.running?'nog':'ongeveer'}</span><br><strong id="focusClockText">${formatTime(state.focus.remainingSec||state.focus.durationSec||300)}</strong></div></div><div class="focus-duration-grid">${[5,15,25].map(m=>`<button class="duration-button ${dur===m?'selected':''}" data-focus-duration="${m}">${m} min</button>`).join('')}</div><div class="dump-input-row"><input class="text-input" type="number" min="1" max="180" id="customFocusMinutes" placeholder="Zelf minuten"/><button class="secondary-button" id="customFocusButton" style="width:auto;">Kies</button></div><label class="focus-signal-toggle"><div><strong>Geluid & trillen</strong><span>Signaal wanneer je focusblok klaar is.</span></div><input class="switch-check" id="focusSoundToggle" type="checkbox" ${state.focus.soundEnabled!==false?'checked':''}/></label><div class="focus-controls"><button class="primary-button" id="focusStartButton">${state.focus.running?'Pauze':'Start focus'}</button><button class="secondary-button" data-focus-done="${entry.type}|${entry.id}">${escapeHtml(focusItemDoneLabel(entry.type))}</button><button class="secondary-button" id="chooseFocusTaskButton">Iets anders kiezen</button></div></div>`; }
+  function renderFocus(){
+    const activeDay=activeDayPlanFocus();
+    if(activeDay){
+      const wrap=document.getElementById('focusCard');
+      if(wrap)wrap.innerHTML=dayPlanFocusMarkup(activeDay,false);
+      return;
+    }
+    const entry=focusItem(); if(entry&&(state.focus.targetType!==entry.type||state.focus.targetId!==entry.id)){state.focus.targetType=entry.type;state.focus.targetId=entry.id;state.focus.taskId=entry.type==='task'?entry.id:null;state.focus.running=false;state.focus.remainingSec=state.focus.durationSec||300;} const wrap=document.getElementById('focusCard'); if(!entry){wrap.innerHTML=`<div class="empty-state">Geen open onderdeel om op te focussen.</div><button class="primary-button" id="chooseFocusTaskButton">Terug naar je dag</button>`;return;} const dur=Math.round((state.focus.durationSec||300)/60),item=entry.item; wrap.innerHTML=`<div class="focus-hero"><p class="eyebrow">${escapeHtml(focusItemLabel(entry.type).toUpperCase())} · NU AAN DE BEURT</p><div class="focus-task-name">${escapeHtml(item.name)}</div><div class="focus-step">${escapeHtml(focusItemStep(entry))}</div><div class="focus-clock"><div><span class="small-muted">${state.focus.running?'nog':'ongeveer'}</span><br><strong id="focusClockText">${formatTime(state.focus.remainingSec||state.focus.durationSec||300)}</strong></div></div><div class="focus-duration-grid">${[5,15,25].map(m=>`<button class="duration-button ${dur===m?'selected':''}" data-focus-duration="${m}">${m} min</button>`).join('')}</div><div class="dump-input-row"><input class="text-input" type="number" min="1" max="180" id="customFocusMinutes" placeholder="Zelf minuten"/><button class="secondary-button" id="customFocusButton" style="width:auto;">Kies</button></div><label class="focus-signal-toggle"><div><strong>Geluid & trillen</strong><span>Signaal wanneer je focusblok klaar is.</span></div><input class="switch-check" id="focusSoundToggle" type="checkbox" ${state.focus.soundEnabled!==false?'checked':''}/></label><div class="focus-controls"><button class="primary-button" id="focusStartButton">${state.focus.running?'Pauze':'Start focus'}</button><button class="secondary-button" data-focus-done="${entry.type}|${entry.id}">${escapeHtml(focusItemDoneLabel(entry.type))}</button><button class="secondary-button" id="chooseFocusTaskButton">Iets anders kiezen</button></div></div>`; }
 
   function reflectionForToday(){ const today=localDateKey(); state.reflections||={}; if(!state.reflections[today]||typeof state.reflections[today]!=='object')state.reflections[today]={good:'',tension:'',relax:'',updatedAt:null}; return state.reflections[today]; }
   function saveReflectionFromForm(silent=true){ const r=reflectionForToday(), good=document.getElementById('reflectionGood'), tension=document.getElementById('reflectionTension'), relax=document.getElementById('reflectionRelax'); if(!good||!tension||!relax)return; r.good=good.value.trim();r.tension=tension.value.trim();r.relax=relax.value.trim();r.updatedAt=Date.now();saveState();if(!silent)showToast('Reflectie bewaard.'); }
@@ -2706,7 +2874,7 @@
 
   function markTask(task,done){ task.done=done; task.completedAt=done?Date.now():null; task.running=false; if(done&&state.focus.taskId===task.id)state.focus.running=false; refillTodayPlan(false); saveState(); renderToday(); renderAllTasks(); renderFocus(); renderShutdown(); }
 
-  setInterval(()=>{ if(state.focus.running){ state.focus.remainingSec=Math.max(0,(state.focus.remainingSec||0)-1); const task=state.tasks.find(t=>t.id===state.focus.taskId); if(task)task.elapsed=(task.elapsed||0)+1; const el=document.getElementById('focusClockText');if(el)el.textContent=formatTime(state.focus.remainingSec); if(state.focus.remainingSec<=0){state.focus.running=false;playFocusFinishedSignal();showToast('Focusblok klaar.');saveState();renderFocus();} if(state.focus.remainingSec%10===0)saveState(); } },1000);
+  setInterval(()=>{ tickDayPlanFocus(); if(state.focus.running){ state.focus.remainingSec=Math.max(0,(state.focus.remainingSec||0)-1); const task=state.tasks.find(t=>t.id===state.focus.taskId); if(task)task.elapsed=(task.elapsed||0)+1; const el=document.getElementById('focusClockText');if(el)el.textContent=formatTime(state.focus.remainingSec); if(state.focus.remainingSec<=0){state.focus.running=false;playFocusFinishedSignal();showToast('Focusblok klaar.');saveState();renderFocus();} if(state.focus.remainingSec%10===0)saveState(); } },1000);
 
   function dateFromKey(key){ return new Date(key+'T12:00:00'); }
   function upcomingDays(){ const out=[]; for(let i=0;i<7;i++){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+i);out.push({key:localDateKey(d),date:d});} return out; }
@@ -3001,6 +3169,22 @@
 
   document.getElementById('dayPlanInput').addEventListener('input',showDayPlanPasteStatus);
   document.addEventListener('click',e=>{
+    const startFocus=e.target.closest('[data-dayplan-focus-start]');
+    if(startFocus)return startDayPlanFocus(startFocus.dataset.dayplanFocusStart);
+    if(e.target.closest('[data-dayplan-focus-done]'))return finishDayPlanFocus();
+    const more=e.target.closest('[data-dayplan-focus-extra]');
+    if(more)return extendDayPlanFocus(Number(more.dataset.dayplanFocusExtra));
+    if(e.target.closest('[data-dayplan-focus-show-custom]')){
+      const custom=e.target.closest('.day-plan-focus-panel')?.querySelector('[data-dayplan-focus-custom]');
+      if(custom){custom.hidden=!custom.hidden;custom.querySelector('input')?.focus();}
+      return;
+    }
+    if(e.target.closest('[data-dayplan-focus-custom-apply]')){
+      const field=e.target.closest('.day-plan-focus-panel')?.querySelector('[data-dayplan-focus-custom-minutes]');
+      return extendDayPlanFocus(Number(field?.value));
+    }
+    if(e.target.closest('[data-dayplan-focus-stop]'))return stopDayPlanFocus();
+    if(e.target.closest('[data-dayplan-focus-open]'))return setDailyTab('focus');
     if(e.target.closest('#startMyDayNowButton'))return replanDayFromNow();
     if(e.target.closest('#replanDayNowButton'))return replanDayFromNow();
     if(e.target.closest('[data-dayplan-dismiss]'))return hideDayPlanConflict();
@@ -3067,6 +3251,9 @@
     if(e.target.matches('[data-pantry-check]')){const item=state.pantry.find(x=>x.id===e.target.dataset.pantryCheck);if(item){item.active=e.target.checked;saveState();renderPantry();}}
   });
 
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'){tickDayPlanFocus();renderFocus();refreshDayPlanFocusPanels();}
+  });
   document.addEventListener('dragstart',e=>{const item=e.target.closest?.('[data-drag-task]');if(item&&e.dataTransfer){e.dataTransfer.setData('text/task-id',item.dataset.dragTask);e.dataTransfer.effectAllowed='move';}});
   document.addEventListener('dragover',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone){e.preventDefault();zone.classList.add('drag-over');}});
   document.addEventListener('dragleave',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone)zone.classList.remove('drag-over');});
