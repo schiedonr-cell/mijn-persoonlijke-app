@@ -173,7 +173,28 @@ final class SnapshotStore {
                     String type=b.optString("linkType"),id=b.optString("linkId");
                     if("task".equals(type)){
                         JSONObject t=findById(state.optJSONArray("tasks"),id);
-                        if(t!=null){t.put("done",done);t.put("completedAt",done?System.currentTimeMillis():JSONObject.NULL);}
+                        if(t!=null){
+                            // Elk tijdblok blijft afzonderlijk afvinkbaar.
+                            // De oorspronkelijke taak is pas klaar als alle gekoppelde
+                            // tijdblokken zijn afgerond.
+                            if(t.optBoolean("done",false)){
+                                for(int k=0;k<blocks.length();k++){
+                                    JSONObject sibling=blocks.optJSONObject(k);
+                                    if(sibling!=null && "task".equals(sibling.optString("linkType"))
+                                            && id.equals(sibling.optString("linkId")))sibling.put("done",true);
+                                }
+                            }
+                            b.put("done",done);
+                            boolean allDone=true;
+                            for(int k=0;k<blocks.length();k++){
+                                JSONObject sibling=blocks.optJSONObject(k);
+                                if(sibling!=null && "task".equals(sibling.optString("linkType"))
+                                        && id.equals(sibling.optString("linkId"))
+                                        && !sibling.optBoolean("done",false)){allDone=false;break;}
+                            }
+                            t.put("done",allDone);
+                            t.put("completedAt",allDone?System.currentTimeMillis():JSONObject.NULL);
+                        }else b.put("done",done);
                     }else if("habit".equals(type)||"household".equals(type)){
                         JSONObject t=findById(state.optJSONArray("habit".equals(type)?"habits":"householdTasks"),id);
                         if(t!=null){
@@ -246,7 +267,7 @@ final class SnapshotStore {
             if ("task".equals(linkType)) {
                 kind = "Taak";
                 JSONObject item = findById(tasks, linkId);
-                if (item != null) done = item.optBoolean("done", false);
+                if (item != null) done = done || item.optBoolean("done", false);
             } else if ("habit".equals(linkType)) {
                 kind = "Routine";
                 JSONObject item = findById(habits, linkId);
