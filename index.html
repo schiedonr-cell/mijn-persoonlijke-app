@@ -2572,6 +2572,49 @@
     return true;
   }
   let recoveryManualMode=false,recoveryCustomMinutes='';
+  let recoveryLastPressAt=0;
+  // Android kan de klik op een knop verliezen bij het sluiten van het toetsenbord.
+  // Leg de aanraking daarom vast vóór de gebruikelijke click-gebeurtenis.
+  function recoverySaveTouchCapture(e){
+    if(!recoveryManualMode||!recoveryOfferVisible||recoveryActive())return;
+    const panel=document.getElementById('dayPlanRecoveryPanel');
+    const button=panel?.querySelector('[data-recovery-log]');
+    if(!button||panel.hidden)return;
+    const target=e.target;
+    let hit=Boolean(target?.closest?.('[data-recovery-log]'));
+    if(!hit){
+      // Een eventuele onzichtbare laag mag de zichtbare knop niet blokkeren.
+      const touch=e.changedTouches?.[0]||e.touches?.[0]||e;
+      const x=touch.clientX,y=touch.clientY;
+      const rect=button.getBoundingClientRect();
+      const over=Number.isFinite(x)&&Number.isFinite(y)
+        &&x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom;
+      if(!over||target?.closest?.('button,input,textarea,select,a'))return;
+      hit=true;
+    }
+    if(!hit||Date.now()-recoveryLastPressAt<900)return;
+    recoveryLastPressAt=Date.now();
+    if(e.cancelable)e.preventDefault();
+    e.stopPropagation?.();
+    e.stopImmediatePropagation?.();
+    const custom=panel.querySelector('[data-recovery-custom-minutes]');
+    if(custom)recoveryCustomMinutes=custom.value.trim();
+    const message=panel.querySelector('[data-recovery-save-status]');
+    if(message)message.textContent='Aanraking herkend · opslaan wordt uitgevoerd';
+    button.textContent='Bezig met opslaan…';
+    let ok=false;
+    try{ok=recoveryLogManually();}
+    catch(error){console.error('Aanraakopslag mislukt',error);showToast('Registreren mislukte.');}
+    if(!ok){
+      const liveButton=panel.querySelector('[data-recovery-log]');
+      if(liveButton)liveButton.textContent='Minuten opslaan';
+      const liveMessage=panel.querySelector('[data-recovery-save-status]');
+      if(liveMessage)liveMessage.textContent='Aanraking herkend, maar niet opgeslagen. Controleer je minuten.';
+      recoveryLastPressAt=0;
+    }
+  }
+  document.addEventListener('pointerdown',recoverySaveTouchCapture,true);
+  document.addEventListener('touchstart',recoverySaveTouchCapture,{capture:true,passive:false});
   function openRecoveryManual(kind){
     if(recoveryActive())return showToast('Rond je lopende rustmoment eerst af.');
     recoveryKind=kind==='stretch'?'stretchen':'zitten';
@@ -2629,7 +2672,7 @@
       +'<div class="day-recovery-actions"><button class="primary-button" type="button" data-recovery-'+(recoveryManualMode?'log':'start')+'">'
       +(recoveryManualMode?'Minuten opslaan':'Begin rustmoment')+'</button>'
       +'<button class="secondary-button" type="button" data-recovery-skip>Nu niet</button></div>'
-      +(recoveryManualMode?'<p class="small-muted" data-recovery-save-status style="margin:8px 0 0;font-size:12px">Registratiecontrole R3 · klaar om op te slaan</p>':'<button class="day-recovery-next" type="button" data-recovery-manual>Al gedaan? Registreer minuten</button>');
+      +(recoveryManualMode?'<p class="small-muted" data-recovery-save-status style="margin:8px 0 0;font-size:12px">Registratiecontrole R4 · aanraking wordt direct verwerkt</p>':'<button class="day-recovery-next" type="button" data-recovery-manual>Al gedaan? Registreer minuten</button>');
     // Directe knopafhandeling. Touch is een vangnet voor oudere Android WebViews.
     const saveButton=box.querySelector('[data-recovery-log]');
     if(saveButton){
