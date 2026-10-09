@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 63
-        versionName 'mijn-dag-6.5-snoozes-opruimen'
+        versionCode 64
+        versionName 'mijn-dag-6.6-losse-tijdblokken'
     }
 
     buildTypes {
