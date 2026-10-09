@@ -5,7 +5,7 @@ import org.json.JSONObject;
 public class AgendaWidgetProvider extends CategoryWidgetProvider {
     String kind(){return "Agenda";}
     String title(){return "Agenda";}
-    String emptyText(){return "Geen afspraken";}
+    String emptyText(){return "Geen afspraken vandaag";}
     String target(){return "today-agenda";}
     int iconRes(){return R.drawable.ic_grid_agenda;}
     int requestCode(){return 521;}
@@ -16,8 +16,7 @@ public class AgendaWidgetProvider extends CategoryWidgetProvider {
         String time=row.optString("time","").trim();
         if(time.isEmpty()) return text;
 
-        // Vandaag: tijd + afspraak. Toekomst: alleen dag/datum + afspraak,
-        // zodat de naam van de afspraak zoveel mogelijk ruimte krijgt.
+        // Alleen afspraken van vandaag komen via de widgetsnapshot binnen.
         if(time.startsWith("Vandaag · ")) {
             return time.substring("Vandaag · ".length()) + "  " + text;
         }
