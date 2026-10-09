@@ -85,6 +85,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
     };
     private static final Pattern CLOCK = Pattern.compile("(\\d{1,2}):(\\d{2})");
     private static final String ACTION_TOGGLE = "nl.mijnpersoonlijkeapp.widgets.TIMELINE_TOGGLE";
+    private static final String ACTION_QUICK = "nl.mijnpersoonlijkeapp.widgets.MIXED_TOGGLE";
     private static final String ACTION_NEXT_PAGE = "nl.mijnpersoonlijkeapp.widgets.TIMELINE_NEXT_PAGE";
     private static final String PAGE_PREFS = "timeline_widget_pages";
 
@@ -102,6 +103,16 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
                         break;
                     }
                 }
+            }
+            return;
+        }
+        if(intent!=null&&ACTION_QUICK.equals(intent.getAction())){
+            String date=intent.getStringExtra("date"),type=intent.getStringExtra("itemType"),itemId=intent.getStringExtra("itemId");
+            if(date!=null&&type!=null&&itemId!=null&&SnapshotStore.toggleQuick(context,date,type,itemId)){
+                // Bij tik op het homescreen opent de app meteen bij het passende voorstel.
+                Intent open=new Intent(context,MainActivity.class);
+                open.putExtra("target","today");open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                try{context.startActivity(open);}catch(Exception ignored){}
             }
             return;
         }
@@ -143,7 +154,8 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         JSONObject snapshot = SnapshotStore.read(context);
         JSONArray plannedRows = snapshot.optJSONArray("timelineRows");
         boolean usingDayPlan = snapshot.optBoolean("hasDayTimeline", false) && plannedRows != null;
-        JSONArray rows = usingDayPlan ? plannedRows : snapshot.optJSONArray("rows");
+        JSONArray rows = usingDayPlan ? plannedRows : snapshot.optJSONArray("mixedRows");
+        if(!usingDayPlan && rows==null)rows=snapshot.optJSONArray("rows");
         if (!SnapshotStore.todayKey().equals(snapshot.optString("date", "")) || rows == null) {
             v.setViewVisibility(R.id.timeline_empty, View.VISIBLE);
             v.setTextViewText(R.id.timeline_empty, "Open Mijn dag om het overzicht te vernieuwen.");
@@ -161,7 +173,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             if (!usingDayPlan && "Agenda".equals(row.optString("kind","")) && !agendaIsToday(row)) continue;
             items.add(row);
         }
-        if (!usingDayPlan) Collections.sort(items, new Comparator<JSONObject>() {
+        if (false && !usingDayPlan) Collections.sort(items, new Comparator<JSONObject>() {
             @Override public int compare(JSONObject a, JSONObject b) {
                 boolean ta=hasClock(a), tb=hasClock(b);
                 if (ta && !tb) return -1;
@@ -208,7 +220,18 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
                 PendingIntent pi=PendingIntent.getBroadcast(context, 3000+i+id*100, toggle,
                         PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
                 v.setOnClickPendingIntent(CHECK_IDS[i],pi);
-            }else v.setViewVisibility(CHECK_IDS[i],usingDayPlan ? View.INVISIBLE : View.GONE);
+            }else if(!usingDayPlan&&!row.optString("itemType","").isEmpty()&&!row.optString("itemId","").isEmpty()){
+                v.setViewVisibility(CHECK_IDS[i],View.VISIBLE);
+                v.setTextViewText(CHECK_IDS[i],"□");
+                Intent quick=new Intent(context,TodayTimelineWidgetProvider.class);
+                quick.setAction(ACTION_QUICK);
+                quick.setData(android.net.Uri.parse("mijndag://mixed/"+android.net.Uri.encode(row.optString("itemType"))+"/"+android.net.Uri.encode(row.optString("itemId"))));
+                quick.putExtra("date",snapshot.optString("date"));
+                quick.putExtra("itemType",row.optString("itemType"));
+                quick.putExtra("itemId",row.optString("itemId"));
+                PendingIntent pi=PendingIntent.getBroadcast(context,5000+i+id*100,quick,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+                v.setOnClickPendingIntent(CHECK_IDS[i],pi);
+            }else v.setViewVisibility(CHECK_IDS[i],usingDayPlan?View.INVISIBLE:View.GONE);
             v.setViewVisibility(ROW_BOX_IDS[i], View.VISIBLE);
             v.setOnClickPendingIntent(ROW_BOX_IDS[i], WidgetLinks.open(context, targetFor(kind), 540+i));
         }
