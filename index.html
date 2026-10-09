@@ -3114,7 +3114,7 @@
       }else if(type==='habit'){
         const habit=state.habits.find(h=>h.id===id);
         if(!habit)continue;
-        if(recoveryRoutineKind(h)){
+        if(recoveryRoutineKind(habit)){
           // Minutenroutines kun je niet met een enkel vinkje afronden:
           // open de bestaande minutenregistratie na het aanklikken.
           openRecoveryManual(recoveryRoutineKind(habit));
