@@ -1840,7 +1840,8 @@
     if(dayPlanRestLike(name))return null;
     const alias=dayPlanAlias(name);if(alias)return alias;
     const n=dayPlanNormalizeText(name);if(!n)return null;
-    const scored=dayPlanCandidates().map(c=>{
+    const contactAction=/\b(bellen|terugbellen|mailen|appen|contact opnemen)\b/.test(n);
+    const scored=dayPlanCandidates().filter(c=>c.type!=='agenda'||!contactAction||dayPlanNormalizeText(c.name)===n).map(c=>{
       const m=dayPlanNormalizeText(c.name);let score=0;
       if(n===m)score=100;
       else if(m.length>=5&&(n.includes(m)||m.includes(n)))score=82;
@@ -1928,6 +1929,21 @@
     if(/\b(avondeten|avondmaaltijd|diner)\b/.test(name))return {name:'Avondeten',start:1050,end:1170};
     return null;
   }
+  // Een oudere geplakte beltaak kon per ongeluk gekoppeld zijn aan een
+  // gedeeltelijk gelijknamige agenda-afspraak ("Orthodontist bellen" -> "Ortho").
+  // Alleen zulke automatische fuzzy-verbindingen corrigeren; echte afspraken blijven staan.
+  function repairDayPlanContactLinks(){
+    const plan=state.dayTimeline;
+    if(!plan?.blocks)return;
+    for(const b of plan.blocks){
+      if(b.linkType!=='agenda'||b.fixed===true)continue;
+      const name=dayPlanNormalizeText(b.text),match=dayPlanNormalizeText(b.matchedName);
+      if(/\b(bellen|terugbellen|mailen|appen|contact opnemen)\b/.test(name)&&match&&name!==match){
+        b.linkType='';b.linkId='';b.kind='Plan';b.matchedName='';
+      }
+    }
+  }
+  repairDayPlanContactLinks();
   function dayPlanBlockMode(block){
     if(block.fixed===true)return 'fixed';
     if(block.fixed===false)return 'flex';
@@ -1936,12 +1952,18 @@
   }
   function calculateDayPlanFromNow(startMinutes,options={}){
     const plan=state.dayTimeline,blocks=plan?.blocks||[],finished=dayPlanBlockDone;
+    const chosenMeal=options.prioritizeMealId
+      ? blocks.find(b=>b.id===options.prioritizeMealId&&!finished(b)&&dayPlanMealWindow(b)&&dayPlanBlockMode(b)==='window')
+      : null;
+    // Alleen na een bewuste keuze van de gebruiker de maaltijd voorrang geven.
+    // De oorspronkelijke volgorde van de overige activiteiten blijft gelijk.
+    const ordered=chosenMeal?[chosenMeal,...blocks.filter(b=>b!==chosenMeal)]:blocks;
     const reserved=blocks.filter(b=>!finished(b)&&dayPlanBlockMode(b)==='fixed').map(b=>({
       block:b,start:dayPlanMinutes(b.originalStart||b.start),end:dayPlanMinutes(b.originalEnd||b.end)
     })).filter(x=>x.start!==null).sort((a,b)=>a.start-b.start);
     const changes=new Map();
     let cursor=startMinutes;
-    for(const b of blocks){
+    for(const b of ordered){
       if(finished(b))continue;
       const mode=dayPlanBlockMode(b);
       const originalStart=dayPlanMinutes(b.originalStart||b.start);
@@ -1998,7 +2020,11 @@
     const box=document.getElementById('dayPlanConflict');if(!box)return;
     dayPlanPendingChoice=options;
     let extra='';
-    if(failure.type==='meal')extra='<button type="button" class="secondary-button" data-dayplan-allow-meals>Deze keer later eten</button>';
+    if(failure.type==='meal'){
+      const eligible=dayPlanBlockMode(failure.block)==='window';
+      if(eligible&&!options?.prioritizeMealId)extra+='<button type="button" class="primary-button" data-dayplan-meal-first="'+escapeHtml(failure.block.id)+'">Eerst '+escapeHtml(dayPlanMealWindow(failure.block)?.name.toLowerCase()||'eten')+', andere taken daarna</button>';
+      extra+='<button type="button" class="secondary-button" data-dayplan-allow-meals>Deze keer later eten</button>';
+    }
     if(failure.type==='dayEnd')extra='<button type="button" class="secondary-button" data-dayplan-allow-longer>Vandaag langer doorgaan</button>';
     box.hidden=false;
     box.innerHTML='<strong>Even kiezen wat past</strong><p>'+escapeHtml(failure.reason)+'</p>'
@@ -2818,6 +2844,8 @@
     if(e.target.closest('#startMyDayNowButton'))return replanDayFromNow();
     if(e.target.closest('#replanDayNowButton'))return replanDayFromNow();
     if(e.target.closest('[data-dayplan-dismiss]'))return hideDayPlanConflict();
+    const mealFirst=e.target.closest('[data-dayplan-meal-first]');
+    if(mealFirst)return replanDayFromNow({...dayPlanPendingChoice,prioritizeMealId:mealFirst.dataset.dayplanMealFirst});
     if(e.target.closest('[data-dayplan-allow-meals]'))return replanDayFromNow({...dayPlanPendingChoice,allowLateMeals:true});
     if(e.target.closest('[data-dayplan-allow-longer]'))return replanDayFromNow({...dayPlanPendingChoice,allowLateDay:true});
     const lock=e.target.closest('[data-dayplan-fixed]');
