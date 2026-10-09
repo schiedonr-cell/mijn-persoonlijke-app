@@ -11,10 +11,13 @@ import org.json.JSONObject;
 
 import java.util.Calendar;
 import java.util.Iterator;
+import java.util.ArrayList;
 
 final class NativeAlarmScheduler {
     private static final String PREFS = "native_alarm_store";
     private static final String KEY_ITEMS = "items";
+    private static final String KEY_CANCELLED = "cancelled_bases";
+    private static final String KEY_CLEANUP_V63 = "snooze_cleanup_v63";
 
     private NativeAlarmScheduler() {}
 
@@ -49,6 +52,15 @@ final class NativeAlarmScheduler {
     private static void scheduleInternal(Context context, String id, String title, String body, long at, String target,
                                          boolean repeatDaily, int hour, int minute, int repeatDays) {
         if (id == null || id.trim().isEmpty()) return;
+        // Een opnieuw ingestelde begintijd maakt eerdere snoozes van dat alarm ongeldig.
+        if (!id.contains("-snooze-")) {
+            JSONObject previous = load(context).optJSONObject(id);
+            if (previous != null && (previous.optLong("at", 0) != at ||
+                    !previous.optString("title", "").equals(title))) {
+                cancelSnoozes(context, id);
+            }
+            clearCancellationMark(context, id);
+        }
         save(context, id, title, body, at, target, repeatDaily, hour, minute, repeatDays);
 
         AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
@@ -70,13 +82,100 @@ final class NativeAlarmScheduler {
         }
     }
 
-    static void cancel(Context context, String id) {
+    static synchronized void cancel(Context context, String id) {
         if (id == null || id.trim().isEmpty()) return;
+        // A snoozed occurrence has its own ID; canceling the original must also
+        // cancel every child alarm, including snoozes from earlier re-snoozes.
+        if (!id.contains("-snooze-")) {
+            markCancelled(context, id);
+            cancelSnoozes(context, id);
+        }
+        cancelOne(context, id);
+    }
+
+    static synchronized void cancelSnoozes(Context context, String originalId) {
+        if (originalId == null || originalId.trim().isEmpty()) return;
+        String base = baseId(originalId);
+        String prefix = base + "-snooze-";
+        ArrayList<String> children = new ArrayList<>();
+        Iterator<String> keys = load(context).keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            if (key.startsWith(prefix)) children.add(key);
+        }
+        for (String id : children) cancelOne(context, id);
+        ReminderReceiver.clearSuppressionForAlarm(context, base);
+    }
+
+    // Eenmalig bij installatie van deze versie: de oude snooze-kopieën
+    // opruimen zonder de gewone, zelfstandig ingestelde reminders te verwijderen.
+    static synchronized void clearLegacySnoozesOnce(Context context) {
+        SharedPreferences preferences = prefs(context);
+        if (preferences.getBoolean(KEY_CLEANUP_V63, false)) return;
+        ArrayList<String> old = new ArrayList<>();
+        Iterator<String> keys = load(context).keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            if (key.contains("-snooze-")) old.add(key);
+        }
+        for (String id : old) {
+            cancelOne(context, id);
+            ReminderReceiver.clearSuppressionForAlarm(context, baseId(id));
+        }
+        preferences.edit().putBoolean(KEY_CLEANUP_V63, true).apply();
+    }
+
+    static synchronized boolean isScheduled(Context context, String id) {
+        return id != null && load(context).has(id);
+    }
+
+    static synchronized boolean wasExplicitlyCancelled(Context context, String id) {
+        if (id == null) return false;
+        try {
+            long when = new JSONObject(prefs(context).getString(KEY_CANCELLED, "{}"))
+                    .optLong(baseId(id), 0L);
+            return when > System.currentTimeMillis() - 86400000L;
+        } catch (Exception ignored) { return false; }
+    }
+
+    private static String baseId(String id) {
+        int i = id.indexOf("-snooze-");
+        return i >= 0 ? id.substring(0, i) : id;
+    }
+
+    private static void cancelOne(Context context, String id) {
         AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarm != null) {
             try { alarm.cancel(pendingIntent(context, id, "", "", "today")); } catch (Exception ignored) {}
         }
         remove(context, id);
+        ReminderReceiver.dismissCancelledAlarm(context, id);
+    }
+
+    private static void markCancelled(Context context, String base) {
+        try {
+            JSONObject recent = new JSONObject(prefs(context).getString(KEY_CANCELLED, "{}"));
+            ArrayList<String> old = new ArrayList<>();
+            Iterator<String> keys = recent.keys();
+            long cutoff = System.currentTimeMillis() - 86400000L;
+            while (keys.hasNext()) {
+                String id = keys.next();
+                if (recent.optLong(id, 0L) < cutoff) old.add(id);
+            }
+            for (String id : old) recent.remove(id);
+            recent.put(base, System.currentTimeMillis());
+            prefs(context).edit().putString(KEY_CANCELLED, recent.toString()).apply();
+        } catch (Exception ignored) {}
+    }
+
+    private static void clearCancellationMark(Context context, String base) {
+        try {
+            JSONObject recent = new JSONObject(prefs(context).getString(KEY_CANCELLED, "{}"));
+            if (recent.has(base)) {
+                recent.remove(base);
+                prefs(context).edit().putString(KEY_CANCELLED, recent.toString()).apply();
+            }
+        } catch (Exception ignored) {}
     }
 
     static void rescheduleAll(Context context) {

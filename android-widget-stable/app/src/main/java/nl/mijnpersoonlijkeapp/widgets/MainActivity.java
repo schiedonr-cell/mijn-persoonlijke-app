@@ -64,6 +64,7 @@ public class MainActivity extends Activity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         ReminderReceiver.ensureChannel(this);
+        NativeAlarmScheduler.clearLegacySnoozesOnce(this);
         NativeAlarmScheduler.rescheduleAll(this);
         readTarget(getIntent());
         if (acceptSharedTransfer(getIntent()) || imported() || importFile().exists()) openApp();
@@ -539,6 +540,22 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface public void cancelReminder(String id) {
             NativeAlarmScheduler.cancel(getApplicationContext(), id);
+        }
+
+        @JavascriptInterface public void cancelTimelineSnoozes(String idsJson) {
+            runOnUiThread(() -> {
+                try {
+                    JSONArray originals = new JSONArray(idsJson);
+                    for (int i = 0; i < originals.length(); i++) {
+                        String id = originals.optString(i, "");
+                        if (!id.isEmpty() && (id.startsWith("timed-") || id.startsWith("core-"))) {
+                            // Alleen gesnoozede kopieën annuleren. Een apart ingestelde
+                            // dagelijkse herinnering blijft gewoon behouden.
+                            NativeAlarmScheduler.cancelSnoozes(getApplicationContext(), id);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            });
         }
 
         @JavascriptInterface public void clearReminderSuppression(String type, String itemId) {

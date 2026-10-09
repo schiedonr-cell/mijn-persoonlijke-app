@@ -60,6 +60,12 @@ public class ReminderReceiver extends BroadcastReceiver {
         }
 
         if (ACTION_SNOOZE.equals(action)) {
+            // Een melding die inmiddels verplaatst/afgerond is mag ook via
+            // een achtergebleven meldingsactie geen nieuwe snooze aanmaken.
+            if (NativeAlarmScheduler.wasExplicitlyCancelled(context, id)) {
+                dismissCancelledAlarm(context, id);
+                return;
+            }
             stopAlarmService(context);
             cancelNotification(context, id);
             stopVibration(context);
@@ -92,6 +98,9 @@ public class ReminderReceiver extends BroadcastReceiver {
         if (body == null || body.trim().isEmpty()) body = "Je hebt iets gepland.";
         if (target == null || target.trim().isEmpty()) target = "today";
 
+        // Een al geannuleerd Android-alarm kan nog net in de broadcast-queue zitten.
+        // Controleer daarom de bewaarde schedulerstatus voor de melding wordt getoond.
+        if (!NativeAlarmScheduler.isScheduled(context, id)) return;
         String group = groupKeyFromId(id);
         boolean snoozedOccurrence = id != null && id.contains("-snooze-");
         if (!snoozedOccurrence && isGroupSuppressed(context, group)) {
@@ -177,6 +186,15 @@ public class ReminderReceiver extends BroadcastReceiver {
     static void clearSuppressionForItem(Context context, String type, String itemId) {
         if (type == null || itemId == null) return;
         clearGroupSuppression(context, type + "|" + itemId);
+    }
+
+    static void clearSuppressionForAlarm(Context context, String id) {
+        clearGroupSuppression(context, groupKeyFromId(id));
+    }
+
+    static void dismissCancelledAlarm(Context context, String id) {
+        AlarmSoundService.stopIfActive(context, id);
+        cancelNotification(context, id);
     }
 
     static Notification buildAlarmNotification(Context context, String id, String title, String body, String target) {

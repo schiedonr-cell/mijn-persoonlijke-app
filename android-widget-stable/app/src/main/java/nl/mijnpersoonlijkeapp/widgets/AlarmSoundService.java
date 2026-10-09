@@ -14,11 +14,17 @@ import android.os.Vibrator;
 import android.os.VibratorManager;
 
 public class AlarmSoundService extends Service {
+    private static volatile String activeAlarmId;
+    static void stopIfActive(android.content.Context context, String id) {
+        if (id == null || !id.equals(activeAlarmId)) return;
+        try { context.stopService(new Intent(context, AlarmSoundService.class)); } catch (Exception ignored) {}
+    }
     private MediaPlayer player;
     private Vibrator vibrator;
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         String id = intent == null ? null : intent.getStringExtra("id");
+        activeAlarmId = id;
         String title = intent == null ? null : intent.getStringExtra("title");
         String body = intent == null ? null : intent.getStringExtra("body");
         String target = intent == null ? null : intent.getStringExtra("target");
@@ -90,6 +96,7 @@ public class AlarmSoundService extends Service {
     }
 
     @Override public void onDestroy() {
+        activeAlarmId = null;
         stopPlayback();
         super.onDestroy();
     }
