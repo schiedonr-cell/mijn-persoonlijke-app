@@ -398,53 +398,52 @@ final class SnapshotStore {
         JSONArray tasks = state.optJSONArray("tasks");
         if (tasks == null) return;
         Map<String, JSONObject> byId = new HashMap<>();
-        List<JSONObject> open = new ArrayList<>();
         for (int i = 0; i < tasks.length(); i++) {
-            JSONObject t = tasks.optJSONObject(i);
-            if (t == null) continue;
-            String id = t.optString("id", "");
-            if (!id.isEmpty()) byId.put(id, t);
-            if (taskOpen(t, today)) open.add(t);
+            JSONObject task = tasks.optJSONObject(i);
+            if (task == null) continue;
+            String id = task.optString("id", "");
+            if (!id.isEmpty()) byId.put(id, task);
         }
 
+        // Zoals de kleine Agenda-widget: alleen wat bewust voor VANDAAG
+        // is geselecteerd of ingepland. Niet vanuit de algemene backlog aanvullen.
         List<JSONObject> chosen = new ArrayList<>();
         Set<String> used = new HashSet<>();
-        JSONObject plan = state.optJSONObject("todayPlan");
-        if (plan != null && today.equals(plan.optString("date", ""))) {
-            JSONArray ids = plan.optJSONArray("taskIds");
+        JSONObject todayPlan = state.optJSONObject("todayPlan");
+        if (todayPlan != null && today.equals(todayPlan.optString("date", ""))) {
+            JSONArray ids = todayPlan.optJSONArray("taskIds");
             if (ids != null) {
-                for (int i = 0; i < ids.length() && chosen.size() < energy; i++) {
+                for (int i = 0; i < ids.length(); i++) {
                     String id = ids.optString(i, "");
-                    JSONObject t = byId.get(id);
-                    if (t != null && taskOpen(t, today)) {
-                        chosen.add(t);
-                        used.add(id);
-                    }
+                    JSONObject task = byId.get(id);
+                    if (task == null || !taskOpen(task, today) || task.optBoolean("paused", false)) continue;
+                    if (used.add(id)) chosen.add(task);
                 }
             }
         }
 
-        if (chosen.size() < energy) {
-            Collections.sort(open, new Comparator<JSONObject>() {
-                @Override public int compare(JSONObject a, JSONObject b) {
-                    String da = a.optString("deadline", "");
-                    String db = b.optString("deadline", "");
-                    if (da.isEmpty() && !db.isEmpty()) return 1;
-                    if (!da.isEmpty() && db.isEmpty()) return -1;
-                    if (!da.equals(db)) return da.compareTo(db);
-                    return Long.compare(a.optLong("createdAt", 0), b.optLong("createdAt", 0));
+        // Een extra taak die expliciet in de dagtijdlijn staat, hoort ook bij vandaag
+        // zelfs als hij niet in de energie-afhankelijke 1/2/3-takenlijst staat.
+        JSONObject dayPlan = state.optJSONObject("dayTimeline");
+        if (dayPlan != null && today.equals(dayPlan.optString("date", ""))) {
+            JSONArray blocks = dayPlan.optJSONArray("blocks");
+            if (blocks != null) {
+                for (int i = 0; i < blocks.length(); i++) {
+                    JSONObject block = blocks.optJSONObject(i);
+                    if (block == null || !"task".equals(block.optString("linkType", ""))
+                            || !block.optString("postponedTo", "").isEmpty()
+                            || block.optBoolean("done", false)) continue;
+                    String id = block.optString("linkId", "");
+                    JSONObject task = byId.get(id);
+                    if (task == null || !taskOpen(task, today) || task.optBoolean("paused", false)) continue;
+                    if (used.add(id)) chosen.add(task);
                 }
-            });
-            for (JSONObject t : open) {
-                if (chosen.size() >= energy) break;
-                String id = t.optString("id", "");
-                if (used.contains(id)) continue;
-                chosen.add(t);
-                used.add(id);
             }
         }
 
-        for (JSONObject t : chosen) addRow(rows, "Taak", t.optString("name", "Taak"), t.optString("time", ""));
+        for (JSONObject task : chosen) {
+            addRow(rows, "Taak", task.optString("name", "Taak"), task.optString("time", ""));
+        }
     }
 
     private static void addAgenda(JSONArray rows, Context context, String calendarJson, String today) {
