@@ -840,6 +840,20 @@
     .recovery-habit-progress button{font-size:12px;min-height:35px;background:var(--surface-soft);border:1px solid var(--line);padding:7px 11px;border-radius:10px;font-weight:800}
     .day-recovery-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.day-recovery-actions button{flex:1;min-width:110px;min-height:48px;border-radius:12px;font-weight:800}
     .day-recovery-timer{font-size:38px;font-weight:850;text-align:center;margin:16px 0;font-variant-numeric:tabular-nums}
+    .self-care-card .section-heading{margin-bottom:8px}
+    .self-care-rows{display:grid;gap:2px;margin-bottom:10px}
+    .self-care-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+    .self-care-row:last-child{border-bottom:0}
+    .self-care-row strong{font-weight:750}
+    .self-care-row span{font-size:13px;font-weight:750;color:var(--muted);text-align:right}
+    .self-care-row span.is-done{color:var(--accent-strong)}
+    .self-care-lunch{width:100%;min-height:45px}
+    .self-care-offer{margin-top:11px;padding:12px;border:1px solid var(--accent-strong);background:var(--accent-soft);border-radius:14px}
+    .self-care-offer[hidden]{display:none}
+    .self-care-offer strong{font-size:16px}
+    .self-care-offer p{color:var(--text);font-size:13px;margin:6px 0 11px;line-height:1.5}
+    .self-care-offer-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .self-care-offer-actions button{min-height:45px;padding:8px;border-radius:10px;font-weight:750}
     .day-plan-next-trigger{width:100%;min-height:50px;border:1.5px solid var(--accent-strong);border-radius:13px;background:var(--accent-soft);color:var(--accent-strong);font-weight:850;font-size:15px;margin:0 0 10px}
     .day-plan-next-panel{border:1px solid var(--line);border-radius:17px;background:var(--surface-soft);padding:14px;margin:10px 0}
     .day-plan-next-panel[hidden]{display:none}
@@ -934,6 +948,12 @@
               </div>
             </div>
 
+            <div class="section-card today-section-card self-care-card" id="todaySelfCareBlock">
+              <div class="section-heading"><div class="today-block-title"><div class="today-block-icon">♡</div><div><h3>Vandaag voor jezelf</h3><span class="small-muted">Drie kleine gewoontes, zonder vaste alarmen.</span></div></div></div>
+              <div id="selfCareSummary" class="self-care-rows"></div>
+              <button type="button" class="secondary-button self-care-lunch" data-self-care-lunch>Lunch gehad</button>
+              <div id="selfCareOffer" class="self-care-offer" hidden aria-live="polite"></div>
+            </div>
             <div class="section-card today-section-card" id="dayTimelineBlock">
               <div class="section-heading">
                 <div class="today-block-title"><div class="today-block-icon">◷</div><div><h3 style="margin-bottom:3px;">Dagplanning</h3><span class="small-muted">Richttijden voor vandaag; je gewone onderdelen blijven hetzelfde.</span></div></div>
@@ -1436,6 +1456,7 @@
     energy: 2,
     tasks: [],
     recovery: {sessions:[],active:null,autoCompleted:{}},
+    selfCare: {date:null,lunchDone:false,anchors:{},later:{},lastOffered:'',offer:null},
     relaxStretchGoalsV1:true,
     householdTasks: structuredClone(DEFAULT_HOUSEHOLD_TASKS),
     habits: [...DEFAULT_BASIS_HABITS],
@@ -1618,6 +1639,13 @@
           autoCompleted:saved.recovery?.autoCompleted&&typeof saved.recovery.autoCompleted==='object'
             ?saved.recovery.autoCompleted:{}
         },
+        selfCare:(saved.selfCare&&typeof saved.selfCare==='object')?{
+          date:saved.selfCare.date||null,lunchDone:saved.selfCare.lunchDone===true,
+          anchors:(saved.selfCare.anchors&&typeof saved.selfCare.anchors==='object')?saved.selfCare.anchors:{},
+          later:(saved.selfCare.later&&typeof saved.selfCare.later==='object')?saved.selfCare.later:{},
+          lastOffered:typeof saved.selfCare.lastOffered==='string'?saved.selfCare.lastOffered:'',
+          offer:['stretch','move','relax'].includes(saved.selfCare.offer)?saved.selfCare.offer:null
+        }:structuredClone(defaultState.selfCare),
         householdTasks: Array.isArray(saved.householdTasks) ? saved.householdTasks.map(normalizeHouseholdTask) : structuredClone(DEFAULT_HOUSEHOLD_TASKS),
         habits: habits.length?habits:structuredClone(defaultState.habits),
         dailyBasisHistory: saved.dailyBasisHistory && typeof saved.dailyBasisHistory==='object' ? saved.dailyBasisHistory : {},
