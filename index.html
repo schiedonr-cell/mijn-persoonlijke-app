@@ -1404,7 +1404,7 @@
     dailyBasisHistory: {},
     reflections: {},
     todayPlan: { date: null, taskIds: [] },
-    dayTimeline: { date: null, alarms: false, blocks: [], sourceText: '', overnightAllowed: false },
+    dayTimeline: { date: null, alarms: false, blocks: [], sourceText: '', overnightAllowed: false, preferredMealFirstId: '' },
     dayTimelineFocus: null,
     dump: [],
     dayClosedDate: null,
@@ -1537,7 +1537,7 @@
           && typeof saved.dayTimelineFocus.blockId==='string' && Number.isFinite(Number(saved.dayTimelineFocus.endsAt))
           ? {date:saved.dayTimelineFocus.date||'',blockId:saved.dayTimelineFocus.blockId,
              startedAt:Number(saved.dayTimelineFocus.startedAt)||0,endsAt:Number(saved.dayTimelineFocus.endsAt)||0} : null,
-        dayTimeline: saved.dayTimeline && Array.isArray(saved.dayTimeline.blocks) ? {date:saved.dayTimeline.date||null,alarms:saved.dayTimeline.alarms===true,overnightAllowed:saved.dayTimeline.overnightAllowed===true,sourceText:typeof saved.dayTimeline.sourceText==='string'?saved.dayTimeline.sourceText:'',blocks:saved.dayTimeline.blocks.map(b=>({id:b.id||uid('plan'),start:b.start||'',end:b.end||'',originalStart:b.originalStart||b.start||'',originalEnd:b.originalEnd||b.end||'',text:b.text||'',linkType:b.linkType||'',linkId:b.linkId||'',kind:b.kind||'Plan',matchedName:b.matchedName||'',done:Boolean(b.done),fixed:b.fixed===true?true:b.fixed===false?false:null,remind:b.remind===true,postponedTo:b.postponedTo||'',postponedCreatedTask:Boolean(b.postponedCreatedTask)}))} : {date:null,alarms:false,blocks:[],sourceText:''},
+        dayTimeline: saved.dayTimeline && Array.isArray(saved.dayTimeline.blocks) ? {date:saved.dayTimeline.date||null,alarms:saved.dayTimeline.alarms===true,overnightAllowed:saved.dayTimeline.overnightAllowed===true,preferredMealFirstId:saved.dayTimeline.preferredMealFirstId||'',sourceText:typeof saved.dayTimeline.sourceText==='string'?saved.dayTimeline.sourceText:'',blocks:saved.dayTimeline.blocks.map((b,i)=>({originalOrder:Number.isInteger(b.originalOrder)?b.originalOrder:i,id:b.id||uid('plan'),start:b.start||'',end:b.end||'',originalStart:b.originalStart||b.start||'',originalEnd:b.originalEnd||b.end||'',text:b.text||'',linkType:b.linkType||'',linkId:b.linkId||'',kind:b.kind||'Plan',matchedName:b.matchedName||'',done:Boolean(b.done),fixed:b.fixed===true?true:b.fixed===false?false:null,remind:b.remind===true,postponedTo:b.postponedTo||'',postponedCreatedTask:Boolean(b.postponedCreatedTask)}))} : {date:null,alarms:false,blocks:[],sourceText:''},
         focus: {...structuredClone(defaultState.focus), ...(saved.focus||{}), targetType:saved.focus?.targetType||(saved.focus?.taskId?'task':null), targetId:saved.focus?.targetId||saved.focus?.taskId||null, running:false},
         weekMenu: Array.isArray(saved.weekMenu)?saved.weekMenu:[], shopping:Array.isArray(saved.shopping)?saved.shopping:[], projects:Array.isArray(saved.projects)?saved.projects:[], notes:Array.isArray(saved.notes)?saved.notes:[],
         foodPrefs: {...structuredClone(defaultState.foodPrefs), ...(saved.foodPrefs||{}), selectedDays:Array.isArray(saved.foodPrefs?.selectedDays)?saved.foodPrefs.selectedDays:[]},
@@ -1903,7 +1903,7 @@
       name=name.replace(/\s*\|\s*$/,'').trim();
       if(!valid(st)||!valid(end)||!name){ignored.push({line:index+1,text:original.trim()});return;}
       const target=matchDayPlanTarget(name);
-      blocks.push({id:uid('plan'),start:st,end,originalStart:st,originalEnd:end,text:name,linkType:target?.type||'',linkId:target?.id||'',kind:target?.kind||'Plan',matchedName:target?.name||'',done:false,fixed:null,remind:false});
+      blocks.push({id:uid('plan'),originalOrder:blocks.length,start:st,end,originalStart:st,originalEnd:end,text:name,linkType:target?.type||'',linkId:target?.id||'',kind:target?.kind||'Plan',matchedName:target?.name||'',done:false,fixed:null,remind:false});
     });
     return {blocks,ignored,pastedLines};
   }
@@ -2140,15 +2140,41 @@
     if(block.linkType==='agenda')return 'fixed';
     return dayPlanMealWindow(block)?'window':'flex';
   }
+  function dayPlanEveningStage(block){
+    // De avondafsluiting is het laatste deel van de dag. Een taak die door
+    // eerdere herplanningen onderaan terechtkwam, hoort hier niet achteraan.
+    const name=dayPlanNormalizeText(block.text);
+    if(/\bavondroutine\b|\bdag afsluiten\b/.test(name))return 4;
+    if(/\bafbouw\w*\b|\bontspannen en afbouwen\b/.test(name))return 3;
+    if(/\bavondreset\b/.test(name))return 2;
+    if(/\bvrije avond\b|\bavondrust\b/.test(name))return 1;
+    return 0;
+  }
+  function dayPlanLogicalOrder(blocks){
+    return blocks.map((block,index)=>({block,index})).sort((a,b)=>{
+      const phase=dayPlanEveningStage(a.block)-dayPlanEveningStage(b.block);
+      if(phase)return phase;
+      const aStart=dayPlanMinutes(a.block.originalStart||a.block.start);
+      const bStart=dayPlanMinutes(b.block.originalStart||b.block.start);
+      if(aStart!==null&&bStart!==null&&aStart!==bStart)return aStart-bStart;
+      if(aStart===null&&bStart!==null)return 1;
+      if(aStart!==null&&bStart===null)return -1;
+      const orderA=Number.isInteger(a.block.originalOrder)?a.block.originalOrder:a.index;
+      const orderB=Number.isInteger(b.block.originalOrder)?b.block.originalOrder:b.index;
+      return orderA-orderB||a.index-b.index;
+    }).map(x=>x.block);
+  }
   function calculateDayPlanFromNow(startMinutes,options={}){
     const plan=state.dayTimeline,blocks=plan?.blocks||[],finished=dayPlanBlockDone;
     const excluded=new Set(options.postponeIds||[]);
-    const eligible=blocks.filter(b=>!b.postponedTo&&!excluded.has(b.id));
-    const chosenMeal=options.prioritizeMealId
-      ? eligible.find(b=>b.id===options.prioritizeMealId&&!finished(b)&&dayPlanMealWindow(b)&&dayPlanBlockMode(b)==='window')
+    // Opnieuw plannen vanaf de oorspronkelijk bedoelde volgorde, niet vanaf
+    // een eerdere verschoven/sorteerde lijst. GVB blijft vóór de avondreset.
+    const eligible=dayPlanLogicalOrder(blocks.filter(b=>!b.postponedTo&&!excluded.has(b.id)));
+    const mealId=options.prioritizeMealId||plan?.preferredMealFirstId||'';
+    const chosenMeal=mealId
+      ? eligible.find(b=>b.id===mealId&&!finished(b)&&dayPlanMealWindow(b)&&dayPlanBlockMode(b)==='window')
       : null;
-    // Alleen na een bewuste keuze van de gebruiker de maaltijd voorrang geven.
-    // De oorspronkelijke volgorde van de overige activiteiten blijft gelijk.
+    // Een zelfgekozen maaltijd voorrang geven blijft geldig bij later herplannen.
     const ordered=chosenMeal?[chosenMeal,...eligible.filter(b=>b!==chosenMeal)]:eligible;
     const reserved=eligible.filter(b=>!finished(b)&&dayPlanBlockMode(b)==='fixed').map(b=>({
       block:b,start:dayPlanMinutes(b.originalStart||b.start),end:dayPlanMinutes(b.originalEnd||b.end)
@@ -2241,7 +2267,7 @@
   function dayPlanChoiceFeedback(ids,options={}){
     const minutes=dayPlanPostponeChoices().filter(g=>g.ids.some(id=>ids.includes(id))).reduce((total,g)=>total+g.minutes,0);
     if(!ids.length)return 'Kies één of meer taken die naar morgen mogen.';
-    const now=new Date(),current=now.getHours()*60+now.getMinutes();
+    const current=dayPlanElapsedMinutes();
     const test=calculateDayPlanFromNow(current,{...options,postponeIds:ids});
     const prefix='Je hebt '+minutes+' minuten voor morgen gekozen. ';
     if(test.ok)return prefix+'De rest past nu. Tik op Herplan met mijn keuzes.';
@@ -2355,7 +2381,8 @@
     const requested=Array.isArray(options.postponeIds)?options.postponeIds:[];
     const eligible=new Set(dayPlanPostponeChoices().flatMap(g=>g.ids));
     const selected=[...new Set(requested)].filter(id=>eligible.has(id));
-    const safeOptions={...options,postponeIds:selected};
+    const safeOptions={...options,postponeIds:selected,
+      allowOvernight:options.allowOvernight===true||plan.overnightAllowed===true};
     const result=calculateDayPlanFromNow(minutes,safeOptions);
     if(!result.ok){
       const feedback=document.getElementById('dayPlanChoiceFeedback');
@@ -2383,7 +2410,8 @@
         ||dayPlanMinutes(x.b.start)-dayPlanMinutes(y.b.start)||x.index-y.index)
       .map(x=>x.b);
     plan.alarms=false;
-    if(options.allowOvernight||plan.blocks.some(b=>dayPlanMinutes(b.start)>=1440||dayPlanMinutes(b.end)>=1440))plan.overnightAllowed=true;
+    if(options.prioritizeMealId)plan.preferredMealFirstId=options.prioritizeMealId;
+    if(safeOptions.allowOvernight||plan.blocks.some(b=>dayPlanMinutes(b.start)>=1440||dayPlanMinutes(b.end)>=1440))plan.overnightAllowed=true;
     plan.sourceText=plan.blocks.filter(b=>!b.postponedTo).map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
     saveState();
     scheduleDayPlanAlarms();
@@ -2418,13 +2446,13 @@
     cancelDayPlanAlarms(state.dayTimeline);
     const allAlerts=document.getElementById('dayPlanAlarmToggle').checked;
     blocks.forEach(b=>{b.remind=allAlerts&&b.linkType!=='agenda';});
-    state.dayTimeline={date,alarms:allAlerts,blocks,sourceText,overnightAllowed:false};
+    state.dayTimeline={date,alarms:allAlerts,blocks,sourceText,overnightAllowed:false,preferredMealFirstId:''};
     saveState();scheduleDayPlanAlarms();closeDayPlanModal();renderToday();showToast(blocks.length+' blokken ingepland ('+blocks[0].start+'–'+blocks[blocks.length-1].start+').');
   }
   function clearDayPlan(){
     if(!state.dayTimeline?.blocks?.length)return;
     if(!confirm('Dagplanning wissen? Je gewone taken, routines en huishoudklusjes blijven bestaan.'))return;
-    clearDayPlanFocus();cancelDayPlanAlarms(state.dayTimeline);state.dayTimeline={date:null,alarms:false,blocks:[],sourceText:'',overnightAllowed:false};saveState();renderToday();showToast('Dagplanning gewist.');
+    clearDayPlanFocus();cancelDayPlanAlarms(state.dayTimeline);state.dayTimeline={date:null,alarms:false,blocks:[],sourceText:'',overnightAllowed:false,preferredMealFirstId:''};saveState();renderToday();showToast('Dagplanning gewist.');
   }
   function renderDayTimeline(){
     const box=document.getElementById('dayPlanList'),clear=document.getElementById('clearDayPlanButton');if(!box)return;
