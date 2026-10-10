@@ -1469,6 +1469,7 @@
     dailyBasisHistory: {},
     reflections: {},
     todayPlan: { date: null, taskIds: [] },
+    untimedNext: {date:null,type:'',itemId:''},
     dayTimeline: { date: null, alarms: false, blocks: [], sourceText: '', overnightAllowed: false, preferredMealFirstId: '', manualOrderIds: [] },
     dayTimelineFocus: null,
     dump: [],
@@ -1652,6 +1653,11 @@
         reflections: saved.reflections && typeof saved.reflections==='object' ? saved.reflections : {},
         dump: Array.isArray(saved.dump) ? saved.dump : [],
         todayPlan: saved.todayPlan && Array.isArray(saved.todayPlan.taskIds) ? saved.todayPlan : {date:null,taskIds:[]},
+        untimedNext:(saved.untimedNext&&typeof saved.untimedNext==='object'
+          &&['habit','task','household','lunch'].includes(saved.untimedNext.type)
+          &&typeof saved.untimedNext.itemId==='string')
+          ?{date:String(saved.untimedNext.date||''),type:saved.untimedNext.type,itemId:saved.untimedNext.itemId}
+          :{date:null,type:'',itemId:''},
         dayTimelineFocus: saved.dayTimelineFocus && typeof saved.dayTimelineFocus==='object'
           && typeof saved.dayTimelineFocus.blockId==='string' && Number.isFinite(Number(saved.dayTimelineFocus.endsAt))
           ? {date:saved.dayTimelineFocus.date||'',blockId:saved.dayTimelineFocus.blockId,
@@ -2816,6 +2822,59 @@
       if(!window.AndroidWidgetBridge)playFocusFinishedSignal();
     }
   }
+  // Ook zonder kloktijden kun je zelf de eerstvolgende activiteit kiezen.
+  // De selectie verandert alleen de grote Vandaag-widget, niet de bronlijsten.
+  function untimedNextOptions(){
+    const today=localDateKey();
+    const habits=state.habits.filter(h=>!h.history?.[today]
+      &&(!h.startedOn||h.startedOn<=today)
+      &&(!['basis-stretch','basis-relax','basis-move'].includes(h.id)
+        ||!selfCareDone(({ 'basis-stretch':'stretch','basis-relax':'relax','basis-move':'move'})[h.id])))
+      .map(h=>({type:'habit',itemId:h.id,name:h.name,kind:'Routine'}));
+    const tasks=(state.todayPlan?.date===today?(state.todayPlan.taskIds||[]):[])
+      .map(id=>state.tasks.find(t=>t.id===id)).filter(t=>t&&!t.done&&!t.paused
+        &&(!t.deferUntil||t.deferUntil<=today))
+      .map(t=>({type:'task',itemId:t.id,name:t.name,kind:'Taak'}));
+    const household=householdVisibleToday().filter(h=>!householdDoneToday(h))
+      .map(h=>({type:'household',itemId:h.id,name:h.name,kind:'Huishouden'}));
+    const ordered=[];
+    const remove=(items,id)=>{const index=items.findIndex(x=>x.itemId===id);return index<0?null:items.splice(index,1)[0];};
+    const add=x=>{if(x)ordered.push(x);};
+    add(remove(habits,'habit-morning'));
+    add(remove(habits,'basis-stretch'));
+    add(tasks.shift());add(household.shift());
+    if(!selfCareToday().lunchDone)add({type:'lunch',itemId:'lunch',name:'Lunch gehad',kind:'Voor jezelf'});
+    add(remove(habits,'basis-move'));
+    add(tasks.shift());add(household.shift());
+    add(remove(habits,'basis-relax'));
+    while(tasks.length||household.length){add(tasks.shift());add(household.shift());}
+    for(const h of habits)if(!['habit-evening-reset','habit-day-close'].includes(h.itemId))add(h);
+    add(remove(habits,'habit-evening-reset'));
+    add(remove(habits,'habit-day-close'));
+    return ordered;
+  }
+  function untimedChosenNext(){
+    const choice=state.untimedNext;
+    if(!choice||choice.date!==localDateKey())return null;
+    return untimedNextOptions().find(x=>x.type===choice.type&&x.itemId===choice.itemId)||null;
+  }
+  function chooseUntimedNext(type,itemId){
+    const item=untimedNextOptions().find(x=>x.type===type&&x.itemId===itemId);
+    if(!item)return showToast('Deze activiteit staat niet meer open.');
+    state.untimedNext={date:localDateKey(),type,itemId};
+    saveState();
+    closeDayPlanNextPicker();
+    renderDayTimeline();
+    showToast('Nu bovenaan in je widget: '+item.name+'.');
+  }
+  function resetUntimedNext(){
+    state.untimedNext={date:null,type:'',itemId:''};
+    saveState();
+    closeDayPlanNextPicker();
+    renderDayTimeline();
+    showToast('De gewone volgorde is hersteld.');
+  }
+  // De bestaande keuzehulp voor tijdplanningen blijft verder ongewijzigd.
   // De app geeft een volgende stap om uit te kiezen, zonder die automatisch
   // op te dringen. De lijst komt uitsluitend uit bestaande, open dagblokken.
   let dayPlanNextPickerOpen=false;
@@ -2830,11 +2889,27 @@
     const trigger=document.getElementById('dayPlanChooseNextButton');
     if(!panel)return;
     const available=dayPlanNextOptions();
-    if(trigger)trigger.disabled=(!dayPlanIsCurrent()||!available.length);
-    if(!dayPlanNextPickerOpen||!available.length||activeDayPlanFocus()){
+    const timed=dayPlanIsCurrent(),quick=timed?[]:untimedNextOptions();
+    if(trigger)trigger.disabled=timed?!available.length:!quick.length;
+    if(!dayPlanNextPickerOpen||!(timed?available.length:quick.length)||(timed&&activeDayPlanFocus())){
       panel.hidden=true;panel.innerHTML='';return;
     }
     panel.hidden=false;
+    if(!timed){
+      panel.innerHTML='<div class="day-plan-next-head"><div><strong>Wat wil je nu doen?</strong>'
+        +'<p class="day-plan-next-note">Kies iets voor bovenaan je Vandaag-widget, zonder tijden.</p></div>'
+        +'<button type="button" data-dayplan-next-close aria-label="Keuzelijst sluiten">✕</button></div>'
+        +'<div class="day-plan-next-list">'+quick.map(item=>{
+          const current=state.untimedNext?.date===localDateKey()
+            &&state.untimedNext.type===item.type&&state.untimedNext.itemId===item.itemId;
+          return '<button type="button" class="day-plan-next-option" data-untimed-next-type="'+escapeHtml(item.type)
+            +'" data-untimed-next-id="'+escapeHtml(item.itemId)+'"><span><strong>'
+            +escapeHtml(item.name)+'</strong><small>'+escapeHtml(item.kind)
+            +(current?' · nu bovenaan':'')+'</small></span><span class="next-arrow" aria-hidden="true">›</span></button>';
+        }).join('')+'</div>'
+        +'<button type="button" class="day-plan-next-skip" data-dayplan-next-later>Gewone volgorde gebruiken</button>';
+      return;
+    }
     panel.innerHTML='<div class="day-plan-next-head"><div><strong>Wat wil je nu doen?</strong>'
       +'<p class="day-plan-next-note">Kies zelf wat nu bij je past. De andere blokken schuiven mee.</p></div>'
       +'<button type="button" data-dayplan-next-close aria-label="Keuzelijst sluiten">✕</button></div>'
@@ -2849,8 +2924,12 @@
       +'<button type="button" class="day-plan-next-skip" data-dayplan-next-later>Later kiezen · gewone volgorde</button>';
   }
   function showDayPlanNextPicker(scroll=true){
-    if(!dayPlanNextOptions().length){return replanDayFromNow({silent:true});}
-    if(activeDayPlanFocus())return showToast('Je hebt al een actieve Focus. Rond die eerst af.');
+    if(!dayPlanIsCurrent()){
+      if(!untimedNextOptions().length)return showToast('Er staat niets open voor vandaag.');
+    }else{
+      if(!dayPlanNextOptions().length)return replanDayFromNow({silent:true});
+      if(activeDayPlanFocus())return showToast('Je hebt al een actieve Focus. Rond die eerst af.');
+    }
     dayPlanNextPickerOpen=true;
     renderDayPlanNextPicker();
     if(scroll)document.getElementById('dayPlanNextPicker')?.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -2998,7 +3077,14 @@
     const box=document.getElementById('dayPlanList'),clear=document.getElementById('clearDayPlanButton');if(!box)return;
     const status=document.getElementById('dayPlanReplanStatus'),hasPlan=dayPlanIsCurrent();
     for(const id of ['startMyDayNowButton','replanDayNowButton']){const button=document.getElementById(id);if(button)button.disabled=!hasPlan;}
-    if(status)status.textContent=hasPlan?'Start of herplan wanneer jij daar klaar voor bent. Vaste afspraken blijven staan.':'Plak eerst een dagplanning om vanaf nu te plannen.';
+    if(status){
+      if(hasPlan)status.textContent='Start of herplan wanneer jij daar klaar voor bent. Vaste afspraken blijven staan.';
+      else{
+        const chosen=untimedChosenNext();
+        status.textContent=chosen?'Zonder tijden · nu bovenaan in je Vandaag-widget: '+chosen.name+'.'
+          :'Zonder tijden kun je hierboven zelf je volgende activiteit kiezen.';
+      }
+    }
     renderDayPlanNextPicker();
     renderRecoveryPanel();
     const plan=state.dayTimeline||{blocks:[]},active=dayPlanIsCurrent(plan);
@@ -3971,7 +4057,12 @@
     if(e.target.closest('[data-recovery-skip]'))return recoverySkip();
     if(e.target.closest('#dayPlanChooseNextButton'))return showDayPlanNextPicker();
     if(e.target.closest('[data-dayplan-next-close]'))return closeDayPlanNextPicker();
-    if(e.target.closest('[data-dayplan-next-later]')){closeDayPlanNextPicker();return replanDayFromNow({silent:true});}
+    if(e.target.closest('[data-dayplan-next-later]')){
+      if(!dayPlanIsCurrent())return resetUntimedNext();
+      closeDayPlanNextPicker();return replanDayFromNow({silent:true});
+    }
+    const quickNext=e.target.closest('[data-untimed-next-id]');
+    if(quickNext)return chooseUntimedNext(quickNext.dataset.untimedNextType,quickNext.dataset.untimedNextId);
     const nextChoice=e.target.closest('[data-dayplan-next-id]');
     if(nextChoice)return chooseNextDayPlanBlock(nextChoice.dataset.dayplanNextId);
     if(e.target.closest('#startMyDayNowButton'))return replanDayFromNow();
