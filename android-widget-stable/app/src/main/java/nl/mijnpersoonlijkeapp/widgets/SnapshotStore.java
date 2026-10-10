@@ -449,6 +449,23 @@ final class SnapshotStore {
         for(JSONObject row:other)out.put(row);
         if(evening!=null)out.put(evening);
         if(close!=null)out.put(close);
+        // Alleen het gemengde overzicht verandert; de vier losse widgets blijven gelijk.
+        JSONObject chosen=state.optJSONObject("untimedNext");
+        if(chosen!=null&&today.equals(chosen.optString("date"))){
+            String chosenType=chosen.optString("type"),chosenId=chosen.optString("itemId");
+            if(!chosenType.isEmpty()&&!chosenId.isEmpty()){
+                for(int i=0;i<out.length();i++){
+                    JSONObject item=out.optJSONObject(i);
+                    if(item!=null&&chosenType.equals(item.optString("itemType"))
+                            &&chosenId.equals(item.optString("itemId"))){
+                        JSONArray reordered=new JSONArray();
+                        reordered.put(item);
+                        for(int j=0;j<out.length();j++)if(j!=i)reordered.put(out.optJSONObject(j));
+                        return reordered;
+                    }
+                }
+            }
+        }
         return out;
     }
 
