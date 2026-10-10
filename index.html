@@ -857,6 +857,24 @@
     .day-plan-next-trigger{width:100%;min-height:50px;border:1.5px solid var(--accent-strong);border-radius:13px;background:var(--accent-soft);color:var(--accent-strong);font-weight:850;font-size:15px;margin:0 0 10px}
     .day-plan-next-panel{border:1px solid var(--line);border-radius:17px;background:var(--surface-soft);padding:14px;margin:10px 0}
     .day-plan-next-panel[hidden]{display:none}
+    .untimed-order-toggle{width:100%;min-height:48px;margin:0 0 10px;border:1px solid var(--line);border-radius:13px;background:var(--card,#fff);color:var(--text);font-weight:800;font-size:15px}
+    .untimed-order-editor{margin:0 0 12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-soft)}
+    .untimed-order-editor[hidden]{display:none}
+    .untimed-order-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .untimed-order-head strong{font-size:17px}
+    .untimed-order-head button,.untimed-order-footer button{min-height:40px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card,#fff);font-weight:750;color:var(--text)}
+    .untimed-order-note{font-size:12px;line-height:1.5;color:var(--muted);margin:8px 0 10px}
+    .untimed-order-list{display:grid;gap:6px;max-height:57vh;overflow:auto;overscroll-behavior:contain}
+    .untimed-order-row{display:flex;align-items:center;gap:7px;min-height:54px;padding:5px;border:1px solid var(--line);border-radius:11px;background:var(--card,#fff);color:var(--text)}
+    .untimed-order-row.dragging{border:2px solid var(--accent-strong);background:var(--accent-soft)}
+    .untimed-order-grip{flex:0 0 37px;width:37px;height:42px;border:0;background:transparent;font-size:25px;color:var(--accent-strong);touch-action:none;cursor:grab}
+    .untimed-order-description{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+    .untimed-order-description strong{font-size:14px;overflow-wrap:anywhere}
+    .untimed-order-description small{font-size:11px;color:var(--muted)}
+    .untimed-order-shift{flex:0 0 35px;width:35px;min-height:42px;padding:4px 0;border:1px solid var(--line);border-radius:9px;background:var(--surface-soft);font-size:19px;color:var(--text)}
+    .untimed-order-shift:disabled{opacity:.3}
+    .untimed-order-footer{margin-top:9px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+    .untimed-order-footer span{font-size:12px;color:var(--muted)}
     .day-plan-next-head{display:flex;justify-content:space-between;align-items:start;gap:9px}
     .day-plan-next-head strong{font-size:18px}
     .day-plan-next-head button{min-height:36px;border:1px solid var(--line);border-radius:10px;background:var(--card,#fff);padding:5px 10px;font-weight:800}
@@ -963,6 +981,8 @@
                 <button class="secondary-button" id="replanDayNowButton" type="button">Herplan vanaf nu</button>
               </div>
               <button class="day-plan-next-trigger" type="button" id="dayPlanChooseNextButton">☷ Kies volgende activiteit</button>
+              <button class="untimed-order-toggle" type="button" id="untimedOrderButton" hidden>☷ Volgorde aanpassen</button>
+              <div id="untimedOrderEditor" class="untimed-order-editor" hidden></div>
               <div class="day-plan-replan-status" id="dayPlanReplanStatus">Openstaande tijdsblokken kunnen met je dag meeschuiven.</div>
               <div id="dayPlanRecoverySummary" class="day-recovery-bar"></div>
               <div id="dayPlanRecoveryPanel" class="day-recovery-panel" hidden aria-live="polite"></div>
@@ -1470,6 +1490,7 @@
     reflections: {},
     todayPlan: { date: null, taskIds: [] },
     untimedNext: {date:null,type:'',itemId:''},
+    untimedOrder: {date:null,keys:[]},
     dayTimeline: { date: null, alarms: false, blocks: [], sourceText: '', overnightAllowed: false, preferredMealFirstId: '', manualOrderIds: [] },
     dayTimelineFocus: null,
     dump: [],
@@ -1658,6 +1679,9 @@
           &&typeof saved.untimedNext.itemId==='string')
           ?{date:String(saved.untimedNext.date||''),type:saved.untimedNext.type,itemId:saved.untimedNext.itemId}
           :{date:null,type:'',itemId:''},
+        untimedOrder:(saved.untimedOrder&&typeof saved.untimedOrder==='object'&&Array.isArray(saved.untimedOrder.keys))
+          ?{date:String(saved.untimedOrder.date||''),keys:saved.untimedOrder.keys.filter(k=>typeof k==='string').slice(0,100)}
+          :{date:null,keys:[]},
         dayTimelineFocus: saved.dayTimelineFocus && typeof saved.dayTimelineFocus==='object'
           && typeof saved.dayTimelineFocus.blockId==='string' && Number.isFinite(Number(saved.dayTimelineFocus.endsAt))
           ? {date:saved.dayTimelineFocus.date||'',blockId:saved.dayTimelineFocus.blockId,
@@ -2853,6 +2877,113 @@
     add(remove(habits,'habit-day-close'));
     return ordered;
   }
+  function untimedItemKey(item){return item.type+':'+item.itemId;}
+  function untimedReorderState(){
+    const today=localDateKey();
+    if(!state.untimedOrder||state.untimedOrder.date!==today)
+      state.untimedOrder={date:today,keys:[]};
+    return state.untimedOrder;
+  }
+  function untimedEffectiveOrder(){
+    const base=untimedNextOptions(),map=new Map(base.map(x=>[untimedItemKey(x),x]));
+    const saved=untimedReorderState().keys;
+    const chosen=[];
+    for(const key of saved){if(map.has(key)){chosen.push(map.get(key));map.delete(key);}}
+    const ordered=[...chosen,...map.values()];
+    const current=state.untimedNext;
+    if(current?.date===localDateKey()){
+      const at=ordered.findIndex(x=>x.type===current.type&&x.itemId===current.itemId);
+      if(at>0)ordered.unshift(...ordered.splice(at,1));
+    }
+    return ordered;
+  }
+  let untimedOrderEditorOpen=false,untimedDrag=null;
+  function renderUntimedOrderEditor(){
+    const editor=document.getElementById('untimedOrderEditor'),button=document.getElementById('untimedOrderButton');
+    if(!editor||!button)return;
+    const enabled=!dayPlanIsCurrent();
+    button.hidden=!enabled;
+    button.disabled=!enabled;
+    if(!enabled||!untimedOrderEditorOpen){editor.hidden=true;editor.innerHTML='';return;}
+    editor.hidden=false;
+    const items=untimedEffectiveOrder();
+    editor.innerHTML='<div class="untimed-order-head"><strong>Mijn volgorde voor vandaag</strong>'
+      +'<button type="button" data-untimed-order-close>Gereed</button></div>'
+      +'<p class="untimed-order-note">Houd ☷ vast om te slepen, of gebruik de pijltjes. Je volgorde wordt automatisch bewaard voor vandaag.</p>'
+      +'<div class="untimed-order-list">'+items.map((item,i)=>{
+        const key=untimedItemKey(item);
+        return '<div class="untimed-order-row" data-untimed-order-key="'+escapeHtml(key)+'">'
+          +'<button class="untimed-order-grip" type="button" aria-label="Sleep '+escapeHtml(item.name)+'">☷</button>'
+          +'<span class="untimed-order-description"><strong>'+escapeHtml(item.name)+'</strong><small>'+escapeHtml(item.kind)+'</small></span>'
+          +'<button class="untimed-order-shift" type="button" data-untimed-order-shift="-1" aria-label="'+escapeHtml(item.name)+' omhoog" '+(i===0?'disabled':'')+'>↑</button>'
+          +'<button class="untimed-order-shift" type="button" data-untimed-order-shift="1" aria-label="'+escapeHtml(item.name)+' omlaag" '+(i===items.length-1?'disabled':'')+'>↓</button></div>';
+      }).join('')+'</div>'
+      +'<div class="untimed-order-footer"><button type="button" data-untimed-order-default>Standaardvolgorde</button>'
+      +'<span>Alleen je grote Vandaag-widget verandert.</span></div>';
+  }
+  function saveUntimedOrderFromList(){
+    const list=document.querySelector('#untimedOrderEditor .untimed-order-list');
+    if(!list)return;
+    const keys=[...list.querySelectorAll('[data-untimed-order-key]')].map(x=>x.dataset.untimedOrderKey);
+    const valid=new Set(untimedNextOptions().map(untimedItemKey));
+    state.untimedOrder={date:localDateKey(),keys:keys.filter(k=>valid.has(k))};
+    state.untimedNext={date:null,type:'',itemId:''};
+    saveState();
+  }
+  function moveUntimedOrderRow(row,direction){
+    if(!row)return;
+    const sibling=direction<0?row.previousElementSibling:row.nextElementSibling;
+    if(!sibling)return;
+    if(direction<0)row.parentElement.insertBefore(row,sibling);
+    else row.parentElement.insertBefore(sibling,row);
+    saveUntimedOrderFromList();renderUntimedOrderEditor();
+  }
+  function closeUntimedOrderEditor(){
+    untimedOrderEditorOpen=false;
+    renderUntimedOrderEditor();
+    showToast('Je dagvolgorde is bewaard.');
+  }
+  function untimedOrderDefault(){
+    state.untimedOrder={date:localDateKey(),keys:[]};
+    state.untimedNext={date:null,type:'',itemId:''};
+    saveState();renderUntimedOrderEditor();renderDayTimeline();
+    showToast('De oorspronkelijke volgorde is hersteld.');
+  }
+  // Op Android heeft het sleephandvat een eigen touchgebied.
+  // Voor toegankelijkheid blijven de omhoog/omlaagknoppen beschikbaar.
+  document.addEventListener('pointerdown',e=>{
+    const grip=e.target.closest?.('.untimed-order-grip');
+    if(!grip||!untimedOrderEditorOpen)return;
+    const row=grip.closest('[data-untimed-order-key]');
+    if(!row)return;
+    e.preventDefault();
+    untimedDrag={row,id:e.pointerId,moved:false};
+    row.classList.add('dragging');
+    try{grip.setPointerCapture(e.pointerId);}catch{}
+  });
+  document.addEventListener('pointermove',e=>{
+    if(!untimedDrag||untimedDrag.id!==e.pointerId)return;
+    if(e.cancelable)e.preventDefault();
+    const {row}=untimedDrag;
+    const list=row.parentElement;
+    if(!list)return;
+    const y=e.clientY;
+    const siblings=[...list.children].filter(x=>x!==row);
+    const after=siblings.find(x=>y<x.getBoundingClientRect().top+x.getBoundingClientRect().height/2);
+    if(after){
+      if(after!==row.nextElementSibling){list.insertBefore(row,after);untimedDrag.moved=true;}
+    }else if(list.lastElementChild!==row){list.appendChild(row);untimedDrag.moved=true;}
+  });
+  function finishUntimedDrag(e){
+    if(!untimedDrag||untimedDrag.id!==e.pointerId)return;
+    const row=untimedDrag.row;
+    row?.classList.remove('dragging');
+    untimedDrag=null;
+    saveUntimedOrderFromList();
+    renderUntimedOrderEditor();
+  }
+  document.addEventListener('pointerup',finishUntimedDrag);
+  document.addEventListener('pointercancel',finishUntimedDrag);
   function untimedChosenNext(){
     const choice=state.untimedNext;
     if(!choice||choice.date!==localDateKey())return null;
@@ -3086,6 +3217,7 @@
       }
     }
     renderDayPlanNextPicker();
+    renderUntimedOrderEditor();
     renderRecoveryPanel();
     const plan=state.dayTimeline||{blocks:[]},active=dayPlanIsCurrent(plan);
     refreshDayPlanFocusPanels();
@@ -4055,6 +4187,16 @@
     if(e.target.closest('[data-recovery-finish]'))return recoveryFinish();
     if(e.target.closest('[data-recovery-stop]'))return recoveryStop();
     if(e.target.closest('[data-recovery-skip]'))return recoverySkip();
+    if(e.target.closest('#untimedOrderButton')){
+      untimedOrderEditorOpen=!untimedOrderEditorOpen;
+      renderUntimedOrderEditor();
+      if(untimedOrderEditorOpen)document.getElementById('untimedOrderEditor')?.scrollIntoView({behavior:'smooth',block:'nearest'});
+      return;
+    }
+    if(e.target.closest('[data-untimed-order-close]'))return closeUntimedOrderEditor();
+    if(e.target.closest('[data-untimed-order-default]'))return untimedOrderDefault();
+    const shift=e.target.closest('[data-untimed-order-shift]');
+    if(shift)return moveUntimedOrderRow(shift.closest('[data-untimed-order-key]'),Number(shift.dataset.untimedOrderShift));
     if(e.target.closest('#dayPlanChooseNextButton'))return showDayPlanNextPicker();
     if(e.target.closest('[data-dayplan-next-close]'))return closeDayPlanNextPicker();
     if(e.target.closest('[data-dayplan-next-later]')){
