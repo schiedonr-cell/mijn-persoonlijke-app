@@ -449,6 +449,27 @@ final class SnapshotStore {
         for(JSONObject row:other)out.put(row);
         if(evening!=null)out.put(evening);
         if(close!=null)out.put(close);
+        // De dagvolgorde uit de app wordt uitsluitend op deze grote widget toegepast.
+        JSONObject manual=state.optJSONObject("untimedOrder");
+        if(manual!=null&&today.equals(manual.optString("date"))){
+            JSONArray keys=manual.optJSONArray("keys");
+            if(keys!=null&&keys.length()>0){
+                JSONArray reordered=new JSONArray();
+                Set<Integer> used=new HashSet<>();
+                for(int k=0;k<keys.length();k++){
+                    String key=keys.optString(k,"");
+                    for(int i=0;i<out.length();i++){
+                        JSONObject row=out.optJSONObject(i);
+                        if(row==null||used.contains(i))continue;
+                        if(key.equals(row.optString("itemType")+":"+row.optString("itemId"))){
+                            reordered.put(row);used.add(i);break;
+                        }
+                    }
+                }
+                for(int i=0;i<out.length();i++)if(!used.contains(i))reordered.put(out.optJSONObject(i));
+                out=reordered;
+            }
+        }
         // Alleen het gemengde overzicht verandert; de vier losse widgets blijven gelijk.
         JSONObject chosen=state.optJSONObject("untimedNext");
         if(chosen!=null&&today.equals(chosen.optString("date"))){
