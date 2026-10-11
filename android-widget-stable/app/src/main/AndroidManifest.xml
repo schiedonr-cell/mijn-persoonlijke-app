@@ -87,6 +87,13 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info" />
         </receiver>
         <receiver
+            android:name=".DayTabsWidgetProvider"
+            android:label="Vandaag / Morgen"
+            android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_day_tabs_info" />
+        </receiver>
+        <receiver
             android:name=".TodayGridWidgetProvider"
             android:label="Vandaag – 4 vakken"
             android:exported="true">
