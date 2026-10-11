@@ -26,6 +26,7 @@ public class DayTabsWidgetProvider extends AppWidgetProvider {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                     .putBoolean(KEY, tomorrow).apply();
             SnapshotStore.refreshCategoryWidgets(context);
+            TodayWidgetProvider.refreshAll(context);
             refreshAll(context);
         }
     }
@@ -40,7 +41,7 @@ public class DayTabsWidgetProvider extends AppWidgetProvider {
                 new ComponentName(context, DayTabsWidgetProvider.class))) update(context, manager, id);
     }
 
-    private static PendingIntent click(Context context, boolean tomorrow) {
+    static PendingIntent click(Context context, boolean tomorrow) {
         Intent intent = new Intent(context, DayTabsWidgetProvider.class);
         intent.setAction(ACTION);
         intent.putExtra("tomorrow", tomorrow);
