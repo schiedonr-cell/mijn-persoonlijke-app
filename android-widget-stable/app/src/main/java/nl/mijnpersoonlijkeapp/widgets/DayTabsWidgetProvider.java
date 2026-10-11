@@ -27,6 +27,7 @@ public class DayTabsWidgetProvider extends AppWidgetProvider {
                     .putBoolean(KEY, tomorrow).apply();
             SnapshotStore.refreshCategoryWidgets(context);
             TodayWidgetProvider.refreshAll(context);
+            TodayTimelineWidgetProvider.refreshAll(context);
             refreshAll(context);
         }
     }
