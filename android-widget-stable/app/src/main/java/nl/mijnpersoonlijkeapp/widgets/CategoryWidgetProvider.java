@@ -4,7 +4,6 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.os.Bundle;
-import android.graphics.Paint;
 import android.graphics.Color;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
@@ -56,11 +55,17 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         WidgetStyle.applyCategory(v, context, id);
         v.setOnClickPendingIntent(R.id.category_root, WidgetLinks.open(context, target(), requestCode()));
 
+        int bg = WidgetStyle.background(context, id);
+        String mode = WidgetStyle.textMode(context, id);
+        boolean lightText = WidgetStyle.TEXT_LIGHT.equals(mode)
+                || (!WidgetStyle.TEXT_DARK.equals(mode) && Color.luminance(bg) < 0.43);
+        int doneColor = lightText ? Color.rgb(202, 207, 202) : Color.rgb(103, 108, 103);
+
         JSONObject snapshot = SnapshotStore.read(context);
         boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context);
         JSONArray rows = snapshot.optJSONArray(tomorrow ? "tomorrowRows" : "rows");
         if (!SnapshotStore.todayKey().equals(snapshot.optString("date", "")) || rows == null) {
-            fill(v, new ArrayList<>(), ROW_IDS.length, "Open Mijn dag");
+            fill(v, new ArrayList<>(), ROW_IDS.length, "Open Mijn dag", doneColor);
             manager.updateAppWidget(id, v);
             return;
         }
@@ -72,7 +77,7 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         }
         fill(v, items, ROW_IDS.length,
                 tomorrow ? ("Agenda".equals(kind()) ? "Geen afspraken morgen" :
-                    "Taak".equals(kind()) ? "Nog niet ingepland" : "Niets gepland voor morgen") : emptyText());
+                    "Taak".equals(kind()) ? "Nog niet ingepland" : "Niets gepland voor morgen") : emptyText(), doneColor);
         manager.updateAppWidget(id, v);
     }
 
@@ -85,7 +90,7 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         return out;
     }
 
-    private void fill(RemoteViews v, List<JSONObject> items, int limit, String empty) {
+    private void fill(RemoteViews v, List<JSONObject> items, int limit, String empty, int doneColor) {
         int visible = Math.min(Math.min(limit, ROW_IDS.length), items.size());
         for (int i = 0; i < ROW_IDS.length; i++) {
             if (i < visible) {
@@ -94,7 +99,7 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
                 if (row.optBoolean("done", false)) {
                     SpannableString marked = new SpannableString("✓  " + row.optString("text", ""));
                     marked.setSpan(new StrikethroughSpan(), 3, marked.length(), 0);
-                    marked.setSpan(new ForegroundColorSpan(Color.rgb(190, 102, 102)), 3, marked.length(), 0);
+                    marked.setSpan(new ForegroundColorSpan(doneColor), 3, marked.length(), 0);
                     v.setTextViewText(ROW_IDS[i], marked);
                 } else v.setTextViewText(ROW_IDS[i], line);
                 v.setViewVisibility(ROW_IDS[i], View.VISIBLE);
