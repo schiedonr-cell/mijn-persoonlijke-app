@@ -4,6 +4,11 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.os.Bundle;
+import android.graphics.Paint;
+import android.graphics.Color;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StrikethroughSpan;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -52,7 +57,8 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.category_root, WidgetLinks.open(context, target(), requestCode()));
 
         JSONObject snapshot = SnapshotStore.read(context);
-        JSONArray rows = snapshot.optJSONArray("rows");
+        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context);
+        JSONArray rows = snapshot.optJSONArray(tomorrow ? "tomorrowRows" : "rows");
         if (!SnapshotStore.todayKey().equals(snapshot.optString("date", "")) || rows == null) {
             fill(v, new ArrayList<>(), ROW_IDS.length, "Open Mijn dag");
             manager.updateAppWidget(id, v);
@@ -60,7 +66,13 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         }
 
         List<JSONObject> items = collect(rows, kind());
-        fill(v, items, ROW_IDS.length, emptyText());
+        if (!tomorrow) {
+            JSONArray completed = snapshot.optJSONArray("completedRows");
+            if (completed != null) items.addAll(collect(completed, kind()));
+        }
+        fill(v, items, ROW_IDS.length,
+                tomorrow ? ("Agenda".equals(kind()) ? "Geen afspraken morgen" :
+                    "Taak".equals(kind()) ? "Nog niet ingepland" : "Niets gepland voor morgen") : emptyText());
         manager.updateAppWidget(id, v);
     }
 
@@ -79,7 +91,12 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
             if (i < visible) {
                 JSONObject row = items.get(i);
                 String line = formatLine(row);
-                v.setTextViewText(ROW_IDS[i], line);
+                if (row.optBoolean("done", false)) {
+                    SpannableString marked = new SpannableString("✓  " + row.optString("text", ""));
+                    marked.setSpan(new StrikethroughSpan(), 3, marked.length(), 0);
+                    marked.setSpan(new ForegroundColorSpan(Color.rgb(190, 102, 102)), 3, marked.length(), 0);
+                    v.setTextViewText(ROW_IDS[i], marked);
+                } else v.setTextViewText(ROW_IDS[i], line);
                 v.setViewVisibility(ROW_IDS[i], View.VISIBLE);
             } else if (i == 0 && items.isEmpty() && limit > 0) {
                 v.setTextViewText(ROW_IDS[i], empty);
