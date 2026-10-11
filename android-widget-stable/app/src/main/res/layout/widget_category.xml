@@ -55,6 +55,44 @@
                     android:includeFontPadding="false" />
             </LinearLayout>
 
+            <!-- Kleine dagtabs horen bij deze tegel, niet bij een aparte widget. -->
+            <LinearLayout
+                android:id="@+id/category_tabs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:id="@+id/category_tab_today"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="28dp"
+                    android:gravity="center_vertical"
+                    android:paddingEnd="9dp"
+                    android:text="Vandaag"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="|"
+                    android:textSize="12sp"
+                    android:textColor="#858D87" />
+                <TextView
+                    android:id="@+id/category_tab_tomorrow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="28dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="9dp"
+                    android:text="Morgen"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+            </LinearLayout>
+
             <TextView android:id="@+id/category_row_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textSize="13sp" android:maxLines="1" android:ellipsize="end" />
             <TextView android:id="@+id/category_row_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:textSize="13sp" android:maxLines="1" android:ellipsize="end" />
             <TextView android:id="@+id/category_row_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:textSize="13sp" android:maxLines="1" android:ellipsize="end" />
