@@ -64,6 +64,40 @@
                 android:contentDescription="Open Mijn dag startpagina" />
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/today_tabs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/today_tab_today"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="30dp"
+                android:gravity="center_vertical"
+                android:paddingEnd="11dp"
+                android:text="Vandaag"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="|"
+                android:textSize="13sp"
+                android:textColor="#858D87" />
+            <TextView
+                android:id="@+id/today_tab_tomorrow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="30dp"
+                android:gravity="center_vertical"
+                android:paddingStart="11dp"
+                android:text="Morgen"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/today_divider"
             android:layout_width="match_parent"
