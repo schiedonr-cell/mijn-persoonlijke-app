@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
 import android.os.Bundle;
+import android.graphics.Color;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -57,12 +58,23 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         WidgetStyle.applyToday(v, context, id);
         v.setOnClickPendingIntent(R.id.today_root, WidgetLinks.open(context, "today", 201));
         v.setOnClickPendingIntent(R.id.today_home, WidgetLinks.open(context, "home", 202));
-        v.setTextViewText(R.id.today_subtitle, friendlyDate());
+        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context);
+        int base = WidgetStyle.background(context, id);
+        String mode = WidgetStyle.textMode(context, id);
+        boolean light = WidgetStyle.TEXT_LIGHT.equals(mode)
+                || (!WidgetStyle.TEXT_DARK.equals(mode) && Color.luminance(base) < 0.43);
+        int active = light ? Color.rgb(248,249,247) : Color.rgb(31,36,32);
+        int inactive = light ? Color.rgb(174,180,174) : Color.rgb(110,120,111);
+        v.setTextColor(R.id.today_tab_today, tomorrow ? inactive : active);
+        v.setTextColor(R.id.today_tab_tomorrow, tomorrow ? active : inactive);
+        v.setOnClickPendingIntent(R.id.today_tab_today, DayTabsWidgetProvider.click(context, false));
+        v.setOnClickPendingIntent(R.id.today_tab_tomorrow, DayTabsWidgetProvider.click(context, true));
+        v.setTextViewText(R.id.today_subtitle, friendlyDate(tomorrow));
         v.setViewVisibility(R.id.today_more, View.GONE);
 
         JSONObject snapshot = SnapshotStore.read(context);
         String date = snapshot.optString("date", "");
-        JSONArray rows = snapshot.optJSONArray("rows");
+        JSONArray rows = snapshot.optJSONArray(tomorrow ? "tomorrowRows" : "rows");
 
         if (!SnapshotStore.todayKey().equals(date) || rows == null) {
             hideRows(v);
@@ -97,7 +109,7 @@ public class TodayWidgetProvider extends AppWidgetProvider {
 
         if (visible == 0) {
             v.setViewVisibility(R.id.today_empty, View.VISIBLE);
-            v.setTextViewText(R.id.today_empty, "Alles klaar voor vandaag.");
+            v.setTextViewText(R.id.today_empty, tomorrow ? "Nog niets gepland voor morgen." : "Alles klaar voor vandaag.");
         } else {
             v.setViewVisibility(R.id.today_empty, View.GONE);
         }
@@ -113,12 +125,12 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         return null;
     }
 
-    private static String friendlyDate() {
+    private static String friendlyDate(boolean tomorrow) {
         try {
             DateTimeFormatter f = DateTimeFormatter.ofPattern("EEE d MMM", new Locale("nl", "NL"));
-            return LocalDate.now().format(f).replace(".", "");
+            return LocalDate.now().plusDays(tomorrow ? 1 : 0).format(f).replace(".", "");
         } catch (Exception e) {
-            return LocalDate.now().toString();
+            return LocalDate.now().plusDays(tomorrow ? 1 : 0).toString();
         }
     }
 
