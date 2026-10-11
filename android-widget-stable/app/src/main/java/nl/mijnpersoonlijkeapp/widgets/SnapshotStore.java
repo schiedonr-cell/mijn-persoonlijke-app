@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -65,7 +66,7 @@ final class SnapshotStore {
         }
     }
 
-    private static void refreshCategoryWidgets(Context context) {
+    static void refreshCategoryWidgets(Context context) {
         android.appwidget.AppWidgetManager manager = android.appwidget.AppWidgetManager.getInstance(context);
         Class<?>[] providers = new Class<?>[]{AgendaWidgetProvider.class, TodayTasksWidgetProvider.class, RoutinesWidgetProvider.class, HouseholdWidgetProvider.class};
         for (Class<?> provider : providers) {
@@ -328,6 +329,18 @@ final class SnapshotStore {
         snapshot.put("energy", energy);
         snapshot.put("updatedAt", System.currentTimeMillis());
         snapshot.put("rows", rows);
+        // Losse categorie-widgets behouden de geopende taken; voltooide items komen
+        // uitsluitend in hun eigen weergave erbij. De dagvolgorde blijft ongewijzigd.
+        JSONArray completedRows = new JSONArray();
+        addCompletedCategoryRows(completedRows, state, today);
+        snapshot.put("completedRows", completedRows);
+        String tomorrow = LocalDate.now().plusDays(1).toString();
+        JSONArray tomorrowRows = new JSONArray();
+        addRoutines(tomorrowRows, state, tomorrow);
+        addHousehold(tomorrowRows, state, tomorrow, energy);
+        addTomorrowTasks(tomorrowRows, state, tomorrow);
+        addAgenda(tomorrowRows, context, calendarJson, tomorrow);
+        snapshot.put("tomorrowRows", tomorrowRows);
         snapshot.put("mixedRows", buildMixedRows(rows, state, today));
 
         JSONObject plan = state.optJSONObject("dayTimeline");
@@ -524,6 +537,88 @@ final class SnapshotStore {
             if(!type.isEmpty()&&!id.isEmpty()){row.put("itemType",type);row.put("itemId",id);}
             rows.put(row);
         } catch (Exception ignored) {}
+    }
+
+    // Doorstreepte items uitsluitend in de vier categorie-widgets: de andere
+    // bestaande widgets en hun afvink- of planningslogica blijven onveranderd.
+    private static void addCompletedCategoryRows(JSONArray out, JSONObject state, String today) {
+        Set<String> seen = new HashSet<>();
+        JSONArray habits = state.optJSONArray("habits");
+        if (habits != null) for (int i = 0; i < habits.length(); i++) {
+            JSONObject h = habits.optJSONObject(i);
+            if (h == null || !doneToday(h, today)) continue;
+            String id = h.optString("id", "");
+            String started = h.optString("startedOn", "");
+            if (!started.isEmpty() && started.compareTo(today) > 0) continue;
+            addDoneRow(out, seen, "Routine", h.optString("name", "Routine"),
+                    h.optString("time", ""), "habit", id);
+        }
+        JSONArray house = state.optJSONArray("householdTasks");
+        if (house != null) for (int i = 0; i < house.length(); i++) {
+            JSONObject h = house.optJSONObject(i);
+            if (h == null || !doneToday(h, today)) continue;
+            addDoneRow(out, seen, "Huis", h.optString("name", "Huishouden"),
+                    h.optString("time", ""), "household", h.optString("id", ""));
+        }
+        JSONArray tasks = state.optJSONArray("tasks");
+        if (tasks != null) for (int i = 0; i < tasks.length(); i++) {
+            JSONObject t = tasks.optJSONObject(i);
+            if (t == null || !t.optBoolean("done", false)) continue;
+            long at = t.optLong("completedAt", 0L);
+            if (at <= 0L) continue;
+            try {
+                String date = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).toLocalDate().toString();
+                if (!today.equals(date)) continue;
+                addDoneRow(out, seen, "Taak", t.optString("name", "Taak"),
+                        t.optString("time", ""), "task", t.optString("id", ""));
+            } catch (Exception ignored) {}
+        }
+        // Ook losse afgevinkte dagblokken mogen zichtbaar blijven. Identieke
+        // gekoppelde activiteiten worden niet dubbel opgenomen.
+        JSONObject timeline = state.optJSONObject("dayTimeline");
+        if (timeline != null && today.equals(timeline.optString("date", ""))) {
+            JSONArray blocks = timeline.optJSONArray("blocks");
+            if (blocks != null) for (int i = 0; i < blocks.length(); i++) {
+                JSONObject b = blocks.optJSONObject(i);
+                if (b == null || !b.optBoolean("done", false)) continue;
+                String link = b.optString("linkType", "");
+                String kind = "task".equals(link) ? "Taak"
+                        : "habit".equals(link) ? "Routine"
+                        : "household".equals(link) ? "Huis" : "";
+                if (kind.isEmpty()) continue;
+                addDoneRow(out, seen, kind, b.optString("text", ""),
+                        b.optString("start", ""), link, b.optString("linkId", ""));
+            }
+        }
+    }
+
+    private static void addDoneRow(JSONArray rows, Set<String> seen, String kind,
+                                   String text, String time, String type, String id) {
+        if (text == null || text.trim().isEmpty()) return;
+        String key = kind + ":" + (id == null || id.isEmpty() ? text.trim() : id);
+        if (!seen.add(key)) return;
+        int n = rows.length();
+        addRow(rows, kind, text, time, type == null ? "" : type, id == null ? "" : id);
+        JSONObject row = rows.optJSONObject(n);
+        if (row != null) try { row.put("done", true); } catch (Exception ignored) {}
+    }
+
+    // Morgen: alleen concreet naar morgen verplaatste of dan vervallende taken.
+    // De 1/2/3-takenkeuze voor morgen ontstaat pas bij de volgende dagstart.
+    private static void addTomorrowTasks(JSONArray out, JSONObject state, String tomorrow) {
+        JSONArray tasks = state.optJSONArray("tasks");
+        if (tasks == null) return;
+        Set<String> used = new HashSet<>();
+        for (int i = 0; i < tasks.length(); i++) {
+            JSONObject t = tasks.optJSONObject(i);
+            if (t == null || t.optBoolean("done", false) || t.optBoolean("paused", false)) continue;
+            String deferred = t.optString("deferUntil", "");
+            String deadline = t.optString("deadline", "");
+            if (!tomorrow.equals(deferred) && !tomorrow.equals(deadline)) continue;
+            String id = t.optString("id", "");
+            if (used.add(id)) addRow(out, "Taak", t.optString("name", "Taak"),
+                    t.optString("time", ""), "task", id);
+        }
     }
 
     private static boolean addLiveHousehold(JSONArray rows, String liveHouseholdJson, JSONObject state, String today) {
