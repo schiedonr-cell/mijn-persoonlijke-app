@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.app.PendingIntent;
 import android.os.Bundle;
+import android.graphics.Color;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -148,14 +149,27 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.timeline_root, WidgetLinks.open(context, "today", 520));
         v.setOnClickPendingIntent(R.id.timeline_header, WidgetLinks.open(context, "today", 521));
         v.setOnClickPendingIntent(R.id.timeline_home, WidgetLinks.open(context, "home", 522));
-        v.setTextViewText(R.id.timeline_date, friendlyDate());
+        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context);
+        int bg = WidgetStyle.background(context, id);
+        String textMode = WidgetStyle.textMode(context, id);
+        boolean light = WidgetStyle.TEXT_LIGHT.equals(textMode)
+                || (!WidgetStyle.TEXT_DARK.equals(textMode) && Color.luminance(bg) < 0.43);
+        int active = light ? Color.rgb(248,249,247) : Color.rgb(31,36,32);
+        int inactive = light ? Color.rgb(174,180,174) : Color.rgb(110,120,111);
+        v.setTextColor(R.id.timeline_tab_today, tomorrow ? inactive : active);
+        v.setTextColor(R.id.timeline_tab_tomorrow, tomorrow ? active : inactive);
+        v.setOnClickPendingIntent(R.id.timeline_tab_today, DayTabsWidgetProvider.click(context, false));
+        v.setOnClickPendingIntent(R.id.timeline_tab_tomorrow, DayTabsWidgetProvider.click(context, true));
+        v.setTextViewText(R.id.timeline_date, friendlyDate(tomorrow));
 
         hideRows(v);
         JSONObject snapshot = SnapshotStore.read(context);
         JSONArray plannedRows = snapshot.optJSONArray("timelineRows");
         boolean usingDayPlan = snapshot.optBoolean("hasDayTimeline", false) && plannedRows != null;
-        JSONArray rows = usingDayPlan ? plannedRows : snapshot.optJSONArray("mixedRows");
-        if(!usingDayPlan && rows==null)rows=snapshot.optJSONArray("rows");
+        JSONArray rows = tomorrow ? snapshot.optJSONArray("tomorrowRows")
+                : (usingDayPlan ? plannedRows : snapshot.optJSONArray("mixedRows"));
+        if(tomorrow) usingDayPlan = false;
+        if(!tomorrow && !usingDayPlan && rows==null)rows=snapshot.optJSONArray("rows");
         if (!SnapshotStore.todayKey().equals(snapshot.optString("date", "")) || rows == null) {
             v.setViewVisibility(R.id.timeline_empty, View.VISIBLE);
             v.setTextViewText(R.id.timeline_empty, "Open Mijn dag om het overzicht te vernieuwen.");
@@ -170,7 +184,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             if (row==null) continue;
             // Deze widget is echt alleen voor vandaag. De gedeelde agenda-snapshot bevat
             // bewust ook komende afspraken voor de losse Agenda-widget.
-            if (!usingDayPlan && "Agenda".equals(row.optString("kind","")) && !agendaIsToday(row)) continue;
+            if (!tomorrow && !usingDayPlan && "Agenda".equals(row.optString("kind","")) && !agendaIsToday(row)) continue;
             items.add(row);
         }
         if (false && !usingDayPlan) Collections.sort(items, new Comparator<JSONObject>() {
@@ -193,7 +207,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         int pages = Math.max(1, (items.size() + maxRows - 1) / maxRows);
         SharedPreferences pref = context.getSharedPreferences(PAGE_PREFS, Context.MODE_PRIVATE);
         // Houd de huidige pagina aan wanneer een afgevinkte regel verdwijnt.
-        String token = snapshot.optString("date", "") + "|" + usingDayPlan + "|"
+        String token = snapshot.optString("date", "") + "|" + tomorrow + "|" + usingDayPlan + "|"
                 + (usingDayPlan ? snapshot.optInt("timelineTotal", rows.length()) : items.size());
         int requestedPage = token.equals(pref.getString("token-" + id, "")) ? pref.getInt("page-" + id, 0) : 0;
         int page = Math.floorMod(requestedPage, pages);
@@ -223,7 +237,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
                 PendingIntent pi=PendingIntent.getBroadcast(context, 3000+i+id*100, toggle,
                         PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
                 v.setOnClickPendingIntent(CHECK_IDS[i],pi);
-            }else if(!usingDayPlan&&!row.optString("itemType","").isEmpty()&&!row.optString("itemId","").isEmpty()){
+            }else if(!tomorrow&&!usingDayPlan&&!row.optString("itemType","").isEmpty()&&!row.optString("itemId","").isEmpty()){
                 v.setViewVisibility(CHECK_IDS[i],View.VISIBLE);
                 v.setTextViewText(CHECK_IDS[i],"□");
                 Intent quick=new Intent(context,TodayTimelineWidgetProvider.class);
@@ -241,7 +255,8 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
 
         if (items.isEmpty()) {
             v.setViewVisibility(R.id.timeline_empty, View.VISIBLE);
-            v.setTextViewText(R.id.timeline_empty, usingDayPlan ? "Alles afgerond voor vandaag." : "Niets meer gepland voor vandaag.");
+            v.setTextViewText(R.id.timeline_empty, tomorrow ? "Nog niets gepland voor morgen." :
+                    (usingDayPlan ? "Alles afgerond voor vandaag." : "Niets meer gepland voor vandaag."));
         } else {
             v.setViewVisibility(R.id.timeline_empty, View.GONE);
         }
@@ -327,9 +342,9 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         for(int id:ROW_BOX_IDS) v.setViewVisibility(id, View.GONE);
     }
 
-    private static String friendlyDate() {
+    private static String friendlyDate(boolean tomorrow) {
         try {
-            return LocalDate.now().format(DateTimeFormatter.ofPattern("EEE d MMM", new Locale("nl","NL"))).replace(".","");
-        } catch(Exception e) { return LocalDate.now().toString(); }
+            return LocalDate.now().plusDays(tomorrow ? 1 : 0).format(DateTimeFormatter.ofPattern("EEE d MMM", new Locale("nl","NL"))).replace(".","");
+        } catch(Exception e) { return LocalDate.now().plusDays(tomorrow ? 1 : 0).toString(); }
     }
 }
