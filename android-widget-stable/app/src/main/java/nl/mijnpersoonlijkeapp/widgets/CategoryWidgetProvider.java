@@ -5,9 +5,6 @@ import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.os.Bundle;
 import android.graphics.Color;
-import android.text.SpannableString;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.StrikethroughSpan;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -55,29 +52,30 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         WidgetStyle.applyCategory(v, context, id);
         v.setOnClickPendingIntent(R.id.category_root, WidgetLinks.open(context, target(), requestCode()));
 
-        int bg = WidgetStyle.background(context, id);
+        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context);
+        int base = WidgetStyle.background(context, id);
         String mode = WidgetStyle.textMode(context, id);
         boolean lightText = WidgetStyle.TEXT_LIGHT.equals(mode)
-                || (!WidgetStyle.TEXT_DARK.equals(mode) && Color.luminance(bg) < 0.43);
-        int doneColor = lightText ? Color.rgb(202, 207, 202) : Color.rgb(103, 108, 103);
+                || (!WidgetStyle.TEXT_DARK.equals(mode) && Color.luminance(base) < 0.43);
+        int selected = lightText ? Color.rgb(248, 249, 247) : Color.rgb(31, 36, 32);
+        int unselected = lightText ? Color.rgb(172, 179, 173) : Color.rgb(112, 121, 113);
+        v.setTextColor(R.id.category_tab_today, tomorrow ? unselected : selected);
+        v.setTextColor(R.id.category_tab_tomorrow, tomorrow ? selected : unselected);
+        v.setOnClickPendingIntent(R.id.category_tab_today, DayTabsWidgetProvider.click(context, false));
+        v.setOnClickPendingIntent(R.id.category_tab_tomorrow, DayTabsWidgetProvider.click(context, true));
 
         JSONObject snapshot = SnapshotStore.read(context);
-        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context);
         JSONArray rows = snapshot.optJSONArray(tomorrow ? "tomorrowRows" : "rows");
         if (!SnapshotStore.todayKey().equals(snapshot.optString("date", "")) || rows == null) {
-            fill(v, new ArrayList<>(), ROW_IDS.length, "Open Mijn dag", doneColor);
+            fill(v, new ArrayList<>(), ROW_IDS.length, "Open Mijn dag");
             manager.updateAppWidget(id, v);
             return;
         }
 
         List<JSONObject> items = collect(rows, kind());
-        if (!tomorrow) {
-            JSONArray completed = snapshot.optJSONArray("completedRows");
-            if (completed != null) items.addAll(collect(completed, kind()));
-        }
         fill(v, items, ROW_IDS.length,
                 tomorrow ? ("Agenda".equals(kind()) ? "Geen afspraken morgen" :
-                    "Taak".equals(kind()) ? "Nog niet ingepland" : "Niets gepland voor morgen") : emptyText(), doneColor);
+                    "Taak".equals(kind()) ? "Nog niet ingepland" : "Niets gepland voor morgen") : emptyText());
         manager.updateAppWidget(id, v);
     }
 
@@ -90,18 +88,13 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         return out;
     }
 
-    private void fill(RemoteViews v, List<JSONObject> items, int limit, String empty, int doneColor) {
+    private void fill(RemoteViews v, List<JSONObject> items, int limit, String empty) {
         int visible = Math.min(Math.min(limit, ROW_IDS.length), items.size());
         for (int i = 0; i < ROW_IDS.length; i++) {
             if (i < visible) {
                 JSONObject row = items.get(i);
                 String line = formatLine(row);
-                if (row.optBoolean("done", false)) {
-                    SpannableString marked = new SpannableString("✓  " + row.optString("text", ""));
-                    marked.setSpan(new StrikethroughSpan(), 3, marked.length(), 0);
-                    marked.setSpan(new ForegroundColorSpan(doneColor), 3, marked.length(), 0);
-                    v.setTextViewText(ROW_IDS[i], marked);
-                } else v.setTextViewText(ROW_IDS[i], line);
+                v.setTextViewText(ROW_IDS[i], line);
                 v.setViewVisibility(ROW_IDS[i], View.VISIBLE);
             } else if (i == 0 && items.isEmpty() && limit > 0) {
                 v.setTextViewText(ROW_IDS[i], empty);
