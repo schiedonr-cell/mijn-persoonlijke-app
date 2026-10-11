@@ -86,6 +86,11 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info" />
         </receiver>
+        <!-- Alleen interne ontvanger voor ingebouwde Vandaag/Morgen-tabjes.
+             Geen apart homescreen-widgettype meer. -->
+        <receiver
+            android:name=".DayTabsWidgetProvider"
+            android:exported="false" />
         <receiver
             android:name=".TodayGridWidgetProvider"
             android:label="Vandaag – 4 vakken"
