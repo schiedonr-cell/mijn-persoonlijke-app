@@ -337,7 +337,7 @@ final class SnapshotStore {
         String tomorrow = LocalDate.now().plusDays(1).toString();
         JSONArray tomorrowRows = new JSONArray();
         addRoutines(tomorrowRows, state, tomorrow);
-        addHousehold(tomorrowRows, state, tomorrow, energy);
+        addTomorrowHousehold(tomorrowRows, state, tomorrow, energy);
         addTomorrowTasks(tomorrowRows, state, tomorrow);
         addAgenda(tomorrowRows, context, calendarJson, tomorrow);
         snapshot.put("tomorrowRows", tomorrowRows);
@@ -601,6 +601,45 @@ final class SnapshotStore {
         addRow(rows, kind, text, time, type == null ? "" : type, id == null ? "" : id);
         JSONObject row = rows.optJSONObject(n);
         if (row != null) try { row.put("done", true); } catch (Exception ignored) {}
+    }
+
+    // Bewust naar morgen verschoven huishoudklussen gaan voor op de
+    // automatische energie-/prioriteitsselectie. Anders kan de gebruiker
+    // bijvoorbeeld 'Wassen' naar morgen zetten zonder het in de widget te zien.
+    private static void addTomorrowHousehold(JSONArray out, JSONObject state, String tomorrow, int energy) {
+        JSONArray source = state.optJSONArray("householdTasks");
+        if (source == null) return;
+        Set<String> included = new HashSet<>();
+        int chosenRegular = 0;
+        for (int i = 0; i < source.length(); i++) {
+            JSONObject item = source.optJSONObject(i);
+            if (item == null || item.optBoolean("paused", false)) continue;
+            if (!tomorrow.equals(item.optString("deferUntil", "")) || doneToday(item, tomorrow)) continue;
+            String id = item.optString("id", "");
+            if (!included.add(id)) continue;
+            addRow(out, "Huis", item.optString("name", "Huishouden"),
+                    item.optString("time", ""), "household", id);
+            if (!item.optBoolean("fixedReminder", false)) chosenRegular++;
+        }
+
+        // De overige huishoudklussen blijven volgens de bestaande
+        // energieregels gekozen; een bewuste keuze telt als gevuld vakje.
+        JSONArray suggested = new JSONArray();
+        addHousehold(suggested, state, tomorrow, energy);
+        int openRegularSlots = Math.max(0, energy - chosenRegular);
+        for (int i = 0; i < suggested.length(); i++) {
+            JSONObject row = suggested.optJSONObject(i);
+            if (row == null) continue;
+            String id = row.optString("itemId", "");
+            if (included.contains(id)) continue;
+            JSONObject item = findById(source, id);
+            boolean fixed = item != null && item.optBoolean("fixedReminder", false);
+            if (!fixed && openRegularSlots == 0) continue;
+            if (!fixed) openRegularSlots--;
+            included.add(id);
+            addRow(out, "Huis", row.optString("text", "Huishouden"),
+                    row.optString("time", ""), "household", id);
+        }
     }
 
     // Morgen: alleen concreet naar morgen verplaatste of dan vervallende taken.
