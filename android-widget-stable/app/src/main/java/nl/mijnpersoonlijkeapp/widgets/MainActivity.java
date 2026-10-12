@@ -318,7 +318,7 @@ public class MainActivity extends Activity {
             "AndroidWidgetBridge.setCoreReminders(on,move,relax,close);nativeReminderPatch();return;}" +
             "var test=e.target.closest&&e.target.closest('#testReminderButton');if(test){e.preventDefault();e.stopImmediatePropagation();AndroidWidgetBridge.testNativeNotification();return;}" +
             "var mic=e.target.closest&&e.target.closest('#dumpMicButton');if(mic){e.preventDefault();e.stopImmediatePropagation();AndroidWidgetBridge.startSpeech();return;}" +
-            "var fs=e.target.closest&&e.target.closest('#focusStartButton');if(fs){var txt=(fs.textContent||'').toLowerCase();if(txt.indexOf('start')>=0){var sec=parseClock(document.getElementById('focusClockText')?.textContent);if(sec>0)AndroidWidgetBridge.scheduleFocus(sec);}else{AndroidWidgetBridge.cancelFocus();}return;}" +
+            "var fs=e.target.closest&&e.target.closest('#focusStartButton');if(fs){var txt=(fs.textContent||'').toLowerCase();if(txt.indexOf('start')>=0){var sec=parseClock(document.getElementById('focusClockText')?.textContent);var name=document.querySelector('.focus-task-name')?.textContent||'Focus';if(sec>0)AndroidWidgetBridge.scheduleFocusNamed(sec,name);}else{AndroidWidgetBridge.cancelFocus();}return;}" +
             "if(e.target.closest&&e.target.closest('[data-focus-duration],#customFocusButton,[data-focus-done],#closeDayButton'))AndroidWidgetBridge.cancelFocus();" +
             "},true);" +
             "nativeReminderPatch();" +
@@ -514,11 +514,22 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 requestNotificationPermissionIfNeeded();
                 NativeAlarmScheduler.schedule(getApplicationContext(),"focus-active","Focus klaar","Je focusblok is afgelopen.",System.currentTimeMillis()+safe*1000L,"focus");
+                FocusTimerNotification.show(getApplicationContext(),safe,"Focus");
+            });
+        }
+
+        @JavascriptInterface public void scheduleFocusNamed(int seconds, String name) {
+            int safe = Math.max(1, Math.min(6 * 60 * 60, seconds));
+            runOnUiThread(() -> {
+                requestNotificationPermissionIfNeeded();
+                NativeAlarmScheduler.schedule(getApplicationContext(),"focus-active","Focus klaar","Je focusblok is afgelopen.",System.currentTimeMillis()+safe*1000L,"focus");
+                FocusTimerNotification.show(getApplicationContext(),safe,name);
             });
         }
 
         @JavascriptInterface public void cancelFocus() {
             NativeAlarmScheduler.cancel(getApplicationContext(),"focus-active");
+            FocusTimerNotification.cancel(getApplicationContext());
         }
 
         @JavascriptInterface public void startSpeech() {
