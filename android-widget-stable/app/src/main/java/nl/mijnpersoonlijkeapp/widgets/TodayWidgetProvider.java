@@ -58,7 +58,7 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         WidgetStyle.applyToday(v, context, id);
         v.setOnClickPendingIntent(R.id.today_root, WidgetLinks.open(context, "today", 201));
         v.setOnClickPendingIntent(R.id.today_home, WidgetLinks.open(context, "home", 202));
-        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context);
+        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context, id);
         int base = WidgetStyle.background(context, id);
         String mode = WidgetStyle.textMode(context, id);
         boolean light = WidgetStyle.TEXT_LIGHT.equals(mode)
@@ -67,8 +67,8 @@ public class TodayWidgetProvider extends AppWidgetProvider {
         int inactive = light ? Color.rgb(174,180,174) : Color.rgb(110,120,111);
         v.setTextColor(R.id.today_tab_today, tomorrow ? inactive : active);
         v.setTextColor(R.id.today_tab_tomorrow, tomorrow ? active : inactive);
-        v.setOnClickPendingIntent(R.id.today_tab_today, DayTabsWidgetProvider.click(context, false));
-        v.setOnClickPendingIntent(R.id.today_tab_tomorrow, DayTabsWidgetProvider.click(context, true));
+        v.setOnClickPendingIntent(R.id.today_tab_today, DayTabsWidgetProvider.click(context, id, false));
+        v.setOnClickPendingIntent(R.id.today_tab_tomorrow, DayTabsWidgetProvider.click(context, id, true));
         v.setTextViewText(R.id.today_subtitle, friendlyDate(tomorrow));
         v.setViewVisibility(R.id.today_more, View.GONE);
 
