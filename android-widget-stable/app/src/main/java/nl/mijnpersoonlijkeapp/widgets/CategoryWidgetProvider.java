@@ -52,7 +52,7 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         WidgetStyle.applyCategory(v, context, id);
         v.setOnClickPendingIntent(R.id.category_root, WidgetLinks.open(context, target(), requestCode()));
 
-        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context);
+        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context, id);
         int base = WidgetStyle.background(context, id);
         String mode = WidgetStyle.textMode(context, id);
         boolean lightText = WidgetStyle.TEXT_LIGHT.equals(mode)
@@ -61,8 +61,8 @@ abstract class CategoryWidgetProvider extends AppWidgetProvider {
         int unselected = lightText ? Color.rgb(172, 179, 173) : Color.rgb(112, 121, 113);
         v.setTextColor(R.id.category_tab_today, tomorrow ? unselected : selected);
         v.setTextColor(R.id.category_tab_tomorrow, tomorrow ? selected : unselected);
-        v.setOnClickPendingIntent(R.id.category_tab_today, DayTabsWidgetProvider.click(context, false));
-        v.setOnClickPendingIntent(R.id.category_tab_tomorrow, DayTabsWidgetProvider.click(context, true));
+        v.setOnClickPendingIntent(R.id.category_tab_today, DayTabsWidgetProvider.click(context, id, false));
+        v.setOnClickPendingIntent(R.id.category_tab_tomorrow, DayTabsWidgetProvider.click(context, id, true));
 
         JSONObject snapshot = SnapshotStore.read(context);
         JSONArray rows = snapshot.optJSONArray(tomorrow ? "tomorrowRows" : "rows");
