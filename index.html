@@ -797,6 +797,18 @@
       .home-card { min-height: 170px; }
     }
   
+
+    /* Uitklapbare kleine stappen van gekoppelde taken in dagplanning. */
+    .day-plan-task-steps{min-width:0}
+    .day-plan-task-steps summary{cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:7px;min-height:32px}
+    .day-plan-task-steps summary::-webkit-details-marker{display:none}
+    .day-plan-task-steps summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}
+    .day-plan-task-progress{flex-shrink:0;white-space:nowrap;color:var(--accent-strong);font-size:11px;font-weight:750;padding-top:3px}
+    .day-plan-task-steps[open] .day-plan-task-progress{color:var(--muted)}
+    .day-plan-step-list{display:grid;gap:7px;margin:9px 0 8px;padding:10px;background:var(--surface-soft);border:1px solid var(--line);border-radius:11px}
+    .day-plan-step-row{display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.4;cursor:pointer}
+    .day-plan-step-row input{flex-shrink:0;margin:1px 0 0;width:19px;height:19px}
+    .day-plan-step-row.done span{text-decoration:line-through;color:var(--muted)}
     /* Dagplanning: tijdelijke planning bovenop bestaande onderdelen */
     .day-plan-actions{display:flex;gap:8px;flex-wrap:wrap}
     .day-plan-actions .primary-button,.day-plan-actions .secondary-button{width:auto;min-height:44px;padding:9px 13px}
@@ -1756,6 +1768,7 @@
   }
   let reminderSettings=loadReminderSettings(),reminderSyncTimer=null;
   const openTaskStepIds=new Set();
+  const openDayPlanStepIds=new Set();
   function saveReminderSettingsLocal(){localStorage.setItem(REMINDER_SETTINGS_KEY,JSON.stringify(reminderSettings));}
   function ensureReminderIdentity(){if(!reminderSettings.deviceId)reminderSettings.deviceId=reminderRandomId(18);if(!reminderSettings.token)reminderSettings.token=reminderRandomId(28);saveReminderSettingsLocal();}
   function remindersSupported(){return Boolean(window.isSecureContext&&'Notification'in window&&'serviceWorker'in navigator&&'PushManager'in window);}
@@ -2188,6 +2201,61 @@
       blocks.push({id:uid('plan'),originalOrder:blocks.length,start:st,end,originalStart:st,originalEnd:end,text:name,linkType:target?.type||'',linkId:target?.id||'',kind:target?.kind||'Plan',matchedName:target?.name||'',done:false,fixed:null,remind:false});
     });
     return {blocks,ignored,pastedLines};
+  }
+
+  // De vijf GVB-blokken krijgen hun oorspronkelijke oefeningen; andere onderdelen niet.
+  function gvbDayPlanSteps(name){
+    const n=dayPlanNormalizeText(name);
+    if(!n.startsWith('gvb '))return null;
+    if(/15 (tram)?lijnen/.test(n)&&/teken/.test(n))return [
+      'Teken iedere tramlijn afzonderlijk op het A3-whiteboard.',
+      'Maak van iedere lijn een foto.',
+      'Wis de route en ga verder tot alle 15 lijnen klaar zijn.',
+      'Deel de 15 foto’s met ChatGPT om de beste lijncombinaties te bepalen.'
+    ];
+    if(/lijn 19/.test(n)&&/oefen/.test(n))return [
+      'GVB Ontwikkelplein: sleepoefening lijn 19.',
+      'Eigen oefensite: straatvolgorde oefenen.',
+      'Belangrijke kruisingen en wissels van lijn 19 bekijken.',
+      'Noteer welke onderdelen lastig blijven.'
+    ];
+    if(/lijn 26/.test(n)&&/leer|leren|bestudeer/.test(n))return [
+      'Bekijk de straatvolgorde in het GVB-lesboek.',
+      'Bekijk de routefilm van lijn 26.',
+      'Let op belangrijke straten, kruisingen en afslagen.',
+      'Bekijk waar lijn 26 andere lijnen tegenkomt.'
+    ];
+    if(/lijn 26/.test(n)&&/oefen/.test(n))return [
+      'Maak de officiële sleepoefening van lijn 26.',
+      'Oefen op je eigen GVB-oefensite.',
+      'Maak de wissel- en kruisingoefeningen in de online leeromgeving.',
+      'Bekijk welke straten en kruisingen nog lastig zijn.'
+    ];
+    if(/avondherhaling|avond herhaling|herhalen/.test(n))return [
+      '10 minuten lijn 1 herhalen.',
+      '10 minuten lijn 5 herhalen.',
+      '10 minuten lijn 13 herhalen.',
+      '10 minuten lijn 24 herhalen.',
+      '5 minuten resultaten en aandachtspunten noteren.'
+    ];
+    return null;
+  }
+  function dayPlanAttachGvbTasks(blocks,date){
+    for(const b of blocks){
+      const steps=gvbDayPlanSteps(b.text);
+      if(!steps)continue;
+      const normalized=dayPlanNormalizeText(b.text);
+      let task=state.tasks.find(t=>dayPlanNormalizeText(t.name)===normalized);
+      if(!task){
+        task=normalizeTask({id:uid('task'),name:b.text,bucket:'B',
+          deferUntil:date>localDateKey()?date:'',
+          subtasks:steps.map(name=>({id:uid('sub'),name,done:false}))});
+        state.tasks.push(task);
+      }else if(!task.subtasks?.length){
+        task.subtasks=steps.map(name=>({id:uid('sub'),name,done:false}));
+      }
+      b.linkType='task';b.linkId=task.id;b.kind='Taak';b.matchedName=task.name;
+    }
   }
   function parseDayPlanText(raw){return analyzeDayPlanText(raw).blocks;}
   function showDayPlanPasteStatus(){
@@ -3213,6 +3281,8 @@
     }
     clearDayPlanFocus();
     cancelDayPlanAlarms(state.dayTimeline);
+    dayPlanAttachGvbTasks(blocks,date);
+    openDayPlanStepIds.clear();
     const allAlerts=document.getElementById('dayPlanAlarmToggle').checked;
     blocks.forEach(b=>{b.remind=allAlerts&&b.linkType!=='agenda';});
     state.dayTimeline={date,alarms:allAlerts,blocks,sourceText,overnightAllowed:false,preferredMealFirstId:'',manualOrderIds:[]};
@@ -3261,6 +3331,20 @@
     if(!confirm('Dagplanning wissen? Je gewone taken, routines en huishoudklusjes blijven bestaan.'))return;
     clearDayPlanFocus();cancelDayPlanAlarms(state.dayTimeline);state.dayTimeline={date:null,alarms:false,blocks:[],sourceText:'',overnightAllowed:false,preferredMealFirstId:'',manualOrderIds:[]};saveState();renderToday();showToast('Dagplanning gewist.');
   }
+
+  function dayPlanTaskDetails(block){
+    const task=block.linkType==='task'?state.tasks.find(t=>t.id===block.linkId):null;
+    const steps=task?.subtasks||[];
+    if(!steps.length)return '<div class="day-plan-name">'+escapeHtml(block.text)+'</div>';
+    const done=steps.filter(st=>st.done).length;
+    return '<details class="day-plan-task-steps" data-dayplan-task-details="'+escapeHtml(block.id)+'" '+(openDayPlanStepIds.has(block.id)?'open':'')+'>'
+      +'<summary><span class="day-plan-name">'+escapeHtml(block.text)+'</span><span class="day-plan-task-progress">'+done+'/'+steps.length+' stappen ▾</span></summary>'
+      +'<div class="day-plan-step-list">'+steps.map(st=>
+        '<label class="day-plan-step-row '+(st.done?'done':'')+'"><input type="checkbox" '+(st.done?'checked ':'')
+        +'data-dayplan-step="'+escapeHtml(block.id)+'|'+escapeHtml(st.id)+'" aria-label="Stap afvinken" /><span>'
+        +escapeHtml(st.name)+'</span></label>'
+      ).join('')+'</div></details>';
+  }
   function renderDayTimeline(){
     const box=document.getElementById('dayPlanList'),clear=document.getElementById('clearDayPlanButton');if(!box)return;
     const status=document.getElementById('dayPlanReplanStatus'),hasPlan=dayPlanIsCurrent();
@@ -3299,7 +3383,7 @@
     +(visible.length?visible.map(b=>{
       const linked=b.linkType!=='agenda',time=escapeHtml(dayPlanRangeLabel(b.start,b.end));
       const mark=linked?'<input class="check" type="checkbox" data-day-plan-check="'+b.id+'" aria-label="Afvinken"/>':(b.linkType==='agenda'?'▣':'•');
-      return '<div class="day-plan-row"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div><div class="day-plan-name">'+escapeHtml(b.text)+'</div><div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
+      return '<div class="day-plan-row"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div>'+dayPlanTaskDetails(b)+'<div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
        +'<div class="day-plan-settings"><button type="button" class="day-plan-focus-start '+(activeDayPlanFocus()?.block.id===b.id?'active':'')+'" data-dayplan-focus-start="'+escapeHtml(b.id)+'">▶ '+(activeDayPlanFocus()?.block.id===b.id?'Focus bezig':'Start Focus')+'</button>'
        +(dayPlanFocusDuration(b)?'':'<input type="number" min="1" max="360" placeholder="min" class="day-plan-start-duration" data-dayplan-duration-for="'+escapeHtml(b.id)+'" aria-label="Focusduur in minuten"/>')
        +'<button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>'
@@ -4363,6 +4447,14 @@
     if(e.target.closest('#clearDayPlanButton'))return clearDayPlan();
   });
   document.addEventListener('change',e=>{
+    if(e.target.matches('[data-dayplan-step]')){
+      const [blockId,stepId]=(e.target.dataset.dayplanStep||'').split('|');
+      const block=state.dayTimeline?.blocks?.find(b=>b.id===blockId);
+      const task=block?.linkType==='task'?state.tasks.find(t=>t.id===block.linkId):null;
+      const step=task?.subtasks?.find(st=>st.id===stepId);
+      if(step){step.done=e.target.checked;saveState();renderDayTimeline();renderAllTasks();}
+      return;
+    }
     if(e.target.matches('[data-dayplan-postpone-group]'))return refreshDayPlanChoiceFeedback();
     if(e.target.matches('[data-day-plan-check]')){
       const b=state.dayTimeline?.blocks?.find(x=>x.id===e.target.dataset.dayPlanCheck);
@@ -4399,7 +4491,16 @@
   document.addEventListener('dragover',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone){e.preventDefault();zone.classList.add('drag-over');}});
   document.addEventListener('dragleave',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone)zone.classList.remove('drag-over');});
   document.addEventListener('drop',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(!zone)return;e.preventDefault();document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));const id=e.dataTransfer?.getData('text/task-id'),t=state.tasks.find(x=>x.id===id),bucket=zone.dataset.dropBucket;if(t&&['A','B','C','D'].includes(bucket)){t.bucket=bucket;t.paused=false;t.deferUntil='';if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(x=>x!==t.id);refillTodayPlan(false);saveState();renderAllTasks();renderToday();showToast('Taak verplaatst.');}});
-  document.addEventListener('toggle',e=>{if(e.target.matches?.('.task-step-details[data-task-step-details]')){const id=e.target.dataset.taskStepDetails;if(e.target.open)openTaskStepIds.add(id);else openTaskStepIds.delete(id);}},true);
+  document.addEventListener('toggle',e=>{
+    if(e.target.matches?.('.task-step-details[data-task-step-details]')){
+      const id=e.target.dataset.taskStepDetails;
+      if(e.target.open)openTaskStepIds.add(id);else openTaskStepIds.delete(id);
+    }
+    if(e.target.matches?.('.day-plan-task-steps[data-dayplan-task-details]')){
+      const id=e.target.dataset.dayplanTaskDetails;
+      if(e.target.open)openDayPlanStepIds.add(id);else openDayPlanStepIds.delete(id);
+    }
+  },true);
   document.addEventListener('input',e=>{ if(e.target.matches('#reflectionGood,#reflectionTension,#reflectionRelax')) saveReflectionFromForm(true); if(e.target.matches('#taskStepEditor .task-step-input')&&inputMode==='task'){syncTaskStepTextareaFromEditor('manual');taskStepsStatus('Je eigen aanpassing wordt bewaard; AI overschrijft die niet automatisch.');} if(e.target.matches('[data-saved-step-name]')){const task=activeTaskForSteps(),st=task?.subtasks?.find(x=>x.id===e.target.dataset.savedStepName);if(st){st.name=e.target.value;task.subtasksSource='manual';saveState();renderToday();renderAllTasks();savedTaskStepsStatus('Aanpassing bewaard.');}} });
 
   document.getElementById('modalInput').addEventListener('blur',()=>{if(inputMode==='task'&&document.getElementById('modalInput').value.trim()&&!document.getElementById('taskSubtasks').value.trim())makeSmartStepsInModal(false);});
