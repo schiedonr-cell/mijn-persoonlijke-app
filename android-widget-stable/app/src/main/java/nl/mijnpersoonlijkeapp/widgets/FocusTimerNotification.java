@@ -34,10 +34,6 @@ final class FocusTimerNotification {
         open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent content=PendingIntent.getActivity(context,20486,open,
                 PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-        Intent pause=new Intent(context,FocusTimerActionReceiver.class);
-        pause.setAction(FocusTimerActionReceiver.STOP);
-        PendingIntent stop=PendingIntent.getBroadcast(context,20487,pause,
-                PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder b=Build.VERSION.SDK_INT>=26
                 ?new Notification.Builder(context,CHANNEL):new Notification.Builder(context);
         b.setSmallIcon(android.R.drawable.ic_media_play)
@@ -52,8 +48,7 @@ final class FocusTimerNotification {
                 .setOnlyAlertOnce(true)
                 .setPriority(Notification.PRIORITY_LOW)
                 .setCategory(Notification.CATEGORY_PROGRESS)
-                .setContentIntent(content)
-                .addAction(new Notification.Action.Builder(android.R.drawable.ic_media_pause,"Stop",stop).build());
+                .setContentIntent(content);
         nm.notify(ID,b.build());
     }
 
