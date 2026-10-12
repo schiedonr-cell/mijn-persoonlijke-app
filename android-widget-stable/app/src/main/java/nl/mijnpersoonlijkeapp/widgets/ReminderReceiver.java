@@ -69,7 +69,8 @@ public class ReminderReceiver extends BroadcastReceiver {
             stopAlarmService(context);
             cancelNotification(context, id);
             stopVibration(context);
-            if (title == null || title.trim().isEmpty()) title = "Mijn dag";
+            if ("focus-active".equals(id)) FocusTimerNotification.cancel(context);
+        if (title == null || title.trim().isEmpty()) title = "Mijn dag";
             if (body == null || body.trim().isEmpty()) body = "Je hebt iets gepland.";
             if (target == null || target.trim().isEmpty()) target = "today";
 
