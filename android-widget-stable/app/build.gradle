@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 70
-        versionName 'mijn-dag-6.12-dagtabs-herstel'
+        versionCode 71
+        versionName 'mijn-dag-6.13-losse-dagtabs'
     }
 
     buildTypes {
