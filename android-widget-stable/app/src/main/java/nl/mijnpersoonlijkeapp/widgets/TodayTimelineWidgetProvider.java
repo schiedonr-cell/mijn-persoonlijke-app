@@ -149,7 +149,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.timeline_root, WidgetLinks.open(context, "today", 520));
         v.setOnClickPendingIntent(R.id.timeline_header, WidgetLinks.open(context, "today", 521));
         v.setOnClickPendingIntent(R.id.timeline_home, WidgetLinks.open(context, "home", 522));
-        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context);
+        boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context, id);
         int bg = WidgetStyle.background(context, id);
         String textMode = WidgetStyle.textMode(context, id);
         boolean light = WidgetStyle.TEXT_LIGHT.equals(textMode)
@@ -158,8 +158,8 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         int inactive = light ? Color.rgb(174,180,174) : Color.rgb(110,120,111);
         v.setTextColor(R.id.timeline_tab_today, tomorrow ? inactive : active);
         v.setTextColor(R.id.timeline_tab_tomorrow, tomorrow ? active : inactive);
-        v.setOnClickPendingIntent(R.id.timeline_tab_today, DayTabsWidgetProvider.click(context, false));
-        v.setOnClickPendingIntent(R.id.timeline_tab_tomorrow, DayTabsWidgetProvider.click(context, true));
+        v.setOnClickPendingIntent(R.id.timeline_tab_today, DayTabsWidgetProvider.click(context, id, false));
+        v.setOnClickPendingIntent(R.id.timeline_tab_tomorrow, DayTabsWidgetProvider.click(context, id, true));
         v.setTextViewText(R.id.timeline_date, friendlyDate(tomorrow));
 
         hideRows(v);
