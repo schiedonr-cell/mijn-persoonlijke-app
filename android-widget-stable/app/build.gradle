@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 73
-        versionName 'mijn-dag-6.15-focus-pauzemelding'
+        versionCode 74
+        versionName 'mijn-dag-6.16-morgen-huishouden'
     }
 
     buildTypes {
