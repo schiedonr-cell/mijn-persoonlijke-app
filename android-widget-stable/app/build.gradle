@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 76
-        versionName 'mijn-dag-6.18-vier-volgende-afspraken'
+        versionCode 77
+        versionName 'mijn-dag-6.19-familywall-agenda'
     }
 
     buildTypes {
