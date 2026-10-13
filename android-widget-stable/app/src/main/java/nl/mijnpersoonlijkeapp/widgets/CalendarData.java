@@ -17,6 +17,9 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 final class CalendarData {
@@ -88,23 +91,32 @@ final class CalendarData {
     }
 
     static JSONArray todayEvents(Context context) {
-        return loadEvents(context, 3, false);
+        return loadEvents(context, 3, false, false);
     }
 
-    // De losse Agenda-widget toont vier actuele of toekomstige afspraken.
-    // Andere schermen behouden hun bestaande agenda-aanroep.
+    // De losse agenda-widget volgt de zichtbare Android/Google-agenda's.
+    // Dit neemt ook later toegevoegde FamilyWall iCal-abonnementen mee,
+    // zonder de expliciete selectie van andere app-onderdelen te wijzigen.
     static JSONArray upcomingEvents(Context context, int limit) {
-        return loadEvents(context, Math.max(1, Math.min(12, limit)), true);
+        return loadEvents(context, Math.max(1, Math.min(12, limit)), true, true);
     }
 
-    private static JSONArray loadEvents(Context context, int limit, boolean upcomingOnly) {
+    private static JSONArray loadEvents(Context context, int limit, boolean upcomingOnly, boolean widgetCalendars) {
         JSONArray out = new JSONArray();
         if (context.checkSelfPermission(Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) return out;
 
-        // Ensures Google calendars are discovered and first-use defaults are created.
-        calendars(context);
-        Set<Long> selected = selectedIds(context);
+        // De nieuwe agenda was niet automatisch geselecteerd: eerdere
+        // voorkeuren waren al geïnitialiseerd vóór de FamilyWall-import.
+        // Alleen de losse widget gebruikt nu alle zichtbaar aangevinkte
+        // Google- en FamilyWall-agenda's uit Android.
+        Set<Long> selected;
+        if (widgetCalendars) selected=visibleWidgetCalendarIds(context);
+        else {
+            calendars(context);
+            selected=selectedIds(context);
+        }
         if (selected.isEmpty()) return out;
+        Map<String,Long> seenAcrossCalendars = new HashMap<>();
 
         ZoneId zone = ZoneId.systemDefault();
         LocalDate day = LocalDate.now(zone);
@@ -160,6 +172,15 @@ final class CalendarData {
                         if (upcomingOnly && endMs <= now) continue;
                         String location = cursor.getString(3);
                         boolean allDay = cursor.getInt(4) != 0;
+                        if (widgetCalendars) {
+                            // Alleen identieke kopieën van dezelfde afspraak
+                            // op verschillende agenda's samenvoegen.
+                            String key=(title==null?"":title.trim().toLowerCase(Locale.ROOT))
+                                    +"|"+startMs+"|"+endMs+"|"+allDay;
+                            Long source=seenAcrossCalendars.get(key);
+                            if (source!=null && source.longValue()!=calendarId) continue;
+                            if (source==null) seenAcrossCalendars.put(key,calendarId);
+                        }
 
                         JSONObject event = new JSONObject();
                         event.put("summary", title == null || title.trim().isEmpty() ? "Afspraak" : title.trim());
@@ -189,6 +210,34 @@ final class CalendarData {
             rangeBegin = rangeEnd + 1L;
         }
         return out;
+    }
+
+    private static Set<Long> visibleWidgetCalendarIds(Context context) {
+        Set<Long> ids = new HashSet<>();
+        String[] projection = new String[]{
+                CalendarContract.Calendars._ID,
+                CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+                CalendarContract.Calendars.ACCOUNT_NAME,
+                CalendarContract.Calendars.ACCOUNT_TYPE,
+                CalendarContract.Calendars.VISIBLE
+        };
+        try (Cursor cursor = context.getContentResolver().query(
+                CalendarContract.Calendars.CONTENT_URI, projection,
+                null, null, null)) {
+            if (cursor == null) return ids;
+            while (cursor.moveToNext()) {
+                if (cursor.getInt(4)==0) continue;
+                String name=cursor.getString(1);
+                String account=cursor.getString(2);
+                String type=cursor.getString(3);
+                if (isTaskCalendar(name)) continue;
+                boolean familyWall=(name!=null&&name.toLowerCase(Locale.ROOT).contains("familywall"))
+                        ||(account!=null&&account.toLowerCase(Locale.ROOT).contains("familywall"))
+                        ||(type!=null&&type.toLowerCase(Locale.ROOT).contains("familywall"));
+                if (isGoogle(type)||familyWall) ids.add(cursor.getLong(0));
+            }
+        } catch (Exception ignored) {}
+        return ids;
     }
 
     private static boolean isGoogle(String type) {
