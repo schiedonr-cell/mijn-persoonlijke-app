@@ -2421,7 +2421,7 @@
     try{
       const bridge=window.AndroidWidgetBridge;
       if(!bridge)return;
-      if(endsAt<=Date.now()+1000){clearDayPlanFocus();return;}
+      if(endsAt<=Date.now()+1000){bridge.cancelDayPlanFocus?.();return;}
       // Ook de dagplanning gebruikt nu dezelfde zichtbare Android-aftelling
       // als Focus bij een gewone taak. De eindtijd blijft leidend bij scherm uit.
       if(bridge.scheduleDayPlanFocus){
@@ -4171,6 +4171,26 @@
     }
     return previous!==remaining;
   }
+  // Na een APK-update of het opnieuw openen kan Android de lopende melding
+  // kwijt zijn, terwijl de opgeslagen eindtijd nog geldig is. Herstel alleen
+  // de Android-melding en het eindalarm; wijzig de lopende focus zelf niet.
+  function restoreNativeFocusNotification(){
+    const bridge=window.AndroidWidgetBridge;
+    if(!bridge)return;
+    const now=Date.now();
+    const day=activeDayPlanFocus();
+    if(day&&Number(day.focus.endsAt)>now+1000){
+      dayPlanFocusReminder(day.block,Number(day.focus.endsAt));
+      return;
+    }
+    const focus=state.focus;
+    if(focus?.running&&Number(focus.endsAt)>now+1000&&bridge.scheduleFocusNamed){
+      focusCountdownSync();
+      const seconds=Math.max(1,Math.ceil((Number(focus.endsAt)-Date.now())/1000));
+      const name=focusItemByType(focus.targetType,focus.targetId)?.item?.name||'Focus';
+      try{bridge.scheduleFocusNamed(seconds,name);}catch{}
+    }
+  }
   function stopFocusCountdown(pause=false){
     const wasRunning=Boolean(state.focus.running);
     if(wasRunning)focusCountdownSync();
@@ -4903,7 +4923,7 @@
   });
 
   document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'){focusCountdownSync();tickDayPlanFocus();tickRecovery();renderFocus();refreshDayPlanFocusPanels();renderRecoveryPanel();}
+    if(document.visibilityState==='visible'){focusCountdownSync();tickDayPlanFocus();tickRecovery();renderFocus();refreshDayPlanFocusPanels();renderRecoveryPanel();restoreNativeFocusNotification();}
   });
   document.addEventListener('dragstart',e=>{const item=e.target.closest?.('[data-drag-task]');if(item&&e.dataTransfer){e.dataTransfer.setData('text/task-id',item.dataset.dragTask);e.dataTransfer.effectAllowed='move';}});
   document.addEventListener('dragover',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone){e.preventDefault();zone.classList.add('drag-over');}});
@@ -4936,6 +4956,7 @@
   setupSpeech(); ensureDailyState(); ensureFoodPrefs();
   const repairedQuickInsertion=repairExistingQuickPlanOrder();
   renderToday(); renderDump(); renderAllTasks(); renderFocus(); renderShutdown(); renderFoodAll(); renderProjects(); openWidgetTargetFromUrl();
+  restoreNativeFocusNotification();
   if(repairedQuickInsertion)showToast('Volgorde hersteld: Lijn 19 staat na lijnen tekenen.');
 })();
 </script>
