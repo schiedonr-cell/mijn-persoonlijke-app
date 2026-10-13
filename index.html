@@ -2297,13 +2297,24 @@
   }
   function clearDayPlanFocus(){
     state.dayTimelineFocus=null;
-    try{window.AndroidWidgetBridge?.cancelReminder?.(DAY_FOCUS_ALARM_ID);}catch{}
+    try{
+      const bridge=window.AndroidWidgetBridge;
+      if(bridge?.cancelDayPlanFocus)bridge.cancelDayPlanFocus();
+      else bridge?.cancelReminder?.(DAY_FOCUS_ALARM_ID);
+    }catch{}
   }
   function dayPlanFocusReminder(block,endsAt){
     try{
-      window.AndroidWidgetBridge?.cancelReminder?.(DAY_FOCUS_ALARM_ID);
-      if(endsAt>Date.now()+1000){
-        window.AndroidWidgetBridge?.scheduleReminder?.(
+      const bridge=window.AndroidWidgetBridge;
+      if(!bridge)return;
+      if(endsAt<=Date.now()+1000){clearDayPlanFocus();return;}
+      // Ook de dagplanning gebruikt nu dezelfde zichtbare Android-aftelling
+      // als Focus bij een gewone taak. De eindtijd blijft leidend bij scherm uit.
+      if(bridge.scheduleDayPlanFocus){
+        bridge.scheduleDayPlanFocus(Math.max(1,Math.ceil((endsAt-Date.now())/1000)),block.text,endsAt);
+      }else{
+        bridge.cancelReminder?.(DAY_FOCUS_ALARM_ID);
+        bridge.scheduleReminder?.(
           DAY_FOCUS_ALARM_ID,'Focus: '+block.text,
           'Je geplande tijd is voorbij. Open Mijn dag voor Klaar of extra tijd.',
           endsAt,'focus'
