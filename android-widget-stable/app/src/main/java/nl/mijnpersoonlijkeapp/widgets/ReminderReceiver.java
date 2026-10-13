@@ -95,6 +95,8 @@ public class ReminderReceiver extends BroadcastReceiver {
             return;
         }
 
+        if ("focus-active".equals(id)) FocusTimerNotification.cancel(context);
+        if ("dayplan-focus-active".equals(id)) FocusTimerNotification.cancelDayPlan(context);
         if (title == null || title.trim().isEmpty()) title = "Mijn dag";
         if (body == null || body.trim().isEmpty()) body = "Je hebt iets gepland.";
         if (target == null || target.trim().isEmpty()) target = "today";
