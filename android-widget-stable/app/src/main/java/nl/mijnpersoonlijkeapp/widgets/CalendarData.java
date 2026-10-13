@@ -88,6 +88,16 @@ final class CalendarData {
     }
 
     static JSONArray todayEvents(Context context) {
+        return loadEvents(context, 3, false);
+    }
+
+    // De losse Agenda-widget toont vier actuele of toekomstige afspraken.
+    // Andere schermen behouden hun bestaande agenda-aanroep.
+    static JSONArray upcomingEvents(Context context, int limit) {
+        return loadEvents(context, Math.max(1, Math.min(12, limit)), true);
+    }
+
+    private static JSONArray loadEvents(Context context, int limit, boolean upcomingOnly) {
         JSONArray out = new JSONArray();
         if (context.checkSelfPermission(Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) return out;
 
@@ -111,7 +121,7 @@ final class CalendarData {
 
         ContentResolver resolver = context.getContentResolver();
 
-        // Zoek steeds verder vooruit totdat er 3 afspraken zijn.
+        // Zoek stapsgewijs verder vooruit tot het gewenste aantal is gevonden.
         // Zo blijft een rustige agenda toch gevuld zonder meteen een enorme periode op te vragen.
         LocalDate[] horizons = new LocalDate[]{
                 day.plusDays(31),
@@ -119,10 +129,11 @@ final class CalendarData {
                 day.plusYears(2),
                 day.plusYears(10)
         };
-        long rangeBegin = begin;
+        final long now = System.currentTimeMillis();
+        long rangeBegin = upcomingOnly ? now : begin;
 
         for (LocalDate horizon : horizons) {
-            if (out.length() >= 3) break;
+            if (out.length() >= limit) break;
             long rangeEnd = horizon.atStartOfDay(zone).toInstant().toEpochMilli();
 
             android.net.Uri.Builder builder = CalendarContract.Instances.CONTENT_URI.buildUpon();
@@ -137,13 +148,16 @@ final class CalendarData {
                     CalendarContract.Instances.BEGIN + " ASC"
             )) {
                 if (cursor != null) {
-                    while (cursor.moveToNext() && out.length() < 3) {
+                    while (cursor.moveToNext() && out.length() < limit) {
                         long calendarId = cursor.getLong(5);
                         if (!selected.contains(calendarId)) continue;
 
                         String title = cursor.getString(0);
                         long startMs = cursor.getLong(1);
                         long endMs = cursor.getLong(2);
+                        // Voor de widget geen afspraken tonen die al voorbij zijn.
+                        // Een lopende afspraak blijft wel staan zolang hij niet is afgelopen.
+                        if (upcomingOnly && endMs <= now) continue;
                         String location = cursor.getString(3);
                         boolean allDay = cursor.getInt(4) != 0;
 
