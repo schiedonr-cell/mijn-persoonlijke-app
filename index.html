@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
-  <!-- Mijn persoonlijke app v1.7.12 quick-insert-free-time -->
+  <!-- Mijn persoonlijke app v1.7.13 quick-insert-order-fix -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -3446,6 +3446,7 @@
     if(idx<0)return {ok:false,reason:'De invoegplek is niet gevonden.'};
     const end=start+duration,changes=new Map([[newBlock.id,{start,end,hasEnd:true}]]);
     const prefix=ordered.slice(0,idx),suffix=ordered.slice(idx+1),removeIds=[],extraBlocks=[];
+    const moveAfterId=options.moveAfterId||'';
     const error=(reason,block)=>({ok:false,reason,block});
     const max=options.allowOvernight===true?2880:1440;
     if(end>=max)return error('Deze taak eindigt na de daggrens. Kies een andere starttijd.');
@@ -3472,7 +3473,8 @@
       if(b.postponedTo||dayPlanBlockDone(b)||quickPlanIsFreeTime(b)||quickPlanIsAnchor(b))continue;
       const bs=dayPlanMinutes(b.start),be=dayPlanMinutes(b.end);
       if(bs===null)return error('De begintijd van "'+b.text+'" ontbreekt.',b);
-      if(be!==null&&be<=start)continue;
+      // Bij 'vóór taak' moet de gekozen opvolger altijd na het nieuwe blok.
+      if(be!==null&&be<=start&&b.id!==moveAfterId)continue;
       const minutes=be!==null&&be>=bs?be-bs:0;
       let target=Math.max(cursor,bs);
       for(const r of occupiedBefore){
@@ -3482,7 +3484,8 @@
       }
       if(target+minutes>=max)
         return error('Er is vandaag te weinig ruimte voor "'+b.text+'". Je kunt eventueel een taak naar morgen zetten.',b);
-      if(target!==bs)changes.set(b.id,{start:target,end:target+minutes,hasEnd:!!b.end});
+      if(target!==bs)changes.set(b.id,{start:target,end:target+minutes,hasEnd:!!b.end,
+        resetOriginal:b.id===moveAfterId});
       cursor=target+minutes;
     }
     // Bereken vrije ruimte na het inplannen, zonder bestaande actieve
@@ -3525,6 +3528,52 @@
     }
     return {ok:true,changes,orderIds,removeIds,extraBlocks};
   }
+  function applyQuickPlanChanges(plan,result){
+    const absorbed=new Set(result.removeIds||[]);
+    plan.blocks=plan.blocks.filter(b=>!absorbed.has(b.id));
+    plan.blocks.forEach(b=>{
+      if(!b.originalStart)b.originalStart=b.start;
+      if(!b.originalEnd&&b.end)b.originalEnd=b.end;
+      const c=result.changes.get(b.id);
+      if(c){
+        b.start=dayPlanClock(c.start);b.end=c.hasEnd?dayPlanClock(c.end):'';
+        if(c.resetOriginal){b.originalStart=b.start;b.originalEnd=b.end;}
+      }
+    });
+    plan.blocks.push(...(result.extraBlocks||[]));
+    plan.blocks=plan.blocks.map((b,i)=>({b,i})).sort((x,y)=>
+      (x.b.postponedTo?1:0)-(y.b.postponedTo?1:0)
+      ||(dayPlanMinutes(x.b.start)||0)-(dayPlanMinutes(y.b.start)||0)||x.i-y.i).map(x=>x.b);
+    plan.manualOrderIds=result.orderIds||[];
+    plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
+      .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+  }
+
+  // Eenmalige veilige reparatie van de al opgeslagen keuze:
+  // 'GVB lijnen tekenen' vóór 'GVB – Lijn 19 oefenen'.
+  function repairExistingQuickPlanOrder(){
+    const plan=state.dayTimeline;
+    if(!dayPlanIsCurrent(plan)||activeDayPlanFocus())return false;
+    const inserted=(plan.blocks||[]).find(b=>b.linkType==='task'&&!dayPlanBlockDone(b)
+      &&dayPlanNormalizeText(b.text)==='gvb lijnen tekenen');
+    const following=(plan.blocks||[]).find(b=>b.linkType==='task'&&!dayPlanBlockDone(b)
+      &&dayPlanNormalizeText(b.text)==='gvb lijn 19 oefenen');
+    if(!inserted||!following||quickPlanIsAnchor(following))return false;
+    const ids=plan.manualOrderIds||[],position=ids.indexOf(inserted.id);
+    if(position<0||ids[position+1]!==following.id)return false;
+    const start=dayPlanMinutes(inserted.start),end=dayPlanMinutes(inserted.end),
+      old=dayPlanMinutes(following.start);
+    if(start===null||end===null||old===null||old>=end)return false;
+    const order=dayPlanLogicalOrder((plan.blocks||[]).filter(b=>!b.postponedTo));
+    if(!order.includes(inserted)||!order.includes(following))return false;
+    const result=calculateQuickPlanInsertion(order,inserted,start,end-start,
+      {allowOvernight:plan.overnightAllowed===true,moveAfterId:following.id});
+    if(!result.ok)return false;
+    cancelDayPlanAlarms(plan);applyQuickPlanChanges(plan,result);
+    saveState();scheduleDayPlanAlarms();
+    return true;
+  }
+
   function saveQuickPlan(){
     const existingId=document.getElementById('quickPlanExistingTask').value;
     const existing=existingId?state.tasks.find(t=>t.id===existingId):null;
@@ -3566,31 +3615,17 @@
     if(at<0)at=currentOrder.length;
     const order=currentOrder.map(b=>b.id);order.splice(at,0,block.id);
     const proposed=currentOrder.slice();proposed.splice(at,0,block);
+    const selectedId=choice.startsWith('before:')?choice.slice(7):'';
+    const nextActivity=selectedId?currentOrder.find(b=>b.id===selectedId):null;
     const result=calculateQuickPlanInsertion(proposed,block,start,duration,
-      {allowOvernight:plan.overnightAllowed===true});
+      {allowOvernight:plan.overnightAllowed===true,
+        moveAfterId:nextActivity&&!quickPlanIsAnchor(nextActivity)&&!quickPlanIsFreeTime(nextActivity)?nextActivity.id:''});
     if(!result.ok)return quickPlanError(result.reason);
     plan.blocks.push(block);
     cancelDayPlanAlarms(plan);
     if(!existing)state.tasks.push(task);
     else{task.bucket='A';task.paused=false;task.deferUntil='';}
-    const absorbed=new Set(result.removeIds||[]);
-    plan.blocks=plan.blocks.filter(b=>!absorbed.has(b.id));
-    plan.blocks.forEach(b=>{
-      if(!b.originalStart)b.originalStart=b.start;
-      if(!b.originalEnd&&b.end)b.originalEnd=b.end;
-      const c=result.changes.get(b.id);
-      if(c){
-        b.start=dayPlanClock(c.start);b.end=c.hasEnd?dayPlanClock(c.end):'';
-        if(c.resetOriginal){b.originalStart=b.start;b.originalEnd=b.end;}
-      }
-    });
-    plan.blocks.push(...(result.extraBlocks||[]));
-    plan.blocks=plan.blocks.map((b,i)=>({b,i})).sort((x,y)=>
-      (x.b.postponedTo?1:0)-(y.b.postponedTo?1:0)
-      ||(dayPlanMinutes(x.b.start)||0)-(dayPlanMinutes(y.b.start)||0)||x.i-y.i).map(x=>x.b);
-    plan.manualOrderIds=result.orderIds||order;
-    plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
-      .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+    applyQuickPlanChanges(plan,result);
     refillTodayPlan(false);saveState();scheduleDayPlanAlarms();
     closeQuickPlanModal();renderToday();renderAllTasks();
     showToast('Taak ingevoegd om '+dayPlanClockLabel(start)+'. Vrije tijd is zo nodig ingekort.');
@@ -4898,7 +4933,10 @@
   if('serviceWorker'in navigator&&location.protocol.startsWith('http')&&!new URLSearchParams(location.search).has('nativev'))window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=47').then(()=>{if(reminderSettings.enabled)setTimeout(syncReminderState,900);}).catch(()=>{}));
 
   const dateFmt=new Intl.DateTimeFormat('nl-NL',{weekday:'long',day:'numeric',month:'long'}),dateText=dateFmt.format(new Date());document.getElementById('todayLabel').textContent=dateText.charAt(0).toUpperCase()+dateText.slice(1);
-  setupSpeech(); ensureDailyState(); ensureFoodPrefs(); renderToday(); renderDump(); renderAllTasks(); renderFocus(); renderShutdown(); renderFoodAll(); renderProjects(); openWidgetTargetFromUrl();
+  setupSpeech(); ensureDailyState(); ensureFoodPrefs();
+  const repairedQuickInsertion=repairExistingQuickPlanOrder();
+  renderToday(); renderDump(); renderAllTasks(); renderFocus(); renderShutdown(); renderFoodAll(); renderProjects(); openWidgetTargetFromUrl();
+  if(repairedQuickInsertion)showToast('Volgorde hersteld: Lijn 19 staat na lijnen tekenen.');
 })();
 </script>
   <script src="./notes-v2.js?v=47"></script>
