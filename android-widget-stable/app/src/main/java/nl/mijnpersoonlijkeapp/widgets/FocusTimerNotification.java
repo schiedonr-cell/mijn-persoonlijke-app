@@ -14,8 +14,17 @@ import android.os.SystemClock;
 final class FocusTimerNotification {
     private static final String CHANNEL = "mijn_dag_focus_countdown_v1";
     private static final int ID = 783241;
+    private static final int DAYPLAN_ID = 783242;
 
     static void show(Context context, int seconds, String task) {
+        showInternal(context, seconds, task, ID);
+    }
+
+    static void showDayPlan(Context context, int seconds, String task) {
+        showInternal(context, seconds, task, DAYPLAN_ID);
+    }
+
+    private static void showInternal(Context context, int seconds, String task, int notificationId) {
         if (Build.VERSION.SDK_INT >= 33 &&
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                         != PackageManager.PERMISSION_GRANTED) return;
@@ -49,7 +58,7 @@ final class FocusTimerNotification {
                 .setPriority(Notification.PRIORITY_LOW)
                 .setCategory(Notification.CATEGORY_PROGRESS)
                 .setContentIntent(content);
-        nm.notify(ID,b.build());
+        nm.notify(notificationId,b.build());
     }
 
     static void showPaused(Context context, int seconds, String task) {
@@ -87,6 +96,11 @@ final class FocusTimerNotification {
                 .setPriority(Notification.PRIORITY_LOW)
                 .setContentIntent(content);
         nm.notify(ID,b.build());
+    }
+
+    static void cancelDayPlan(Context context){
+        NotificationManager nm=(NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if(nm!=null)nm.cancel(DAYPLAN_ID);
     }
 
     static void cancel(Context context){
