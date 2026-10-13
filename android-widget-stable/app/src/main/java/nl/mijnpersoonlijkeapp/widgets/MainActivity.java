@@ -541,6 +541,25 @@ public class MainActivity extends Activity {
             FocusTimerNotification.cancel(getApplicationContext());
         }
 
+        @JavascriptInterface public void scheduleDayPlanFocus(int seconds, String name, long endsAt) {
+            int safe=Math.max(1,Math.min(6*60*60,seconds));
+            runOnUiThread(() -> {
+                requestNotificationPermissionIfNeeded();
+                NativeAlarmScheduler.cancel(getApplicationContext(),"dayplan-focus-active");
+                long end=endsAt>System.currentTimeMillis()+1000L
+                        ?endsAt:System.currentTimeMillis()+safe*1000L;
+                NativeAlarmScheduler.schedule(getApplicationContext(),"dayplan-focus-active",
+                        "Focus klaar","Je geplande tijd is voorbij.",end,"focus");
+                FocusTimerNotification.showDayPlan(getApplicationContext(),
+                        Math.max(1,(int)Math.ceil((end-System.currentTimeMillis())/1000.0)),name);
+            });
+        }
+
+        @JavascriptInterface public void cancelDayPlanFocus() {
+            NativeAlarmScheduler.cancel(getApplicationContext(),"dayplan-focus-active");
+            FocusTimerNotification.cancelDayPlan(getApplicationContext());
+        }
+
         @JavascriptInterface public void startSpeech() {
             runOnUiThread(MainActivity.this::startSpeechRecognition);
         }
