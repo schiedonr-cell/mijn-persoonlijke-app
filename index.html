@@ -820,6 +820,13 @@
     .day-plan-list{display:grid;gap:8px;margin-top:12px}
     .day-plan-row{display:grid;grid-template-columns:auto 76px 1fr;gap:9px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
     .day-plan-row:first-child{border-top:0}.day-plan-row.done .day-plan-name{text-decoration:line-through;color:var(--muted)}
+    .day-plan-row{grid-template-columns:24px 76px minmax(0,1fr) 44px}
+    .day-plan-grip{display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft);color:var(--muted);font-size:22px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+    .day-plan-grip:active{cursor:grabbing}
+    .day-plan-row.day-plan-dragging{background:var(--accent-soft);border-radius:12px;box-shadow:0 0 0 2px var(--accent-strong);position:relative;z-index:3}
+    .day-plan-order-note{font-size:12px;line-height:1.4;color:var(--muted);margin:6px 0}
+    .day-plan-drag-static{display:flex;justify-content:center;align-items:center;width:44px;color:var(--muted);font-size:18px}
+    .day-plan-name{overflow-wrap:anywhere}
     .day-plan-check-space{width:24px;display:flex;justify-content:center}
     .day-plan-time{font-size:12px;font-weight:850;color:var(--accent-strong);font-variant-numeric:tabular-nums;white-space:nowrap}
     .day-plan-name{font-weight:760;min-width:0}.day-plan-meta{font-size:11px;color:var(--muted);margin-top:2px}
@@ -2656,7 +2663,14 @@
     const excluded=new Set(options.postponeIds||[]);
     // Opnieuw plannen vanaf de oorspronkelijk bedoelde volgorde, niet vanaf
     // een eerdere verschoven/sorteerde lijst. GVB blijft vóór de avondreset.
-    const eligible=dayPlanLogicalOrder(blocks.filter(b=>!b.postponedTo&&!excluded.has(b.id)));
+    const original=dayPlanLogicalOrder(blocks.filter(b=>!b.postponedTo&&!excluded.has(b.id)));
+    // Slepen verandert uitsluitend de rangorde; bestaande afgeronde blokken,
+    // vaste afspraken en de oorspronkelijke duur blijven bewaard.
+    const requested=Array.isArray(options.orderIds)?options.orderIds:null;
+    const ranks=requested?new Map(requested.map((id,index)=>[id,index])):null;
+    const eligible=ranks?original.map((block,index)=>({block,index}))
+      .sort((a,b)=>(ranks.get(a.block.id)??999999)-(ranks.get(b.block.id)??999999)||a.index-b.index)
+      .map(x=>x.block):original;
     const mealId=options.prioritizeMealId||plan?.preferredMealFirstId||'';
     const chosenMeal=mealId
       ? eligible.find(b=>b.id===mealId&&!finished(b)&&dayPlanMealWindow(b)&&dayPlanBlockMode(b)==='window')
@@ -2668,7 +2682,7 @@
     // en de tijdvensters blijven tijdens de berekening beschermd.
     const ordered=nextBlock?[nextBlock,...eligible.filter(b=>b!==nextBlock)]
       :chosenMeal?[chosenMeal,...eligible.filter(b=>b!==chosenMeal)]:eligible;
-    const reserved=eligible.filter(b=>!finished(b)&&dayPlanBlockMode(b)==='fixed').map(b=>({
+    const reserved=eligible.filter(b=>dayPlanBlockMode(b)==='fixed'||(options.fromDrag&&finished(b))).map(b=>({
       block:b,start:dayPlanMinutes(b.originalStart||b.start),end:dayPlanMinutes(b.originalEnd||b.end)
     })).filter(x=>x.start!==null).sort((a,b)=>a.start-b.start);
     const changes=new Map();
@@ -3331,7 +3345,11 @@
     const plan=state.dayTimeline;
     if(!plan||!dayPlanIsCurrent(plan))return showToast('Er staat nog geen dagplanning voor vandaag.');
     if(activeDayPlanFocus())return showToast('Rond eerst je actieve Focus af of kies Stop zonder afvinken.');
-    const minutes=dayPlanElapsedMinutes(plan);
+    // Slepen herschikt de bestaande dag vanaf de eerste begintijd; het is
+    // geen "herplan vanaf nu", dus reeds gemaakte keuzes verdwijnen niet.
+    const earliest=(plan.blocks||[]).filter(b=>!b.postponedTo)
+      .map(b=>dayPlanMinutes(b.start)).filter(Number.isFinite);
+    const minutes=options.fromDrag&&earliest.length?Math.min(...earliest):dayPlanElapsedMinutes(plan);
     const requested=Array.isArray(options.postponeIds)?options.postponeIds:[];
     const eligible=new Set(dayPlanPostponeChoices().flatMap(g=>g.ids));
     const selected=[...new Set(requested)].filter(id=>eligible.has(id));
@@ -3344,6 +3362,13 @@
       dayPlanPendingChoice=safeOptions;
     }
     if(!result.ok){
+      if(options.fromDrag){
+        renderDayTimeline();
+        const status=document.getElementById('dayPlanReplanStatus');
+        if(status)status.textContent='Volgorde niet gewijzigd: '+(result.reason||'de planning past niet.');
+        showToast('Niet verplaatst: controleer de vaste tijden.');
+        return false;
+      }
       const feedback=document.getElementById('dayPlanChoiceFeedback');
       if(selected.length&&feedback){
         dayPlanPendingChoice=safeOptions;
@@ -3370,7 +3395,7 @@
       .map(x=>x.b);
     plan.alarms=false;
     if(options.prioritizeMealId)plan.preferredMealFirstId=options.prioritizeMealId;
-    if(options.nextBlockId){
+    if(options.nextBlockId||options.fromDrag){
       plan.manualOrderIds=result.orderIds||[];
       plan.preferredMealFirstId='';
     }
@@ -3382,10 +3407,11 @@
     if(options.nextBlockId)closeDayPlanNextPicker();
     const status=document.getElementById('dayPlanReplanStatus');
     if(status)status.textContent=(selected.length?selected.length+' tijdblok(ken) naar morgen · ':'')
-      +'Planning aangepast vanaf '+dayPlanClockLabel(minutes)+'.'
+      +(options.fromDrag?'Volgorde en tijden aangepast.':'Planning aangepast vanaf '+dayPlanClockLabel(minutes)+'.')
       +(plan.blocks.some(b=>!b.postponedTo&&(dayPlanMinutes(b.end||b.start)||0)>=1440)
         ?' Je hebt gekozen om na 00:00 door te gaan.':' Afgeronde blokken en vaste afspraken bleven staan.');
-    if(!options.silent)showToast(selected.length?'Je keuzes zijn opgeslagen. De rest van je dag is herpland.':'Je planning schuift mee vanaf '+dayPlanClock(minutes)+'.');
+    if(options.fromDrag)showToast('Volgorde bewaard. Tijden zijn meegeschoven.');
+    else if(!options.silent)showToast(selected.length?'Je keuzes zijn opgeslagen. De rest van je dag is herpland.':'Je planning schuift mee vanaf '+dayPlanClock(minutes)+'.');
     return true;
   }
 
@@ -3754,16 +3780,20 @@
       +(completed.length?' · '+completed.length+' afgerond':'')
       +(moved.length?' · '+moved.length+' naar morgen':'')+'</p>';
     box.innerHTML=countHtml
+    +(visible.length>1?'<p class="day-plan-order-note">Houd ☷ vast en sleep een activiteit omhoog of omlaag. De tijden schuiven mee; vaste afspraken blijven staan.</p>':'')
     +(visible.length?visible.map(b=>{
       const linked=b.linkType!=='agenda',time=escapeHtml(dayPlanRangeLabel(b.start,b.end));
       const mark=linked?'<input class="check" type="checkbox" data-day-plan-check="'+b.id+'" aria-label="Afvinken"/>':(b.linkType==='agenda'?'▣':'•');
-      return '<div class="day-plan-row"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div>'+dayPlanTaskDetails(b)+'<div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
+      return '<div class="day-plan-row" data-dayplan-reorder-id="'+escapeHtml(b.id)+'"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div>'+dayPlanTaskDetails(b)+'<div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
        +'<div class="day-plan-settings"><button type="button" class="day-plan-focus-start '+(activeDayPlanFocus()?.block.id===b.id?'active':'')+'" data-dayplan-focus-start="'+escapeHtml(b.id)+'">▶ '+(activeDayPlanFocus()?.block.id===b.id?'Focus bezig':'Start Focus')+'</button>'
        +(dayPlanFocusDuration(b)?'':'<input type="number" min="1" max="360" placeholder="min" class="day-plan-start-duration" data-dayplan-duration-for="'+escapeHtml(b.id)+'" aria-label="Focusduur in minuten"/>')
        +'<button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>'
        +(b.linkType!=='agenda'?'<button type="button" class="day-plan-mini '+(b.remind?'on':'')+'" data-dayplan-remind="'+escapeHtml(b.id)+'">'+(b.remind?'Herinnering aan':'Herinnering uit')+'</button>':'')
        +'<button type="button" class="day-plan-remove-button" data-dayplan-remove="'+escapeHtml(b.id)+'">Blok verwijderen</button></div>'
-       +'</div></div>';
+       +'</div>'
+       +(dayPlanBlockMode(b)==='fixed'?'<span class="day-plan-drag-static" title="Vaste tijd">▣</span>'
+       :'<button type="button" class="day-plan-grip" data-dayplan-grip="'+escapeHtml(b.id)+'" aria-label="Sleep '+escapeHtml(b.text)+' naar een andere plek" title="Vasthouden en verslepen">☷</button>')
+       +'</div>';
     }).join(''):'<div class="empty-state">Alles voor vandaag is afgevinkt.</div>')
     +(moved.length?'<details class="day-plan-deferred"><summary>Doorgeschoven naar morgen ('+moved.length+')</summary>'
        +moved.map(b=>'<div class="day-plan-deferred-item"><span>'+escapeHtml(b.text)+'</span><button type="button" data-dayplan-restore="'+escapeHtml(b.id)+'">Terug naar vandaag</button></div>').join('')
@@ -3772,6 +3802,70 @@
        +completed.map(b=>'<div class="day-plan-deferred-item"><span>'+escapeHtml(b.text)+'</span><button type="button" data-dayplan-undo="'+escapeHtml(b.id)+'">Ongedaan</button></div>').join('')
        +'</details>':'');
   }
+
+  // Eén sleepactie verplaatst een blok in de tijdlijn; geen aparte
+  // instellingen of handmatig tijden invullen. Binnen een actieve Focus
+  // mag niet gesleept worden, zodat het eindsignaal ongewijzigd blijft.
+  let dayPlanDrag=null;
+  function saveDayPlanDragOrder(){
+    const box=document.getElementById('dayPlanList'),plan=state.dayTimeline;
+    if(!box||!dayPlanIsCurrent(plan))return false;
+    const ids=[...box.querySelectorAll(':scope > .day-plan-row[data-dayplan-reorder-id]')]
+      .map(row=>row.dataset.dayplanReorderId);
+    const current=plan.blocks.filter(b=>!b.postponedTo&&!dayPlanBlockDone(b)).map(b=>b.id);
+    if(ids.length!==current.length||ids.every((id,i)=>id===current[i]))return false;
+    const done=plan.blocks.filter(b=>!b.postponedTo&&dayPlanBlockDone(b)).map(b=>b.id);
+    return replanDayFromNow({orderIds:[...done,...ids],fromDrag:true,silent:true});
+  }
+  document.addEventListener('pointerdown',e=>{
+    const grip=e.target.closest?.('[data-dayplan-grip]');
+    if(!grip)return;
+    if(activeDayPlanFocus()){
+      showToast('Stop eerst de lopende Focus voordat je de volgorde wijzigt.');
+      return;
+    }
+    const row=grip.closest('.day-plan-row[data-dayplan-reorder-id]');
+    if(!row||!dayPlanIsCurrent())return;
+    e.preventDefault();
+    dayPlanDrag={row,pointerId:e.pointerId,grip,moved:false};
+    row.classList.add('day-plan-dragging');
+    try{grip.setPointerCapture(e.pointerId);}catch{}
+  });
+  document.addEventListener('pointermove',e=>{
+    const drag=dayPlanDrag;
+    if(!drag||drag.pointerId!==e.pointerId)return;
+    if(e.cancelable)e.preventDefault();
+    const box=drag.row.parentElement;
+    if(!box)return;
+    const rows=[...box.querySelectorAll(':scope > .day-plan-row[data-dayplan-reorder-id]')]
+      .filter(row=>row!==drag.row);
+    const target=rows.find(row=>e.clientY<row.getBoundingClientRect().top+row.getBoundingClientRect().height/2);
+    const before=target||(rows.length?rows[rows.length-1].nextElementSibling:null);
+    if(target&&target!==drag.row.nextElementSibling){
+      box.insertBefore(drag.row,target);drag.moved=true;
+    }else if(!target&&rows.length&&drag.row!==rows[rows.length-1]){
+      const afterLast=rows[rows.length-1].nextElementSibling;
+      box.insertBefore(drag.row,afterLast);drag.moved=true;
+    }
+    // Ook met een lange planning kan je tijdens het slepen verder omlaag.
+    const margin=78;
+    if(e.clientY>window.innerHeight-margin)window.scrollBy(0,Math.max(2,Math.ceil((e.clientY-(window.innerHeight-margin))/8)));
+    else if(e.clientY<margin)window.scrollBy(0,-Math.max(2,Math.ceil((margin-e.clientY)/8)));
+  });
+  function finishDayPlanDrag(e){
+    const drag=dayPlanDrag;
+    if(!drag||drag.pointerId!==e.pointerId)return;
+    dayPlanDrag=null;
+    drag.row.classList.remove('day-plan-dragging');
+    if(drag.moved)saveDayPlanDragOrder();
+    else renderDayTimeline();
+  }
+  document.addEventListener('pointerup',finishDayPlanDrag);
+  document.addEventListener('pointercancel',e=>{
+    if(!dayPlanDrag||dayPlanDrag.pointerId!==e.pointerId)return;
+    dayPlanDrag=null;renderDayTimeline();
+  });
+
   function setDayPlanLinkedDone(block,checked){
     if(checked&&state.dayTimelineFocus?.blockId===block.id){clearDayPlanFocus();saveState();}
     const today=state.dayTimeline?.date||localDateKey();
