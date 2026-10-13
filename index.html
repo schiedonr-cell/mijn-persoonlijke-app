@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
-  <!-- Mijn persoonlijke app v1.7.10 quick-task-insert -->
+  <!-- Mijn persoonlijke app v1.7.11 quick-task-starttijd -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -1263,9 +1263,13 @@
         <label class="field-label" for="quickPlanDuration">Hoeveel minuten?</label>
         <input class="text-input" id="quickPlanDuration" type="number" min="1" max="360" inputmode="numeric" value="15"/>
         <div class="spacer-14"></div>
+        <label class="field-label" for="quickPlanStart">Start om</label>
+        <input class="text-input" id="quickPlanStart" type="time" step="300" />
+        <div class="spacer-14"></div>
         <label class="field-label" for="quickPlanPosition">Waar invoegen?</label>
         <select class="text-input" id="quickPlanPosition"></select>
-        <p class="quick-plan-note">Herplannen gebeurt vanaf nu. Afgeronde blokken en vaste afspraken blijven staan. Als de taak niet past, verandert er niets.</p>
+        <p class="quick-plan-note">Activiteiten vóór deze taak, zoals lunch en honden uitlaten, blijven staan. Alleen latere flexibele blokken schuiven op. Vaste afspraken blijven op tijd.</p>
+        <p class="quick-plan-note" id="quickPlanError" role="status" aria-live="polite" hidden style="color:var(--danger);font-weight:700"></p>
       </div>
       <div id="quickPlanUntimedNote" class="quick-plan-note" hidden>Zonder tijden: de taak komt bovenaan in je dagvolgorde. Andere onderdelen blijven staan.</div>
       <div class="button-stack">
@@ -3400,6 +3404,9 @@
       .map(t=>'<option value="'+escapeHtml(t.id)+'">'+escapeHtml(t.name)+'</option>').join('');
     document.getElementById('quickPlanTaskName').value='';
     document.getElementById('quickPlanDuration').value='15';
+    const nowMinutes=dayPlanElapsedMinutes();
+    document.getElementById('quickPlanStart').value=dayPlanClock(Math.min(1435,Math.ceil((nowMinutes%1440)/5)*5));
+    const error=document.getElementById('quickPlanError');error.textContent='';error.hidden=true;
     document.getElementById('quickPlanTimeOptions').hidden=!timed;
     document.getElementById('quickPlanUntimedNote').hidden=timed;
     document.getElementById('quickPlanModalHint').textContent=timed
@@ -3409,7 +3416,7 @@
     if(timed){
       const available=dayPlanLogicalOrder((state.dayTimeline.blocks||[])
         .filter(b=>!b.postponedTo&&!dayPlanBlockDone(b)));
-      position.innerHTML='<option value="next">Als volgende, vanaf nu</option>'
+      position.innerHTML='<option value="next">Als volgende, vanaf starttijd</option>'
         +available.map(b=>'<option value="before:'+escapeHtml(b.id)+'">Vóór '+escapeHtml(b.text)+'</option>').join('')
         +'<option value="end">Onderaan de planning</option>';
     }else position.innerHTML='';
@@ -3418,6 +3425,75 @@
     setTimeout(()=>document.getElementById('quickPlanTaskName')?.focus(),90);
   }
   function closeQuickPlanModal(){document.getElementById('quickPlanModal').classList.remove('open');}
+  function quickPlanError(text){
+    const box=document.getElementById('quickPlanError');
+    if(box){box.textContent=text;box.hidden=false;}
+    else showToast(text);
+  }
+  // Alleen het ingevoegde blok en volgende flexibele activiteiten schuiven.
+  // De ochtend, lunch, hondenwandeling en andere eerdere blokken blijven ongemoeid.
+  function calculateQuickPlanInsertion(ordered,newBlock,start,duration,options={}){
+    const index=ordered.indexOf(newBlock);
+    if(index<0)return {ok:false,reason:'Invoegpunt niet gevonden.'};
+    const prefix=ordered.slice(0,index),suffix=ordered.slice(index+1);
+    const end=start+duration,changes=new Map([[newBlock.id,{start,end,hasEnd:true}]]);
+    const allowOvernight=options.allowOvernight===true;
+    function failure(reason,block){return {ok:false,reason,block};}
+    function fitDay(candidate,block){
+      if(candidate>=2880)return failure('Dit blok komt na de volgende middernacht: '+block.text+'.',block);
+      if(candidate>=1440&&!allowOvernight)return failure('De planning zou na middernacht doorgaan. Kies een andere starttijd of maak later ruimte.',block);
+      if(candidate>1410&&!allowOvernight)return failure('De dag wordt langer dan de geplande avondafsluiting. Kies een eerdere starttijd of plan een taak later.',block);
+      return null;
+    }
+    if(fitDay(end,newBlock))return fitDay(end,newBlock);
+    const fixed=ordered.filter(b=>b!==newBlock&&!dayPlanBlockDone(b)&&dayPlanBlockMode(b)==='fixed')
+      .map(b=>({block:b,start:dayPlanMinutes(b.originalStart||b.start),end:dayPlanMinutes(b.originalEnd||b.end)}))
+      .filter(r=>r.start!==null).sort((a,b)=>a.start-b.start);
+    for(const b of prefix){
+      if(dayPlanBlockDone(b))continue;
+      const bs=dayPlanMinutes(b.start),be=dayPlanMinutes(b.end);
+      if(bs===null)continue;
+      if(be===null&&bs<=start)return failure('Bij "'+b.text+'" ontbreekt een eindtijd. Vul die eerst in.',b);
+      if(be!==null&&be>start)return failure('"'+b.text+'" loopt volgens de planning tot '+dayPlanClockLabel(be)+'. Kies een starttijd daarna of voeg de taak vóór dit blok in.',b);
+    }
+    for(const r of fixed){
+      if(r.end===null&&r.start<end)return failure('Vaste afspraak "'+r.block.text+'" heeft geen eindtijd. Vul die eerst in.',r.block);
+      if(r.end!==null&&r.start<end&&r.end>start)
+        return failure('Om '+dayPlanClockLabel(r.start)+' is "'+r.block.text+'" vast gepland. Kies een starttijd die niet overlapt.',r.block);
+    }
+    let cursor=end;
+    for(const b of suffix){
+      if(dayPlanBlockDone(b))continue;
+      const mode=dayPlanBlockMode(b),bs=dayPlanMinutes(b.start),be=dayPlanMinutes(b.end);
+      if(mode==='fixed')continue;
+      // Eet-, pauze- en hondenblokken die vóór de gekozen starttijd
+      // zijn gepland, niet alsnog naar de middag of avond duwen.
+      const name=dayPlanNormalizeText(b.text);
+      const earlierAnchor=mode==='window'||dayPlanRestLike(b.text)
+        ||/\b(hond|honden|hondjes|uitlaten|wandelen|wandeling)\b/.test(name);
+      if(earlierAnchor&&bs!==null&&be!==null&&be<=start)continue;
+      if(earlierAnchor&&bs!==null&&be!==null&&bs<start&&be>start)
+        return failure('"'+b.text+'" loopt tot '+dayPlanClockLabel(be)+'. Kies een starttijd daarna.',b);
+      if(bs===null)return failure('Controleer de begintijd van "'+b.text+'".',b);
+      const blockDuration=be!==null&&be>=bs?be-bs:0;
+      let candidate=cursor,window=mode==='window'?dayPlanMealWindow(b):null;
+      if(window)candidate=Math.max(candidate,window.start);
+      for(const r of fixed){
+        if(r.end!==null&&r.end<=candidate)continue;
+        if(r.start>=candidate+blockDuration)break;
+        if(r.end===null)return failure('Vaste afspraak "'+r.block.text+'" heeft geen eindtijd. Vul die eerst in.',r.block);
+        candidate=r.end;
+      }
+      if(window&&candidate+blockDuration>window.end){
+        return failure(window.name+' past niet na de nieuwe taak. Kies een later invoegpunt of een andere starttijd.',b);
+      }
+      const dayError=fitDay(candidate+blockDuration,b);
+      if(dayError)return dayError;
+      changes.set(b.id,{start:candidate,end:candidate+blockDuration,hasEnd:!!b.end});
+      cursor=candidate+blockDuration;
+    }
+    return {ok:true,changes,orderIds:ordered.map(b=>b.id)};
+  }
   function saveQuickPlan(){
     const existingId=document.getElementById('quickPlanExistingTask').value;
     const existing=existingId?state.tasks.find(t=>t.id===existingId):null;
@@ -3443,27 +3519,26 @@
     const duration=Number(document.getElementById('quickPlanDuration').value);
     if(!Number.isInteger(duration)||duration<1||duration>360)
       return showToast('Vul een duur van 1 tot 360 minuten in.');
-    const start=dayPlanElapsedMinutes(plan);
-    if(start<0||start+duration>=2880)return showToast('Dit past niet meer in deze dag.');
+    const start=dayPlanMinutes(document.getElementById('quickPlanStart').value);
+    if(start===null||start<0||start>=1440)return quickPlanError('Kies een geldige starttijd.');
+    if(start+duration>=2880)return quickPlanError('Dit past niet meer in deze dag.');
     const block={id:uid('plan'),originalOrder:plan.blocks.length,start:dayPlanClock(start),
       end:dayPlanClock(start+duration),originalStart:dayPlanClock(start),originalEnd:dayPlanClock(start+duration),
       text:name,linkType:'task',linkId:task.id,kind:'Taak',matchedName:name,done:false,fixed:false,remind:false};
     const currentOrder=dayPlanLogicalOrder(plan.blocks.filter(b=>!b.postponedTo));
     const choice=document.getElementById('quickPlanPosition').value;
     let at=currentOrder.length;
-    if(choice==='next')at=currentOrder.findIndex(b=>!dayPlanBlockDone(b));
+    if(choice==='next')at=currentOrder.findIndex(b=>!dayPlanBlockDone(b)
+      &&(dayPlanMinutes(b.end||b.start)??0)>start);
     else if(choice.startsWith('before:'))
       at=currentOrder.findIndex(b=>b.id===choice.slice(7)&&!dayPlanBlockDone(b));
     if(at<0)at=currentOrder.length;
     const order=currentOrder.map(b=>b.id);order.splice(at,0,block.id);
-    const previousManual=Array.isArray(plan.manualOrderIds)?[...plan.manualOrderIds]:[];
-    plan.blocks.push(block);plan.manualOrderIds=order;
-    const result=calculateDayPlanFromNow(start,{allowOvernight:plan.overnightAllowed===true});
-    if(!result.ok){
-      plan.blocks=plan.blocks.filter(b=>b.id!==block.id);plan.manualOrderIds=previousManual;
-      showToast('Nog niet ingevoegd: '+result.reason);
-      return;
-    }
+    const proposed=currentOrder.slice();proposed.splice(at,0,block);
+    const result=calculateQuickPlanInsertion(proposed,block,start,duration,
+      {allowOvernight:plan.overnightAllowed===true});
+    if(!result.ok)return quickPlanError(result.reason);
+    plan.blocks.push(block);
     cancelDayPlanAlarms(plan);
     if(!existing)state.tasks.push(task);
     else{task.bucket='A';task.paused=false;task.deferUntil='';}
@@ -3477,12 +3552,11 @@
       (x.b.postponedTo?1:0)-(y.b.postponedTo?1:0)
       ||(dayPlanMinutes(x.b.start)||0)-(dayPlanMinutes(y.b.start)||0)||x.i-y.i).map(x=>x.b);
     plan.manualOrderIds=result.orderIds||order;
-    plan.alarms=false;
     plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
       .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
     refillTodayPlan(false);saveState();scheduleDayPlanAlarms();
     closeQuickPlanModal();renderToday();renderAllTasks();
-    showToast('Taak ingevoegd. Flexibele blokken zijn opnieuw ingepland.');
+    showToast('Taak ingevoegd om '+dayPlanClockLabel(start)+'. Alleen latere flexibele blokken zijn verschoven.');
   }
 
   function openDayPlanModal(){
