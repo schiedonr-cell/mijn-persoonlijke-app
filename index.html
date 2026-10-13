@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <title>Mijn Dag</title>
-  <!-- Mijn persoonlijke app v1.7.9 household-today-choice -->
+  <!-- Mijn persoonlijke app v1.7.10 quick-task-insert -->
   <style>
     :root {
       --bg: #f5f5ef;
@@ -809,6 +809,11 @@
     .day-plan-step-row{display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.4;cursor:pointer}
     .day-plan-step-row input{flex-shrink:0;margin:1px 0 0;width:19px;height:19px}
     .day-plan-step-row.done span{text-decoration:line-through;color:var(--muted)}
+    /* Snel invoegen zonder andere schermen te veranderen. */
+    .quick-plan-untimed{margin:12px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft);font-size:13px}
+    .quick-plan-untimed strong{display:block;margin-bottom:6px}
+    .quick-plan-untimed div{padding:4px 0}
+    .quick-plan-note{font-size:13px;line-height:1.45;color:var(--muted);margin:10px 0}
     /* Dagplanning: tijdelijke planning bovenop bestaande onderdelen */
     .day-plan-actions{display:flex;gap:8px;flex-wrap:wrap}
     .day-plan-actions .primary-button,.day-plan-actions .secondary-button{width:auto;min-height:44px;padding:9px 13px}
@@ -1040,6 +1045,7 @@
               <div id="dayPlanActiveFocus" aria-live="polite"></div>
               <div class="day-plan-conflict" id="dayPlanConflict" hidden aria-live="polite"></div>
               <div class="day-plan-actions">
+                <button class="primary-button" id="openQuickPlanButton" type="button">+ Taak invoegen</button>
                 <button class="secondary-button" id="openDayPlanPasteButton">Planning plakken</button>
                 <button class="secondary-button" id="clearDayPlanButton" style="display:none;">Planning wissen</button>
               </div>
@@ -1236,6 +1242,35 @@
       <div class="button-stack">
         <button class="primary-button" id="saveDayPlanButton">Planning gebruiken</button>
         <button class="secondary-button" data-close-day-plan>Annuleren</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="quickPlanModal" role="dialog" aria-modal="true" aria-labelledby="quickPlanModalTitle">
+    <div class="sheet">
+      <div class="sheet-head">
+        <div><h3 id="quickPlanModalTitle">Taak invoegen</h3><p id="quickPlanModalHint" class="small-muted" style="margin:5px 0 0;">Vaste afspraken blijven staan. De rest schuift mee.</p></div>
+        <button class="close-button" type="button" data-close-quick-plan aria-label="Sluiten">×</button>
+      </div>
+      <label class="field-label" for="quickPlanExistingTask">Taak</label>
+      <select class="text-input" id="quickPlanExistingTask"><option value="">Nieuwe taak typen</option></select>
+      <div id="quickPlanNewTaskWrap" style="margin-top:12px">
+        <label class="field-label" for="quickPlanTaskName">Wat moet er nog gebeuren?</label>
+        <input class="text-input" id="quickPlanTaskName" autocomplete="off" placeholder="Bijv. was ophangen"/>
+      </div>
+      <div id="quickPlanTimeOptions">
+        <div class="spacer-14"></div>
+        <label class="field-label" for="quickPlanDuration">Hoeveel minuten?</label>
+        <input class="text-input" id="quickPlanDuration" type="number" min="1" max="360" inputmode="numeric" value="15"/>
+        <div class="spacer-14"></div>
+        <label class="field-label" for="quickPlanPosition">Waar invoegen?</label>
+        <select class="text-input" id="quickPlanPosition"></select>
+        <p class="quick-plan-note">Herplannen gebeurt vanaf nu. Afgeronde blokken en vaste afspraken blijven staan. Als de taak niet past, verandert er niets.</p>
+      </div>
+      <div id="quickPlanUntimedNote" class="quick-plan-note" hidden>Zonder tijden: de taak komt bovenaan in je dagvolgorde. Andere onderdelen blijven staan.</div>
+      <div class="button-stack">
+        <button class="primary-button" id="saveQuickPlanButton" type="button">Toevoegen aan planning</button>
+        <button class="secondary-button" type="button" data-close-quick-plan>Annuleren</button>
       </div>
     </div>
   </div>
@@ -1587,6 +1622,7 @@
     todayPlan: { date: null, taskIds: [] },
     untimedNext: {date:null,type:'',itemId:''},
     untimedOrder: {date:null,keys:[]},
+    dayQuickTasks: {date:null,taskIds:[]},
     dayTimeline: { date: null, alarms: false, blocks: [], sourceText: '', overnightAllowed: false, preferredMealFirstId: '', manualOrderIds: [] },
     dayTimelineFocus: null,
     dump: [],
@@ -1772,6 +1808,7 @@
         reflections: saved.reflections && typeof saved.reflections==='object' ? saved.reflections : {},
         dump: Array.isArray(saved.dump) ? saved.dump : [],
         todayPlan: saved.todayPlan && Array.isArray(saved.todayPlan.taskIds) ? saved.todayPlan : {date:null,taskIds:[]},
+        dayQuickTasks: saved.dayQuickTasks && Array.isArray(saved.dayQuickTasks.taskIds) ? saved.dayQuickTasks : {date:null,taskIds:[]},
         untimedNext:(saved.untimedNext&&typeof saved.untimedNext==='object'
           &&['habit','task','household','lunch'].includes(saved.untimedNext.type)
           &&typeof saved.untimedNext.itemId==='string')
@@ -3064,7 +3101,9 @@
       &&(!['basis-stretch','basis-relax','basis-move'].includes(h.id)
         ||!selfCareDone(({ 'basis-stretch':'stretch','basis-relax':'relax','basis-move':'move'})[h.id])))
       .map(h=>({type:'habit',itemId:h.id,name:h.name,kind:'Routine'}));
-    const tasks=(state.todayPlan?.date===today?(state.todayPlan.taskIds||[]):[])
+    const todayIds=state.todayPlan?.date===today?(state.todayPlan.taskIds||[]):[];
+    const quickIds=state.dayQuickTasks?.date===today?(state.dayQuickTasks.taskIds||[]):[];
+    const tasks=[...new Set([...todayIds,...quickIds])]
       .map(id=>state.tasks.find(t=>t.id===id)).filter(t=>t&&!t.done&&!t.paused
         &&(!t.deferUntil||t.deferUntil<=today))
       .map(t=>({type:'task',itemId:t.id,name:t.name,kind:'Taak'}));
@@ -3345,6 +3384,107 @@
     if(!options.silent)showToast(selected.length?'Je keuzes zijn opgeslagen. De rest van je dag is herpland.':'Je planning schuift mee vanaf '+dayPlanClock(minutes)+'.');
     return true;
   }
+
+  // Voeg een bestaande of nieuwe gewone taak toe aan de dagplanning.
+  function quickPlanExistingCandidates(){
+    const linked=new Set((state.dayTimeline?.blocks||[]).filter(b=>!b.postponedTo&&b.linkType==='task').map(b=>b.linkId));
+    return state.tasks.filter(t=>!t.done&&!t.paused&&!linked.has(t.id))
+      .sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,100);
+  }
+  function updateQuickPlanTaskName(){
+    document.getElementById('quickPlanNewTaskWrap').hidden=!!document.getElementById('quickPlanExistingTask').value;
+  }
+  function openQuickPlanModal(){
+    const timed=dayPlanIsCurrent(),select=document.getElementById('quickPlanExistingTask');
+    select.innerHTML='<option value="">+ Nieuwe taak typen</option>'+quickPlanExistingCandidates()
+      .map(t=>'<option value="'+escapeHtml(t.id)+'">'+escapeHtml(t.name)+'</option>').join('');
+    document.getElementById('quickPlanTaskName').value='';
+    document.getElementById('quickPlanDuration').value='15';
+    document.getElementById('quickPlanTimeOptions').hidden=!timed;
+    document.getElementById('quickPlanUntimedNote').hidden=timed;
+    document.getElementById('quickPlanModalHint').textContent=timed
+      ?'Vaste afspraken blijven staan; de rest schuift automatisch op.'
+      :'Je taak verschijnt in de volgorde voor vandaag.';
+    const position=document.getElementById('quickPlanPosition');
+    if(timed){
+      const available=dayPlanLogicalOrder((state.dayTimeline.blocks||[])
+        .filter(b=>!b.postponedTo&&!dayPlanBlockDone(b)));
+      position.innerHTML='<option value="next">Als volgende, vanaf nu</option>'
+        +available.map(b=>'<option value="before:'+escapeHtml(b.id)+'">Vóór '+escapeHtml(b.text)+'</option>').join('')
+        +'<option value="end">Onderaan de planning</option>';
+    }else position.innerHTML='';
+    updateQuickPlanTaskName();
+    document.getElementById('quickPlanModal').classList.add('open');
+    setTimeout(()=>document.getElementById('quickPlanTaskName')?.focus(),90);
+  }
+  function closeQuickPlanModal(){document.getElementById('quickPlanModal').classList.remove('open');}
+  function saveQuickPlan(){
+    const existingId=document.getElementById('quickPlanExistingTask').value;
+    const existing=existingId?state.tasks.find(t=>t.id===existingId):null;
+    if(existingId&&!existing)return showToast('Deze taak bestaat niet meer. Kies opnieuw.');
+    const name=existing?.name||document.getElementById('quickPlanTaskName').value.trim();
+    if(!name)return showToast('Vul een taaknaam in of kies een bestaande taak.');
+    const task=existing||normalizeTask({id:uid('task'),name,bucket:'A',subtasks:[]});
+    const plan=state.dayTimeline;
+    if(!dayPlanIsCurrent()){
+      if(!existing)state.tasks.push(task);
+      else{task.bucket='A';task.paused=false;task.deferUntil='';}
+      const day=localDateKey(),old=state.dayQuickTasks?.date===day?(state.dayQuickTasks.taskIds||[]):[];
+      state.dayQuickTasks={date:day,taskIds:[...new Set([...old,task.id])]};
+      refillTodayPlan(false);
+      const key='task:'+task.id,keys=untimedEffectiveOrder().map(untimedItemKey);
+      state.untimedOrder={date:day,keys:[key,...keys.filter(k=>k!==key)]};
+      state.untimedNext={date:null,type:'',itemId:''};
+      saveState();closeQuickPlanModal();renderToday();renderAllTasks();
+      showToast('Toegevoegd bovenaan je dagvolgorde (zonder tijden).');
+      return;
+    }
+    if(activeDayPlanFocus())return showToast('Rond eerst je actieve Focus af of stop die.');
+    const duration=Number(document.getElementById('quickPlanDuration').value);
+    if(!Number.isInteger(duration)||duration<1||duration>360)
+      return showToast('Vul een duur van 1 tot 360 minuten in.');
+    const start=dayPlanElapsedMinutes(plan);
+    if(start<0||start+duration>=2880)return showToast('Dit past niet meer in deze dag.');
+    const block={id:uid('plan'),originalOrder:plan.blocks.length,start:dayPlanClock(start),
+      end:dayPlanClock(start+duration),originalStart:dayPlanClock(start),originalEnd:dayPlanClock(start+duration),
+      text:name,linkType:'task',linkId:task.id,kind:'Taak',matchedName:name,done:false,fixed:false,remind:false};
+    const currentOrder=dayPlanLogicalOrder(plan.blocks.filter(b=>!b.postponedTo));
+    const choice=document.getElementById('quickPlanPosition').value;
+    let at=currentOrder.length;
+    if(choice==='next')at=currentOrder.findIndex(b=>!dayPlanBlockDone(b));
+    else if(choice.startsWith('before:'))
+      at=currentOrder.findIndex(b=>b.id===choice.slice(7)&&!dayPlanBlockDone(b));
+    if(at<0)at=currentOrder.length;
+    const order=currentOrder.map(b=>b.id);order.splice(at,0,block.id);
+    const previousManual=Array.isArray(plan.manualOrderIds)?[...plan.manualOrderIds]:[];
+    plan.blocks.push(block);plan.manualOrderIds=order;
+    const result=calculateDayPlanFromNow(start,{allowOvernight:plan.overnightAllowed===true});
+    if(!result.ok){
+      plan.blocks=plan.blocks.filter(b=>b.id!==block.id);plan.manualOrderIds=previousManual;
+      showToast('Nog niet ingevoegd: '+result.reason);
+      return;
+    }
+    cancelDayPlanAlarms(plan);
+    if(!existing)state.tasks.push(task);
+    else{task.bucket='A';task.paused=false;task.deferUntil='';}
+    plan.blocks.forEach(b=>{
+      if(!b.originalStart)b.originalStart=b.start;
+      if(!b.originalEnd&&b.end)b.originalEnd=b.end;
+      const c=result.changes.get(b.id);
+      if(c){b.start=dayPlanClock(c.start);b.end=c.hasEnd?dayPlanClock(c.end):'';}
+    });
+    plan.blocks=plan.blocks.map((b,i)=>({b,i})).sort((x,y)=>
+      (x.b.postponedTo?1:0)-(y.b.postponedTo?1:0)
+      ||(dayPlanMinutes(x.b.start)||0)-(dayPlanMinutes(y.b.start)||0)||x.i-y.i).map(x=>x.b);
+    plan.manualOrderIds=result.orderIds||order;
+    plan.alarms=false;
+    plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
+      .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+    refillTodayPlan(false);saveState();scheduleDayPlanAlarms();
+    closeQuickPlanModal();renderToday();renderAllTasks();
+    showToast('Taak ingevoegd. Flexibele blokken zijn opnieuw ingepland.');
+  }
+
   function openDayPlanModal(){
     const plan=state.dayTimeline||{};
     document.getElementById('dayPlanDate').value=plan.date||localDateKey();
@@ -3450,7 +3590,11 @@
     if(clear)clear.style.display=plan.blocks?.length?'inline-flex':'none';
     if(!active){
       const when=plan.date&&plan.blocks?.length?'Er staat een planning klaar voor '+escapeHtml(formatDateShort(plan.date))+'.':'Nog geen tijdsplanning voor vandaag.';
-      box.innerHTML='<div class="empty-state">'+when+'<br>Tijden zijn optionele richtlijnen.</div>';return;
+      const extra=state.dayQuickTasks?.date===localDateKey()
+        ?(state.dayQuickTasks.taskIds||[]).map(id=>state.tasks.find(t=>t.id===id)).filter(t=>t&&!t.done&&!t.paused):[];
+      box.innerHTML='<div class="empty-state">'+when+'<br>Tijden zijn optionele richtlijnen.</div>'
+        +(extra.length?'<div class="quick-plan-untimed"><strong>Extra ingevoegd vandaag (zonder tijd)</strong>'
+          +extra.map(t=>'<div>• '+escapeHtml(t.name)+'</div>').join('')+'</div>':'');return;
     }
     // Alleen openstaande tijdsblokken staan in de actieve planning.
     // Afrondingen blijven in de originele data en kunnen hieronder teruggedraaid worden.
@@ -4313,6 +4457,9 @@
     const open=e.target.closest('[data-open]');if(open)return showView(open.dataset.open); if(e.target.closest('[data-back]'))return showView('home');
     const tab=e.target.closest('[data-daily-tab]');if(tab)return setDailyTab(tab.dataset.dailyTab); const foodNav=e.target.closest('[data-food-tab]');if(foodNav)return setFoodTab(foodNav.dataset.foodTab); const foodJump=e.target.closest('[data-food-tab-jump]');if(foodJump)return setFoodTab(foodJump.dataset.foodTabJump);
     const energy=e.target.closest('[data-energy]');if(energy){state.energy=Number(energy.dataset.energy);state.energyHistory||={};state.energyHistory[localDateKey()]=state.energy;refillTodayPlan(false);syncRecoveryGoals();saveState();queueReminderStateSync();return renderToday();}
+    if(e.target.closest('#openQuickPlanButton'))return openQuickPlanModal();
+    if(e.target.closest('[data-close-quick-plan]'))return closeQuickPlanModal();
+    if(e.target.closest('#saveQuickPlanButton'))return saveQuickPlan();
     if(e.target.closest('#addTaskButton')||e.target.closest('#addTaskFromListButton')||e.target.closest('#focusAddTaskButton'))return openInputModal('task');
     const manageTaskSteps=e.target.closest('[data-manage-task-steps]');if(manageTaskSteps)return openTaskStepsManage(manageTaskSteps.dataset.manageTaskSteps);
     if(e.target.closest('[data-close-task-steps]'))return closeTaskStepsManage();
@@ -4571,6 +4718,7 @@
     if(e.target.closest('#clearDayPlanButton'))return clearDayPlan();
   });
   document.addEventListener('change',e=>{
+    if(e.target.matches('#quickPlanExistingTask')){updateQuickPlanTaskName();return;}
     if(e.target.matches('[data-dayplan-step]')){
       const [blockId,stepId]=(e.target.dataset.dayplanStep||'').split('|');
       const block=state.dayTimeline?.blocks?.find(b=>b.id===blockId);
