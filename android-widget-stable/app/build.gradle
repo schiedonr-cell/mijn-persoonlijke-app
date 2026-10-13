@@ -19,7 +19,7 @@ android {
         minSdk 26
         targetSdk 35
         versionCode 77
-        versionName 'mijn-dag-6.19-familywall-agenda'
+        versionName 'mijn-dag-6.19-familywall-widget'
     }
 
     buildTypes {
