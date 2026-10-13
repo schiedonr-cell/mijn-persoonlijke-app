@@ -956,6 +956,7 @@
     .recipe-section ol.recipe-list li::before {content:counter(recipe-step);flex:0 0 30px;height:30px;display:grid;place-items:center;border-radius:50%;background:var(--accent-soft);color:var(--accent-strong);font-weight:900;}
     .recipe-section ul.recipe-list li {padding:3px 0;}
     .recipe-photo-note {font-size:12px;color:var(--muted);text-align:center;}
+    .replace-preview-list{display:grid;gap:9px;margin-top:10px;}.replace-preview-card{display:grid;grid-template-columns:58px 1fr;gap:10px;padding:10px;border:1px solid var(--line);border-radius:16px;align-items:center;background:#fff}.replace-preview-card strong{font-size:14px}.replace-preview-card p{font-size:12px;color:var(--muted);margin:4px 0}.replace-preview-card button{min-height:38px;border:0;background:var(--accent);color:white;border-radius:9px;font-weight:800;padding:8px 12px}.replace-refresh{margin-top:10px;width:100%;min-height:42px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft);font-weight:800}
 
 </style>
 </head>
@@ -1464,6 +1465,7 @@
         <button class="replace-option" data-replace-mode="favorite"><span>★</span>Favoriet</button>
         <button class="replace-option" data-replace-mode="pantry"><span>🏠</span>Met voorraad</button>
       </div>
+      <div id="replaceSuggestions" style="margin-top:13px;"></div>
       <p class="food-inline-note">“Slim passend” gebruikt je vrije wens én je menu-instellingen. De andere knoppen blijven snelle keuzes zonder AI. Allergieën en ongewenste ingrediënten blijven altijd als harde filters gelden.</p>
     </div>
   </div>
@@ -1607,6 +1609,8 @@
   let foodTab = 'menu';
   let activeFoodDayIndex = 0;
   let replacePlanIndex = null;
+  let replacementOptions = [];
+  let replacementMode = 'surprise';
   let foodDraft = null;
   let recipeSearch = '';
   let recipeMealFilter = 'all';
@@ -4230,8 +4234,46 @@
   function recipeById(id){return recipes.find(r=>r.id===id);} function formatAmount(amount){const n=Number(amount);return Number.isInteger(n)?String(n):String(Math.round(n*10)/10).replace('.',',');}
   function renderMenu(){ ensureFoodPrefs(); renderFoodSettingsSummary(); const wrap=document.getElementById('weekMenu'); if(!wrap)return; if(!state.weekPlan.length){wrap.innerHTML=`<div class="section-card empty-food"><div class="big">🍽️</div><h3>Nog geen menu</h3><p class="subtitle">Kies je dagen, maaltijdsoort en voorkeuren. Complete maaltijden uit je voorraad kunnen automatisch worden meegenomen.</p><div class="button-stack"><button class="primary-button" id="generateMenuButton">Maak mijn menu</button><button class="secondary-button" id="openFoodSettingsButton2">Dagen & voorkeuren aanpassen</button></div></div>`;return;} activeFoodDayIndex=Math.min(activeFoodDayIndex,state.weekPlan.length-1); const item=state.weekPlan[activeFoodDayIndex],r=item.recipeId?recipeById(item.recipeId):null,pm=item.pantryMealId?state.pantry.find(p=>p.id===item.pantryMealId):null; const content=pm?`<article class="meal-card"><div class="meal-visual"><div class="meal-emoji">${pm.location==='Vriezer'?'❄️':'🍱'}</div></div><div class="meal-card-body"><div class="meal-kicker">${escapeHtml(fullDayLabel(item.date))} · uit voorraad</div><h3>${escapeHtml(pm.name)}</h3><div class="meal-meta-row"><span class="meta-chip">🏠 ${escapeHtml(pm.location||'Voorraad')}</span><span class="meta-chip">👥 ${Number(pm.servings||2)} porties</span><span class="meta-chip">${mealTypeLabel(pm.mealType||'diner')}</span></div><div class="food-inline-note">Deze complete maaltijd ligt al in huis. Daarom komen er voor deze dag geen receptingrediënten op je boodschappenlijst.</div><div class="meal-card-actions"><button class="soft-button" data-replace-plan="${activeFoodDayIndex}">Vervang</button></div></div></article>`:(r?`<article class="meal-card"><div class="meal-visual">${recipePhotoHtml(r,"meal-photo")}<button class="meal-fav" data-favorite-recipe="${r.id}" aria-label="Favoriet">${state.favorites.includes(r.id)?'★':'☆'}</button></div><div class="meal-card-body"><div class="meal-kicker">${escapeHtml(fullDayLabel(item.date))}</div><h3>${escapeHtml(r.name)}</h3><p class="small-muted">${escapeHtml(r.description||'')}</p><div class="meal-meta-row"><span class="meta-chip">⏱ ${r.minutes} min</span><span class="meta-chip">👥 ${state.foodPrefs.people}</span><span class="meta-chip">${mealTypeLabel(r.mealType)}</span></div><div class="meal-card-actions"><button class="secondary-button" data-recipe="${r.id}">Bekijk recept</button><button class="soft-button" data-replace-plan="${activeFoodDayIndex}">Vervang</button></div></div></article>`:`<div class="section-card empty-state">Dit onderdeel kon niet worden geladen. Maak het menu opnieuw.</div>`); wrap.innerHTML=`<div class="day-strip">${state.weekPlan.map((x,i)=>`<button class="day-pill ${i===activeFoodDayIndex?'active':''}" data-food-day-index="${i}">${escapeHtml(dayLabel(x.date))}<small>${escapeHtml(dateLabel(x.date))}</small></button>`).join('')}</div>${content}<div class="button-stack"><button class="secondary-button" id="openFoodSettingsButton2">Menu-instellingen</button><button class="primary-button" id="makeShoppingButton">Maak boodschappenlijst</button></div>`; }
 
-  function openReplace(index){const i=Number(index);if(!Number.isInteger(i)||!state.weekPlan[i])return;replacePlanIndex=i;document.getElementById('replaceMealModal').classList.add('open');}
-  async function replaceMealSmart(mode){ if(replacePlanIndex==null||!state.weekPlan[replacePlanIndex])return; if(mode==='ai')return replaceMealWithAI(); const current=state.weekPlan[replacePlanIndex]; if(mode==='pantry'){const used=state.weekPlan.map(x=>x.pantryMealId).filter(Boolean),meal=activePantryMeals(used)[0];if(meal){state.weekPlan[replacePlanIndex]={date:current.date,pantryMealId:meal.id};state.weekMenu=state.weekPlan.map(x=>x.recipeId).filter(Boolean);state.shopping=[];saveState();document.getElementById('replaceMealModal').classList.remove('open');renderMenu();return showToast('Deze dag gebruikt nu een complete maaltijd uit je voorraad.');}} const exclude=state.weekPlan.map(x=>x.recipeId).filter(Boolean); const r=chooseRecipe(mode,exclude); state.weekPlan[replacePlanIndex]={date:current.date,recipeId:r.id}; state.weekMenu=state.weekPlan.map(x=>x.recipeId).filter(Boolean); state.recipeHistory=[...state.recipeHistory,r.id].slice(-80); state.shopping=[]; saveState(); document.getElementById('replaceMealModal').classList.remove('open'); renderMenu(); showToast('Alleen dit gerecht is vervangen.'); }
+  function openReplace(index){const i=Number(index);if(!Number.isInteger(i)||!state.weekPlan[i])return;replacePlanIndex=i;replacementOptions=[];document.getElementById('replaceSuggestions').innerHTML='<p class="food-inline-note">Kies hierboven een categorie. Je maaltijd blijft staan totdat je iets kiest.</p>';document.getElementById('replaceMealModal').classList.add('open');}
+
+  function showReplacementOptions(mode){
+    if(replacePlanIndex==null||!state.weekPlan[replacePlanIndex])return;
+    replacementMode=mode;
+    const excluded=new Set(state.weekPlan.map(x=>x.recipeId).filter(Boolean));
+    let available=recipes.filter(recipeAllowed).filter(r=>!excluded.has(r.id));
+    if(mode==='favorite')available=available.filter(r=>state.favorites.includes(r.id));
+    const ranked=available.map(r=>{
+      let score=preferenceScore(r)+Math.random()*4;
+      if(mode==='fast')score+=r.minutes<=20?25:r.minutes<=30?10:-10;
+      if(mode==='cheap')score+=(4-r.cost)*8;
+      if(mode==='healthy')score+=r.tags.includes('gezond')?18:-5;
+      if(mode==='simple')score+=r.ingredients.length<=5?18:r.ingredients.length<=7?7:0;
+      if(mode==='pantry')score+=pantryScore(r)*12;
+      if(state.recipeHistory.slice(-16).includes(r.id))score-=8;
+      return {r,score};
+    }).sort((a,b)=>b.score-a.score);
+    replacementOptions=ranked.slice(0,4).map(x=>x.r.id);
+    const target=document.getElementById('replaceSuggestions');
+    if(!replacementOptions.length){target.innerHTML='<p class="food-inline-note">Geen passende gerechten gevonden. Kies een andere categorie.</p>';return;}
+    target.innerHTML='<strong>Kies een van deze gerechten</strong><div class="replace-preview-list">'+replacementOptions.map(id=>{
+      const r=recipeById(id);
+      return '<div class="replace-preview-card">'+recipePhotoHtml(r)+
+        '<div><strong>'+escapeHtml(r.name)+'</strong><p>'+r.minutes+' min · '+r.ingredients.length+' ingrediënten</p>'+
+        '<button data-pick-replacement="'+escapeHtml(r.id)+'">Kies dit gerecht</button></div></div>';
+    }).join('')+'</div><button class="replace-refresh" data-refresh-replacements>Andere gerechten tonen</button>';
+  }
+  function pickMealReplacement(id){
+    if(replacePlanIndex==null||!replacementOptions.includes(id))return;
+    const current=state.weekPlan[replacePlanIndex],r=recipeById(id);if(!r)return;
+    state.weekPlan[replacePlanIndex]={date:current.date,recipeId:r.id};
+    state.weekMenu=state.weekPlan.map(x=>x.recipeId).filter(Boolean);
+    state.recipeHistory=[...state.recipeHistory,r.id].slice(-80);
+    state.shopping=[];saveState();
+    document.getElementById('replaceMealModal').classList.remove('open');
+    replacePlanIndex=null;replacementOptions=[];renderMenu();
+    showToast('Alleen deze dag veranderd. Maak de boodschappenlijst opnieuw.');
+  }
+  async function replaceMealSmart(mode){ if(replacePlanIndex==null||!state.weekPlan[replacePlanIndex])return; if(mode==='ai')return replaceMealWithAI(); if(mode!=='pantry')return showReplacementOptions(mode); const current=state.weekPlan[replacePlanIndex]; if(mode==='pantry'){const used=state.weekPlan.map(x=>x.pantryMealId).filter(Boolean),meal=activePantryMeals(used)[0];if(meal){state.weekPlan[replacePlanIndex]={date:current.date,pantryMealId:meal.id};state.weekMenu=state.weekPlan.map(x=>x.recipeId).filter(Boolean);state.shopping=[];saveState();document.getElementById('replaceMealModal').classList.remove('open');renderMenu();return showToast('Deze dag gebruikt nu een complete maaltijd uit je voorraad.');}} const exclude=state.weekPlan.map(x=>x.recipeId).filter(Boolean); const r=chooseRecipe(mode,exclude); state.weekPlan[replacePlanIndex]={date:current.date,recipeId:r.id}; state.weekMenu=state.weekPlan.map(x=>x.recipeId).filter(Boolean); state.recipeHistory=[...state.recipeHistory,r.id].slice(-80); state.shopping=[]; saveState(); document.getElementById('replaceMealModal').classList.remove('open'); renderMenu(); showToast('Alleen dit gerecht is vervangen.'); }
 
   function scaleAmount(amount){ return Number(amount)*(state.foodPrefs.people/2); }
   function makeShoppingList(){ if(!state.weekPlan.length)return showToast('Maak eerst een weekmenu.'); const aggregate=new Map(); let skipped=0; state.weekPlan.forEach(item=>{if(item.pantryMealId)return;const r=recipeById(item.recipeId); if(!r)return; r.ingredients.forEach(i=>{if(pantryHas(i.name)){skipped++;return;} const key=`${i.name.toLowerCase()}|${i.unit}|${i.cat}`; if(!aggregate.has(key))aggregate.set(key,{id:uid('shop'),name:i.name,amount:0,unit:i.unit,cat:i.cat,done:false,manual:false}); aggregate.get(key).amount+=scaleAmount(i.amount);});}); state.shopping=[...aggregate.values()].sort((a,b)=>a.cat.localeCompare(b.cat,'nl')||a.name.localeCompare(b.name,'nl')); state.shoppingSkippedCount=skipped; saveState(); setFoodTab('shopping'); renderShopping(); showToast(skipped?`${skipped} ingrediënten uit je voorraad overgeslagen.`:'Boodschappenlijst gemaakt.'); }
@@ -4302,7 +4344,9 @@
     const fday=e.target.closest('[data-food-day-index]');if(fday){activeFoodDayIndex=Number(fday.dataset.foodDayIndex);return renderMenu();}
     const repl=e.target.closest('[data-replace-plan]');if(repl)return openReplace(repl.dataset.replacePlan);
     const rmode=e.target.closest('[data-replace-mode]');if(rmode)return replaceMealSmart(rmode.dataset.replaceMode);
-    if(e.target.closest('[data-close-replace]')){replacePlanIndex=null;document.getElementById('replaceMealModal').classList.remove('open');return;}
+    const pick=e.target.closest('[data-pick-replacement]');if(pick)return pickMealReplacement(pick.dataset.pickReplacement);
+    if(e.target.closest('[data-refresh-replacements]'))return showReplacementOptions(replacementMode);
+    if(e.target.closest('[data-close-replace]')){replacementOptions=[];replacePlanIndex=null;document.getElementById('replaceMealModal').classList.remove('open');return;}
     const mealFilter=e.target.closest('[data-recipe-meal-filter]');if(mealFilter){recipeMealFilter=mealFilter.dataset.recipeMealFilter;return renderRecipeLibrary();}
     const tagFilter=e.target.closest('[data-recipe-tag-filter]');if(tagFilter){recipeTagFilter=tagFilter.dataset.recipeTagFilter;return renderRecipeLibrary();}
     const recipeBtn=e.target.closest('[data-recipe]');if(recipeBtn)return openRecipe(recipeBtn.dataset.recipe);
