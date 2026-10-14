@@ -976,6 +976,9 @@
   .focus-guide-panel h3{font-size:22px;line-height:1.2;margin:0}
   .focus-guide-panel .eyebrow,.focus-guide-panel .small-muted{margin:0}
   .focus-guide-options{display:flex;flex-direction:column;gap:9px}
+  .focus-guide-option-row{display:flex;align-items:stretch;gap:8px}
+  .focus-guide-option-row .focus-guide-option{flex:1;min-width:0}
+  .focus-guide-swap{flex:none;min-width:70px;padding:6px 9px;border:1px solid var(--line,#dfe4e8);border-radius:12px;background:var(--card,#fff);font-size:13px;font-weight:700;cursor:pointer}
   .focus-guide-option{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:65px;padding:13px 14px;border:1px solid var(--line,#dfe4e8);border-radius:14px;background:var(--card,#fff);text-align:left;cursor:pointer}
   .focus-guide-option span:first-child{display:flex;flex-direction:column;gap:5px}
   .focus-guide-option strong{font-size:16px}
@@ -4358,27 +4361,37 @@
       state.focusGuide={mode:'',dueAt:0,offset:0,reminded:false};
     return state.focusGuide;
   }
-  function focusGuideOptions(){
-    const today=localDateKey();
-    const habits=(state.habits||[]).filter(h=>{
+
+  function focusGuideCategories(){
+    const today=localDateKey(),energy=Math.max(1,Number(state.energy)||1);
+    // Persoonlijke gewoontes wel, ochtend- en avondroutine voorlopig niet.
+    const excluded=new Set(['habit-morning','habit-evening-reset','habit-evening','habit-day-close']);
+    const routines=(state.habits||[]).filter(h=>{
+      if(excluded.has(h.id)||/^(ochtendroutine|avondreset|avondroutine|dag afsluiten)$/i.test((h.name||'').trim()))return false;
       if(h.history?.[today])return false;
       const kind=recoveryRoutineKind(h);
       return !kind||!selfCareDone(kind);
     });
-    const moving=habits.filter(h=>h.id==='basis-move'||recoveryRoutineKind(h)==='stretch');
-    const relaxing=habits.filter(h=>recoveryRoutineKind(h)==='relax');
-    const routines=habits.filter(h=>!moving.includes(h)&&!relaxing.includes(h));
-    const household=householdVisibleToday().filter(h=>!h.paused&&!householdDoneToday(h));
-    const groups=[['Bewegen','habit',moving],['Ontspannen','habit',relaxing],['Huishouden','household',household],['Routine','habit',routines]];
-    const choices=[];
-    for(let i=0;i<30;i++){
-      let more=false;
-      for(const [category,type,items] of groups){
-        if(items[i]){const item=items[i];choices.push({category,type,id:item.id,name:item.name});more=true;}
-      }
-      if(!more)break;
-    }
-    return choices;
+    // Eerst de klusjes van Vandaag; daarna andere openstaande, passende klusjes.
+    // Wisselen verandert geen geplande klus en zet niets op 'klaar'.
+    const shown=householdVisibleToday().filter(h=>!h.paused&&!householdDoneToday(h));
+    const shownIds=new Set(shown.map(h=>h.id));
+    const skipped=new Set(householdSkipTodayState().taskIds||[]);
+    const others=(state.householdTasks||[])
+      .filter(h=>!shownIds.has(h.id)&&!skipped.has(h.id)&&householdIsDue(h)&&Number(h.effort||1)<=energy)
+      .sort((a,b)=>householdPriority(b)-householdPriority(a));
+    const household=[...shown,...others];
+    // Dezelfde taken als in Vandaag/de Taken-widget, met andere actieve A-taken
+    // als alternatieven; uitstellen of afvinken gebeurt uitsluitend op verzoek.
+    const planned=(state.todayPlan?.taskIds||[]).map(id=>state.tasks.find(t=>t.id===id)).filter(t=>t&&isEligibleToday(t));
+    const chosen=new Set(planned.map(t=>t.id));
+    const otherTasks=state.tasks.filter(t=>isEligibleToday(t)&&!chosen.has(t.id)).sort(compareTaskPriority);
+    const tasks=[...planned,...otherTasks];
+    return [
+      {key:'routine',label:'Routine',type:'habit',items:routines},
+      {key:'household',label:'Huishouden',type:'household',items:household},
+      {key:'task',label:'Taak',type:'task',items:tasks}
+    ];
   }
   function focusGuideMarkup(){
     const g=focusGuideState();
@@ -4388,24 +4401,41 @@
         +'<p class="small-muted">Je hoeft nu niets. Over ongeveer '+min+' minuten helpen we je weer op weg.</p>'
         +'<button type="button" class="secondary-button" data-focus-guide-resume>Ik wil weer verder</button></div>';
     }
-    const all=focusGuideOptions(),n=all.length,offset=n?Number(g.offset||0)%n:0;
-    const picks=n?Array.from({length:Math.min(3,n)},(_,i)=>all[(offset+i)%n]):[];
+    if(!g.offsets||typeof g.offsets!=='object')g.offsets={routine:0,household:0,task:0};
+    const groups=focusGuideCategories().filter(x=>x.items.length);
+    const picks=groups.slice(0,3).map(group=>{
+      const n=group.items.length,offset=Math.max(0,Number(g.offsets[group.key])||0)%n;
+      const item=group.items[offset];
+      return '<div class="focus-guide-option-row">'
+        +'<button type="button" class="focus-guide-option" data-focus-guide-pick="'+escapeHtml(group.type+'|'+item.id)+'">'
+        +'<span><strong>'+escapeHtml(item.name)+'</strong><small>'+escapeHtml(group.label)+'</small></span><span aria-hidden="true">›</span></button>'
+        +(n>1?'<button type="button" class="focus-guide-swap" data-focus-guide-swap="'+group.key+'" aria-label="Andere '+escapeHtml(group.label.toLowerCase())+' kiezen">Andere</button>':'')
+        +'</div>';
+    });
+    const hasAlternatives=groups.some(x=>x.items.length>1);
     return '<div class="focus-guide-panel" aria-live="polite"><p class="eyebrow">FOCUS AFGEROND</p>'
-      +'<h3>Wat kan ik nu doen?</h3><p class="small-muted">Kies iets kleins dat bij je past.</p>'
+      +'<h3>Wat kan ik nu doen?</h3><p class="small-muted">Drie kleine mogelijkheden. Wat je nu overslaat blijft gewoon openstaan.</p>'
       +(g.reminded?'<p class="focus-guide-reminded">Zullen we weer iets oppakken? Of nog even pauze.</p>':'')
-      +(picks.length?'<div class="focus-guide-options">'+picks.map(x=>
-        '<button type="button" class="focus-guide-option" data-focus-guide-pick="'+escapeHtml(x.type+'|'+x.id)+'">'
-        +'<span><strong>'+escapeHtml(x.name)+'</strong><small>'+escapeHtml(x.category)+'</small></span><span aria-hidden="true">›</span></button>').join('')+'</div>'
-        :'<p class="small-muted">Je vier vaste categorieën zijn voor nu afgerond.</p>')
-      +(n>3?'<button type="button" class="secondary-button focus-guide-other" data-focus-guide-other>Andere keuzes</button>':'')
+      +(picks.length?'<div class="focus-guide-options">'+picks.join('')+'</div>'
+        :'<p class="small-muted">Er staan nu geen passende routines, klusjes of taken open.</p>')
+      +(hasAlternatives?'<button type="button" class="secondary-button focus-guide-other" data-focus-guide-other>Andere suggesties</button>':'')
       +'<div class="focus-guide-rest"><strong>Even helemaal niks</strong>'
       +'<p class="small-muted">Geen opdracht. Wanneer wil je weer een zacht seintje?</p>'
       +'<div class="focus-guide-break-buttons">'+[10,20,30].map(m=>
         '<button type="button" class="secondary-button" data-focus-guide-break="'+m+'">'+m+' min</button>').join('')+'</div></div>'
       +'<button type="button" class="focus-guide-later" data-focus-guide-later>Nu nog niet kiezen</button></div>';
   }
+  function focusGuideSwap(key){
+    const group=focusGuideCategories().find(g=>g.key===key);
+    if(!group||group.items.length<2)return;
+    const guide=focusGuideState();
+    guide.offsets||={routine:0,household:0,task:0};
+    guide.offsets[key]=(Math.max(0,Number(guide.offsets[key])||0)+1)%group.items.length;
+    // Alleen de getoonde suggestie wisselt. De taak en zijn widgetstatus niet.
+    saveState();renderFocus();
+  }
   function openFocusNextGuide(){
-    const g=focusGuideState();g.mode='choose';g.dueAt=Date.now()+15*60000;g.offset=0;g.reminded=false;
+    const g=focusGuideState();g.mode='choose';g.dueAt=Date.now()+15*60000;g.offsets={routine:0,household:0,task:0};g.reminded=false;
     saveState();setDailyTab('focus');renderFocus();
   }
   function focusGuideBreak(minutes){
@@ -4902,7 +4932,15 @@
     if(e.target.closest('[data-focus-finish-stop]')){stopFocusCountdown();saveState();setDailyTab('start');return renderToday();}
     const guidePick=e.target.closest('[data-focus-guide-pick]');
     if(guidePick){const [type,id]=(guidePick.dataset.focusGuidePick||'').split('|');return selectFocusItem(type,id);}
-    if(e.target.closest('[data-focus-guide-other]')){const g=focusGuideState();g.offset=Number(g.offset||0)+3;saveState();return renderFocus();}
+    const guideSwap=e.target.closest('[data-focus-guide-swap]');
+    if(guideSwap)return focusGuideSwap(guideSwap.dataset.focusGuideSwap);
+    if(e.target.closest('[data-focus-guide-other]')){
+      for(const group of focusGuideCategories())if(group.items.length>1){
+        const g=focusGuideState();g.offsets||={routine:0,household:0,task:0};
+        g.offsets[group.key]=(Math.max(0,Number(g.offsets[group.key])||0)+1)%group.items.length;
+      }
+      saveState();return renderFocus();
+    }
     const guideBreak=e.target.closest('[data-focus-guide-break]');
     if(guideBreak)return focusGuideBreak(Number(guideBreak.dataset.focusGuideBreak));
     if(e.target.closest('[data-focus-guide-resume]'))return focusGuideResume();
