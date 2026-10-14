@@ -4406,10 +4406,9 @@
 
   function focusGuideCategories(){
     const today=localDateKey(),energy=Math.max(1,Number(state.energy)||1);
-    // Persoonlijke gewoontes wel, ochtend- en avondroutine voorlopig niet.
-    const excluded=new Set(['habit-morning','habit-evening-reset','habit-evening','habit-day-close']);
+    // Alle nog openstaande routines (ook ochtend- en avondroutines)
+    // zijn mogelijke Focus-suggesties; dit verandert hun afvinkstatus niet.
     const routines=(state.habits||[]).filter(h=>{
-      if(excluded.has(h.id)||/^(ochtendroutine|avondreset|avondroutine|dag afsluiten)$/i.test((h.name||'').trim()))return false;
       if(h.history?.[today])return false;
       const kind=recoveryRoutineKind(h);
       return !kind||!selfCareDone(kind);
