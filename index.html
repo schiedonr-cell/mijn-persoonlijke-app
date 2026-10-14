@@ -989,6 +989,20 @@
   .focus-guide-break-buttons button{flex:1;min-width:0;min-height:48px;padding:9px 4px;font-size:14px}
   .focus-guide-later{align-self:center;border:0;background:transparent;text-decoration:underline;padding:11px;cursor:pointer;opacity:.75}
   .focus-guide-reminded{padding:11px;border-radius:10px;background:rgba(120,130,150,.10);font-size:14px}
+  .gvb-practice-card{margin-top:12px}
+  .gvb-practice-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .gvb-practice-head h3{margin:0 0 4px}
+  .gvb-practice-head p{margin:0}
+  .gvb-practice-toggle{width:auto;min-height:45px;padding:10px 14px}
+  .gvb-practice-sections{display:flex;flex-direction:column;gap:14px;margin-top:16px}
+  .gvb-practice-group h4{margin:0 0 9px;font-size:16px}
+  .gvb-practice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .gvb-practice-block{padding:12px;border:1px solid var(--line,#dfe4e8);border-radius:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .gvb-practice-block-top{display:flex;justify-content:space-between;align-items:center;gap:6px}
+  .gvb-practice-block-top small{font-size:11px;opacity:.65;text-align:right}
+  .gvb-practice-block input{min-width:0;width:100%;font-size:14px;padding:8px}
+  .gvb-practice-block button{min-height:48px;width:100%;font-size:14px}
+  .gvb-practice-done{opacity:.7}
   .focus-alternative-panel{margin-top:16px}
   .focus-alternative-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
   .focus-alternative-head h3{margin-top:4px}
@@ -1150,6 +1164,7 @@
 
         <div class="daily-panel" data-daily-panel="focus">
           <div class="section-card" id="focusCard"></div>
+          <div class="section-card gvb-practice-card" id="gvbPracticePanel"></div>
         </div>
 
         <div class="daily-panel" data-daily-panel="shutdown">
@@ -1660,6 +1675,7 @@
     dayTimeline: { date: null, alarms: false, blocks: [], sourceText: '', overnightAllowed: false, preferredMealFirstId: '', manualOrderIds: [] },
     dayTimelineFocus: null,
     focusGuide: {mode:'',dueAt:0,offset:0,reminded:false},
+    gvbPractice: {days:{}},
     dump: [],
     dayClosedDate: null,
     focus: { taskId: null, targetType: null, targetId: null, durationSec: 300, remainingSec: 300, running: false, endsAt: 0, soundEnabled: true, finishPending:false },
@@ -4218,6 +4234,11 @@
   function nextOpenSubtask(task){ return task?.subtasks?.find(s=>!s.done)?.name||''; }
   function focusItemByType(type,id){
     const today=localDateKey();
+    if(type==='gvb'){
+      const block=gvbBlockDef(id);
+      if(!block||(state.focus.gvbDate&&state.focus.gvbDate!==today)||gvbDayState().done.includes(id))return null;
+      return {type:'gvb',id,item:{name:gvbBlockName(block),description:gvbDayState().topics[id]||'45 minuten GVB oefenen op jouw manier.'}};
+    }
     if(type==='task'){const item=state.tasks.find(t=>t.id===id&&!t.done);return item?{type:'task',id:item.id,item}:null;}
     if(type==='habit'){const item=state.habits.find(h=>h.id===id&&!h.history?.[today]);return item?{type:'habit',id:item.id,item}:null;}
     if(type==='household'){const item=state.householdTasks.find(h=>h.id===id&&!householdDoneToday(h));return item?{type:'household',id:item.id,item}:null;}
@@ -4232,8 +4253,8 @@
     const household=householdVisibleToday().find(h=>!householdDoneToday(h));if(household)return {type:'household',id:household.id,item:household};
     return null;
   }
-  function focusItemLabel(type){return type==='habit'?'Daganker':type==='household'?'Huishouden':'Taak';}
-  function focusItemDoneLabel(type){return type==='habit'?'Daganker klaar':type==='household'?'Huishoudtaak klaar':'Taak klaar';}
+  function focusItemLabel(type){return type==='gvb'?'GVB oefenen':type==='habit'?'Daganker':type==='household'?'Huishouden':'Taak';}
+  function focusItemDoneLabel(type){return type==='gvb'?'Oefenblok klaar':type==='habit'?'Daganker klaar':type==='household'?'Huishoudtaak klaar':'Taak klaar';}
   function focusItemStep(entry){
     if(!entry)return '';const x=entry.item;
     if(entry.type==='task')return nextOpenSubtask(x)||'Eén ding tegelijk.';
@@ -4343,8 +4364,8 @@
       const offset=Math.max(0,Number(focusAlternativeOffsets[group.key])||0)%group.items.length;
       const item=group.items[offset];
       return '<div class="focus-guide-option-row">'
-        +'<button type="button" class="focus-guide-option" data-focus-alternative-pick="'+escapeHtml(group.type+'|'+item.id)+'">'
-        +'<span><strong>'+escapeHtml(item.name)+'</strong><small>'+escapeHtml(group.label)+'</small></span><span aria-hidden="true">›</span></button>'
+        +'<button type="button" class="focus-guide-option" data-focus-alternative-pick="'+escapeHtml((item.type||group.type)+'|'+item.id)+'">'
+        +'<span><strong>'+escapeHtml(item.name)+'</strong><small>'+escapeHtml(item.categoryLabel||group.label)+'</small></span><span aria-hidden="true">›</span></button>'
         +(group.items.length>1?'<button type="button" class="focus-guide-swap" data-focus-alternative-swap="'+group.key+'" aria-label="Andere '+escapeHtml(group.label.toLowerCase())+' kiezen">Andere</button>':'')
         +'</div>';
     });
@@ -4370,6 +4391,7 @@
     renderFocus();
   }
   function selectFocusItem(type,id){
+    if(type==='gvb')return selectGvbBlock(id);
     if(activeDayPlanFocus()){
       if(!confirm('Er loopt nog een dagblok in Focus. Stoppen en een ander onderdeel kiezen?'))return;
       clearDayPlanFocus();
@@ -4379,6 +4401,13 @@
     stopFocusCountdown();state.focus.targetType=type;state.focus.targetId=id;state.focus.taskId=type==='task'?id:null;state.focus.remainingSec=state.focus.durationSec||300;saveState();setDailyTab('focus'); }
   function selectFocusTask(id){selectFocusItem('task',id);}
   function completeFocusItem(type,id){
+    if(type==='gvb'){
+      if(state.focus.gvbDate!==localDateKey()||!gvbBlockDef(id))return false;
+      const day=gvbDayState();if(day.done.includes(id))return false;
+      focusCountdownSync();stopFocusCountdown();
+      day.done.push(id);state.focus.targetType=null;state.focus.targetId=null;state.focus.taskId=null;
+      saveState();renderGvbPractice();renderFocus();showToast('GVB-oefenblok afgerond.');return true;
+    }
     if(type==='task'){const t=state.tasks.find(x=>x.id===id);if(t)return markTask(t,true);return;}
     focusCountdownSync();stopFocusCountdown();const today=localDateKey();state.focus.targetType=null;state.focus.targetId=null;state.focus.taskId=null;
     if(type==='habit'){
@@ -4416,6 +4445,93 @@
     return state.focusGuide;
   }
 
+
+
+  // GVB staat los van de 1/2/3 belangrijke taken. Geen vaste kloktijden.
+  const GVB_BLOCKS=[
+    {id:'o1',daypart:'Ochtend',slot:1,optional:false},
+    {id:'o2',daypart:'Ochtend',slot:2,optional:false},
+    {id:'m1',daypart:'Middag',slot:1,optional:false},
+    {id:'m2',daypart:'Middag',slot:2,optional:false},
+    {id:'a1',daypart:'Avond',slot:1,optional:true},
+    {id:'a2',daypart:'Avond',slot:2,optional:true}
+  ];
+  let gvbBoardExpanded=false;
+  function gvbBlockDef(id){return GVB_BLOCKS.find(b=>b.id===id)||null;}
+  function gvbBlockName(b){return 'GVB · '+b.daypart+' '+b.slot;}
+  function gvbDayState(){
+    if(!state.gvbPractice||typeof state.gvbPractice!=='object')state.gvbPractice={days:{}};
+    if(!state.gvbPractice.days||typeof state.gvbPractice.days!=='object')state.gvbPractice.days={};
+    const today=localDateKey(),days=state.gvbPractice.days;
+    if(!days[today]||typeof days[today]!=='object')days[today]={done:[],topics:{}};
+    const day=days[today];
+    if(!Array.isArray(day.done))day.done=[];
+    if(!day.topics||typeof day.topics!=='object')day.topics={};
+    return day;
+  }
+  function gvbOpenBlocks(optional=false){
+    const done=new Set(gvbDayState().done);
+    return GVB_BLOCKS.filter(b=>b.optional===optional&&!done.has(b.id));
+  }
+  function gvbPracticeMarkup(){
+    const day=gvbDayState(),done=new Set(day.done);
+    const count=GVB_BLOCKS.filter(b=>!b.optional&&done.has(b.id)).length;
+    const extras=GVB_BLOCKS.filter(b=>b.optional&&done.has(b.id)).length;
+    const groups=[
+      {title:'Ochtend',blocks:GVB_BLOCKS.slice(0,2)},
+      {title:'Middag',blocks:GVB_BLOCKS.slice(2,4)},
+      {title:'Avond · optioneel',blocks:GVB_BLOCKS.slice(4,6)}
+    ];
+    return '<div class="gvb-practice-head"><div><h3>GVB oefenen</h3>'
+      +'<p class="small-muted">'+count+' van 4 vaste blokken · '+extras+' van 2 extra'
+      +' · 45 minuten per blok</p></div>'
+      +'<button type="button" class="secondary-button gvb-practice-toggle" data-gvb-toggle>'
+      +(gvbBoardExpanded?'Sluiten':'Blokken bekijken')+'</button></div>'
+      +(gvbBoardExpanded?'<div class="gvb-practice-sections">'
+        +'<p class="small-muted">Geen vaste tijden. Kies wanneer het past. De avondblokken zijn extra.</p>'
+        +groups.map(group=>'<div class="gvb-practice-group"><h4>'+group.title+'</h4>'
+          +'<div class="gvb-practice-grid">'+group.blocks.map(b=>{
+            const isDone=done.has(b.id),name=gvbBlockName(b),topic=day.topics[b.id]||'';
+            return '<div class="gvb-practice-block '+(isDone?'gvb-practice-done':'')+'">'
+              +'<div class="gvb-practice-block-top"><strong>Blok '+b.slot+'</strong>'
+              +'<small>'+(isDone?'Afgerond':'45 minuten')+'</small></div>'
+              +'<input type="text" class="text-input" maxlength="100" data-gvb-topic="'+b.id+'"'
+              +' placeholder="Wat ga je oefenen?" aria-label="Onderwerp voor '+escapeHtml(name)+'"'
+              +' value="'+escapeHtml(topic)+'" />'
+              +(isDone?'<button type="button" class="secondary-button" data-gvb-undo="'+b.id+'">Opnieuw openzetten</button>'
+                :'<button type="button" class="primary-button" data-gvb-select="'+b.id+'">Kies dit blok</button>')
+              +'</div>';
+          }).join('')+'</div></div>').join('')+'</div>':'');
+  }
+  function renderGvbPractice(){
+    const el=document.getElementById('gvbPracticePanel');
+    if(el)el.innerHTML=gvbPracticeMarkup();
+  }
+  function selectGvbBlock(id){
+    const b=gvbBlockDef(id);
+    if(!b||gvbDayState().done.includes(id))return showToast('Dit GVB-blok is al afgerond.');
+    if(state.focus.running||activeDayPlanFocus()){
+      if(state.focus.targetType==='gvb'&&state.focus.targetId===id&&!activeDayPlanFocus()){
+        gvbBoardExpanded=false;return setDailyTab('focus');
+      }
+      if(!confirm('Er loopt al een Focus. Stoppen en dit GVB-blok kiezen?'))return;
+    }
+    if(activeDayPlanFocus())clearDayPlanFocus();
+    stopFocusCountdown();
+    focusAlternativeOpen=false;
+    if(focusGuideState().mode==='choose')focusGuideState().mode='waiting';
+    state.focus.targetType='gvb';state.focus.targetId=id;state.focus.taskId=null;
+    state.focus.gvbDate=localDateKey();
+    state.focus.durationSec=45*60;state.focus.remainingSec=45*60;
+    state.focus.running=false;state.focus.endsAt=0;state.focus.finishPending=false;
+    gvbBoardExpanded=false;
+    saveState();setDailyTab('focus');
+  }
+  function undoGvbBlock(id){
+    if(!gvbBlockDef(id))return;
+    const day=gvbDayState();day.done=day.done.filter(x=>x!==id);
+    saveState();renderGvbPractice();showToast('GVB-blok weer open.');
+  }
 
   // Eenmalige vervolgherinnering via de bestaande Android-alarmservice.
   const FOCUS_GUIDE_ALARM_ID='focus-guide-next';
@@ -4477,10 +4593,12 @@
     if(state.dayQuickTasks?.date===today)(state.dayQuickTasks.taskIds||[]).forEach(addTask);
     state.tasks.filter(t=>isEligibleToday(t)&&!chosen.has(t.id))
       .sort(compareTaskPriority).forEach(t=>addTask(t.id));
+    const gvbItems=gvbOpenBlocks(false).map(b=>({id:b.id,name:gvbBlockName(b),type:'gvb',categoryLabel:'GVB · 45 min'}));
+    const extraGvb=gvbOpenBlocks(true).map(b=>({id:b.id,name:gvbBlockName(b),type:'gvb',categoryLabel:'GVB · extra'}));
     return [
       {key:'routine',label:'Routine',type:'habit',items:routines},
       {key:'household',label:'Huishouden',type:'household',items:household},
-      {key:'task',label:'Taak',type:'task',items:tasks}
+      {key:'task',label:'Taak / GVB',type:'task',items:[...gvbItems,...tasks,...extraGvb]}
     ];
   }
   function focusGuideMarkup(){
@@ -4497,8 +4615,8 @@
       const n=group.items.length,offset=Math.max(0,Number(g.offsets[group.key])||0)%n;
       const item=group.items[offset];
       return '<div class="focus-guide-option-row">'
-        +'<button type="button" class="focus-guide-option" data-focus-guide-pick="'+escapeHtml(group.type+'|'+item.id)+'">'
-        +'<span><strong>'+escapeHtml(item.name)+'</strong><small>'+escapeHtml(group.label)+'</small></span><span aria-hidden="true">›</span></button>'
+        +'<button type="button" class="focus-guide-option" data-focus-guide-pick="'+escapeHtml((item.type||group.type)+'|'+item.id)+'">'
+        +'<span><strong>'+escapeHtml(item.name)+'</strong><small>'+escapeHtml(item.categoryLabel||group.label)+'</small></span><span aria-hidden="true">›</span></button>'
         +(n>1?'<button type="button" class="focus-guide-swap" data-focus-guide-swap="'+group.key+'" aria-label="Andere '+escapeHtml(group.label.toLowerCase())+' kiezen">Andere</button>':'')
         +'</div>';
     });
@@ -4574,6 +4692,7 @@
 
   function renderFocus(){
     focusCountdownSync();
+    renderGvbPractice();
     const activeDay=activeDayPlanFocus();
     if(activeDay){
       const wrap=document.getElementById('focusCard');
@@ -5036,6 +5155,11 @@
     if(guideBreak)return focusGuideBreak(Number(guideBreak.dataset.focusGuideBreak));
     if(e.target.closest('[data-focus-guide-resume]'))return focusGuideResume();
     if(e.target.closest('[data-focus-guide-later]')){focusGuideState().mode='waiting';saveState();return renderFocus();}
+    if(e.target.closest('[data-gvb-toggle]')){gvbBoardExpanded=!gvbBoardExpanded;return renderGvbPractice();}
+    const gvbSelect=e.target.closest('[data-gvb-select]');
+    if(gvbSelect)return selectGvbBlock(gvbSelect.dataset.gvbSelect);
+    const gvbUndo=e.target.closest('[data-gvb-undo]');
+    if(gvbUndo)return undoGvbBlock(gvbUndo.dataset.gvbUndo);
     if(e.target.closest('#chooseFocusTaskButton'))return toggleFocusAlternatives();
     if(e.target.closest('[data-focus-alternative-close]')){focusAlternativeOpen=false;return renderFocus();}
     const focusAltSwap=e.target.closest('[data-focus-alternative-swap]');
@@ -5293,6 +5417,14 @@
     if(e.target.matches('#taskActionBucket')){const t=state.tasks.find(x=>x.id===activeTaskActionId),bucket=e.target.value;if(t&&['A','B','C','D'].includes(bucket)){t.bucket=bucket;t.paused=false;t.deferUntil='';if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderAllTasks();renderToday();document.getElementById('taskActionMeta').textContent='Taak verplaatst.';}}
     if(e.target.matches('[data-move-task]')){const t=state.tasks.find(x=>x.id===e.target.dataset.moveTask),bucket=e.target.value;if(t&&['A','B','C','D'].includes(bucket)){t.bucket=bucket;t.paused=false;t.deferUntil='';if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderAllTasks();renderToday();showToast('Taak verplaatst.');}}
     if(e.target.matches('[data-shopping-check]')){const item=state.shopping.find(x=>x.id===e.target.dataset.shoppingCheck);if(item){item.done=e.target.checked;saveState();renderShopping();}}
+    if(e.target.matches('[data-gvb-topic]')){
+      const id=e.target.dataset.gvbTopic;
+      if(gvbBlockDef(id)){
+        gvbDayState().topics[id]=e.target.value.trim().slice(0,100);
+        saveState();
+        if(state.focus.targetType==='gvb'&&state.focus.targetId===id)renderFocus();
+      }
+    }
     if(e.target.matches('#focusSoundToggle')){state.focus.soundEnabled=e.target.checked;if(e.target.checked)ensureFocusAudio();saveState();showToast(e.target.checked?'Focussignaal aan.':'Focussignaal uit.');}
     if(e.target.matches('#habitEnergyAdaptive'))updateHabitOptionVisibility();
     if(e.target.matches('#householdFrequency'))updateHouseholdFrequencyVisibility();
