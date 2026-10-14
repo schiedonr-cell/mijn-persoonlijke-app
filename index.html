@@ -2990,9 +2990,10 @@
     }
     return true;
   }
-  let recoveryManualMode=false,recoveryCustomMinutes='';
-  function openRecoveryManual(kind){
+  let recoveryManualMode=false,recoveryCustomMinutes='',focusRecoveryInputPending=false;
+  function openRecoveryManual(kind,fromFocus=false){
     if(recoveryActive())return showToast('Rond je lopende rustmoment eerst af.');
+    focusRecoveryInputPending=fromFocus;
     recoveryKind=kind==='stretch'?'stretchen':'zitten';
     recoveryMinutes=5;
     recoveryCustomMinutes='';
@@ -3108,7 +3109,10 @@
     recoveryCustomMinutes='';
     renderRecoveryPanel();
     showToast(minutes+' minuten geregistreerd voor '+(recoveryKind==='stretchen'?'Stretchen':'Bewust ontspannen')+'.');
-    showDayPlanNextPicker(false);
+    if(focusRecoveryInputPending){
+      focusRecoveryInputPending=false;
+      openFocusNextGuide();
+    }else showDayPlanNextPicker(false);
     return true;
   }
   function recoveryStop(){
@@ -4382,10 +4386,16 @@
         const elapsed=Math.max(0,Math.floor(((state.focus.durationSec||0)-(state.focus.remainingSec||0))/60));
         saveState();setDailyTab('start');
         if(elapsed>0){
-          recordRecoverySession(routineKind==='stretch'?'stretchen':'zitten',elapsed,'focus');
-          showToast(elapsed+' minuten toegevoegd aan '+h.name+'.');
-        }else openRecoveryManual(routineKind);
-        return;
+          if(recordRecoverySession(routineKind==='stretch'?'stretchen':'zitten',elapsed,'focus')){
+            showToast(elapsed+' minuten toegevoegd aan '+h.name+'.');
+            return true;
+          }
+          showToast('De minuten konden niet worden opgeslagen. Vul ze zelf in.');
+        }
+        // Zonder gelopen timer eerst de gedane minuten registreren.
+        // Pas na opslaan mag de Focus-doorstap de invoer vervangen.
+        openRecoveryManual(routineKind,true);
+        return false;
       }
       h.history||={};h.versionHistory||={};h.history[today]=true;
       if(h.energyAdaptive){const version=habitSelectedVersion(h,today);h.versionHistory[today]=version;setHabitSelectedVersion(h,version,today);}
@@ -4530,8 +4540,9 @@
   function finishStandardFocus(){
     const entry=focusItemByType(state.focus.targetType,state.focus.targetId);
     if(!entry)return showToast('Dit onderdeel staat niet meer open.');
-    completeFocusItem(entry.type,entry.id);
-    state.focus.finishPending=false;openFocusNextGuide();
+    const logged=completeFocusItem(entry.type,entry.id);
+    state.focus.finishPending=false;
+    if(logged!==false)openFocusNextGuide();
   }
 
   function renderFocus(){
@@ -5010,7 +5021,12 @@
       if(current&&!confirm('Er loopt nog een Focus. Stoppen en deze andere activiteit kiezen?'))return;
       return selectFocusItem(type,id);
     }
-    const focusDone=e.target.closest('[data-focus-done]');if(focusDone){const [type,id]=focusDone.dataset.focusDone.split('|');completeFocusItem(type,id);return openFocusNextGuide();}
+    const focusDone=e.target.closest('[data-focus-done]');if(focusDone){
+      const [type,id]=focusDone.dataset.focusDone.split('|');
+      const logged=completeFocusItem(type,id);
+      if(logged!==false)return openFocusNextGuide();
+      return;
+    }
     const doneNow=e.target.closest('[data-task-done-now]');if(doneNow){const t=state.tasks.find(x=>x.id===doneNow.dataset.taskDoneNow);if(t)return markTask(t,true);}
     const pause=e.target.closest('[data-toggle-pause]');if(pause){const t=state.tasks.find(x=>x.id===pause.dataset.togglePause);if(t){t.paused=!t.paused;if(t.paused)t.deferUntil='';refillTodayPlan(true);saveState();renderAllTasks();renderToday();renderShutdown();}return;}
     const tomorrow=e.target.closest('[data-tomorrow]');if(tomorrow){const t=state.tasks.find(x=>x.id===tomorrow.dataset.tomorrow);if(t){t.deferUntil=addDaysKey(1);t.paused=false;state.todayPlan.taskIds=state.todayPlan.taskIds.filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderToday();renderAllTasks();renderShutdown();showToast('Taak staat voor morgen.');}return;}
