@@ -989,6 +989,18 @@
   .focus-guide-break-buttons button{flex:1;min-width:0;min-height:48px;padding:9px 4px;font-size:14px}
   .focus-guide-later{align-self:center;border:0;background:transparent;text-decoration:underline;padding:11px;cursor:pointer;opacity:.75}
   .focus-guide-reminded{padding:11px;border-radius:10px;background:rgba(120,130,150,.10);font-size:14px}
+  .gvb-inline-summary{margin-top:16px;padding:13px;border:1px solid var(--line,#dfe4e8);border-radius:16px}
+  .gvb-inline-title{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .gvb-inline-title span{font-size:13px;opacity:.7}
+  .gvb-inline-summary .small-muted{margin:6px 0 12px}
+  .gvb-inline-row{display:flex;align-items:center;gap:8px;min-height:41px;border-top:1px solid var(--line,#e6e8e5);font-size:13px}
+  .gvb-inline-check{width:17px;flex-shrink:0}
+  .gvb-inline-text{flex:1;min-width:0;overflow-wrap:anywhere}
+  .gvb-inline-completed{text-decoration:line-through;opacity:.6}
+  .gvb-inline-length{font-size:11px;white-space:nowrap;opacity:.7}
+  .gvb-inline-action{min-width:54px;min-height:36px;padding:5px 8px;border:1px solid var(--line,#dfe4e8);border-radius:10px;background:transparent;color:inherit;font-weight:600}
+  .gvb-inline-extra-title{font-size:12px;font-weight:700;margin:12px 0 4px}
+  .gvb-inline-open{margin-top:12px;width:100%}
   .gvb-practice-card{margin-top:12px}
   .gvb-practice-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .gvb-practice-head h3{margin:0 0 4px}
@@ -1094,6 +1106,7 @@
                 <button class="secondary-button" id="clearDayPlanButton" style="display:none;">Planning wissen</button>
               </div>
               <div id="dayPlanList" class="day-plan-list"></div>
+              <div id="gvbDayPlanSummary" class="gvb-inline-summary"></div>
             </div>
 
             <div class="section-card today-section-card" id="todayTasksBlock">
@@ -1102,6 +1115,7 @@
                 <span class="small-muted" id="taskCounter">0 / 2</span>
               </div>
               <div class="task-list" id="taskList"></div>
+              <div id="gvbTasksSummary" class="gvb-inline-summary"></div>
               <button class="primary-button" id="addTaskButton">+ Taak toevoegen</button>
               <div class="limit-note" id="taskLimitNote"></div>
             </div>
@@ -3804,6 +3818,7 @@
     renderDayPlanNextPicker();
     renderUntimedOrderEditor();
     renderRecoveryPanel();
+    renderGvbSummaries();
     const plan=state.dayTimeline||{blocks:[]},active=dayPlanIsCurrent(plan);
     refreshDayPlanFocusPanels();
     if(active)(plan.blocks||[]).filter(dayPlanBlockDone).forEach(b=>{try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}});
@@ -4068,6 +4083,7 @@
     document.getElementById('taskCounter').textContent=`${planned.length} / ${limit}`;
     document.getElementById('taskLimitNote').textContent=planned.length>=limit?`Je dag zit op maximaal ${limit} belangrijke ${limit===1?'taak':'taken'}.`:`Nog ${limit-planned.length} ${limit-planned.length===1?'plek':'plekken'} beschikbaar.`;
     document.getElementById('taskList').innerHTML=planned.length?planned.map(t=>renderTaskCard(t)).join(''):`<div class="empty-state">Nog geen belangrijke taak voor vandaag.</div>`;
+    renderGvbSummaries();
     renderTodayAgenda();
     saveState();
     syncTimedAlarms();
@@ -4406,7 +4422,7 @@
       const day=gvbDayState();if(day.done.includes(id))return false;
       focusCountdownSync();stopFocusCountdown();
       day.done.push(id);state.focus.targetType=null;state.focus.targetId=null;state.focus.taskId=null;
-      saveState();renderGvbPractice();renderFocus();showToast('GVB-oefenblok afgerond.');return true;
+      saveState();renderGvbPractice();renderGvbSummaries();renderFocus();showToast('GVB-oefenblok afgerond.');return true;
     }
     if(type==='task'){const t=state.tasks.find(x=>x.id===id);if(t)return markTask(t,true);return;}
     focusCountdownSync();stopFocusCountdown();const today=localDateKey();state.focus.targetType=null;state.focus.targetId=null;state.focus.taskId=null;
@@ -4507,6 +4523,45 @@
     const el=document.getElementById('gvbPracticePanel');
     if(el)el.innerHTML=gvbPracticeMarkup();
   }
+
+  function gvbInlineRows(blocks,day){
+    return blocks.map(b=>{
+      const finished=day.done.includes(b.id);
+      const topic=day.topics[b.id]||'';
+      const name=gvbBlockName(b)+(topic?' · '+topic:'');
+      return '<div class="gvb-inline-row">'
+        +'<span class="gvb-inline-check">'+(finished?'✓':'○')+'</span>'
+        +'<span class="gvb-inline-text'+(finished?' gvb-inline-completed':'')+'">'
+        +escapeHtml(name)+'</span>'
+        +'<span class="gvb-inline-length">'+(finished?'Klaar':'45 min')+'</span>'
+        +(!finished?'<button type="button" class="gvb-inline-action" data-gvb-select="'+b.id+'">Focus</button>':'')
+        +'</div>';
+    }).join('');
+  }
+  function renderGvbSummaries(){
+    const day=gvbDayState();
+    const finished=GVB_BLOCKS.slice(0,4).filter(b=>day.done.includes(b.id)).length;
+    const extra=GVB_BLOCKS.slice(4).filter(b=>day.done.includes(b.id)).length;
+    const plan=document.getElementById('gvbDayPlanSummary');
+    if(plan)plan.innerHTML='<div class="gvb-inline-title"><strong>GVB oefenen</strong>'
+      +'<span>'+finished+' / 4 vaste blokken</span></div>'
+      +'<p class="small-muted">Zonder vaste tijden · onafhankelijk van je energie.</p>'
+      +gvbInlineRows(GVB_BLOCKS.slice(0,4),day)
+      +'<p class="gvb-inline-extra-title">Avond · optioneel ('+extra+' / 2)</p>'
+      +gvbInlineRows(GVB_BLOCKS.slice(4),day);
+    const tasks=document.getElementById('gvbTasksSummary');
+    if(tasks){
+      const open=GVB_BLOCKS.filter(b=>!day.done.includes(b.id));
+      tasks.innerHTML='<div class="gvb-inline-title"><strong>GVB oefenen</strong>'
+        +'<span>'+finished+' / 4 · '+extra+' extra</span></div>'
+        +'<p class="small-muted">Oefenblokken tellen niet mee voor je belangrijkste taken.</p>'
+        +(open.length?gvbInlineRows(open.slice(0,3),day):
+           '<p class="small-muted">Alle GVB-blokken voor vandaag afgerond.</p>')
+        +'<button type="button" class="secondary-button gvb-inline-open" data-gvb-show-all>'
+        +'Alle GVB-blokken bekijken</button>';
+    }
+  }
+
   function selectGvbBlock(id){
     const b=gvbBlockDef(id);
     if(!b||gvbDayState().done.includes(id))return showToast('Dit GVB-blok is al afgerond.');
@@ -4530,7 +4585,7 @@
   function undoGvbBlock(id){
     if(!gvbBlockDef(id))return;
     const day=gvbDayState();day.done=day.done.filter(x=>x!==id);
-    saveState();renderGvbPractice();showToast('GVB-blok weer open.');
+    saveState();renderGvbPractice();renderGvbSummaries();showToast('GVB-blok weer open.');
   }
 
   // Eenmalige vervolgherinnering via de bestaande Android-alarmservice.
@@ -4693,6 +4748,7 @@
   function renderFocus(){
     focusCountdownSync();
     renderGvbPractice();
+    renderGvbSummaries();
     const activeDay=activeDayPlanFocus();
     if(activeDay){
       const wrap=document.getElementById('focusCard');
@@ -5155,6 +5211,7 @@
     if(guideBreak)return focusGuideBreak(Number(guideBreak.dataset.focusGuideBreak));
     if(e.target.closest('[data-focus-guide-resume]'))return focusGuideResume();
     if(e.target.closest('[data-focus-guide-later]')){focusGuideState().mode='waiting';saveState();return renderFocus();}
+    if(e.target.closest('[data-gvb-show-all]')){gvbBoardExpanded=true;setDailyTab('focus');document.getElementById('gvbPracticePanel')?.scrollIntoView({behavior:'smooth',block:'start'});return;}
     if(e.target.closest('[data-gvb-toggle]')){gvbBoardExpanded=!gvbBoardExpanded;return renderGvbPractice();}
     const gvbSelect=e.target.closest('[data-gvb-select]');
     if(gvbSelect)return selectGvbBlock(gvbSelect.dataset.gvbSelect);
