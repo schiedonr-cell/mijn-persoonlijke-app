@@ -485,6 +485,9 @@ final class SnapshotStore {
                 out=reordered;
             }
         }
+        // Zet alleen de GVB-oefenblokken terug in hun dagdeel, ook na een
+        // handmatig gekozen dagvolgorde. Alle overige regels houden hun volgorde.
+        out=placeGvbInDayparts(out);
         // Alleen het gemengde overzicht verandert; de vier losse widgets blijven gelijk.
         JSONObject chosen=state.optJSONObject("untimedNext");
         if(chosen!=null&&today.equals(chosen.optString("date"))){
@@ -503,6 +506,83 @@ final class SnapshotStore {
             }
         }
         return out;
+    }
+
+
+    // De GVB-blokken hebben geen vaste kloktijd, maar wél een dagdeel.
+    // De gewone Taken-widget blijft de complete, ongegroepeerde Taken-lijst tonen.
+    private static int mixedIndex(List<JSONObject> rows,String type,String id){
+        for(int i=0;i<rows.size();i++){
+            JSONObject row=rows.get(i);
+            if(type.equals(row.optString("itemType","")) && id.equals(row.optString("itemId","")))return i;
+        }
+        return -1;
+    }
+    private static int mixedDinnerIndex(List<JSONObject> rows){
+        for(int i=0;i<rows.size();i++){
+            String text=rows.get(i).optString("text","").trim().toLowerCase(Locale.forLanguageTag("nl-NL"));
+            if(text.equals("avondeten")||text.startsWith("avondeten ")||
+                    text.equals("diner")||text.startsWith("diner "))return i;
+        }
+        return -1;
+    }
+    private static JSONArray placeGvbInDayparts(JSONArray source){
+        List<JSONObject> other=new ArrayList<>(),morning=new ArrayList<>(),
+                afternoon=new ArrayList<>(),evening=new ArrayList<>();
+        for(int i=0;i<source.length();i++){
+            JSONObject row=source.optJSONObject(i);
+            if(row==null)continue;
+            if(!"gvb".equals(row.optString("itemType",""))){other.add(row);continue;}
+            String id=row.optString("itemId","");
+            if("o1".equals(id)||"o2".equals(id))morning.add(row);
+            else if("m1".equals(id)||"m2".equals(id))afternoon.add(row);
+            else if("a1".equals(id)||"a2".equals(id))evening.add(row);
+            else other.add(row);
+        }
+        if(morning.isEmpty()&&afternoon.isEmpty()&&evening.isEmpty())return source;
+
+        // Ochtend: na de eerste routines/klusjes, maar altijd vóór lunch.
+        int morningAt=mixedIndex(other,"lunch","lunch");
+        if(morningAt<0)morningAt=mixedIndex(other,"habit","basis-move");
+        if(morningAt<0)morningAt=mixedIndex(other,"habit","basis-relax");
+        if(morningAt<0)morningAt=mixedIndex(other,"habit","habit-evening-reset");
+        if(morningAt<0)morningAt=mixedIndex(other,"habit","habit-day-close");
+        if(morningAt<0){
+            morningAt=0;
+            for(int i=0;i<other.size();i++){
+                String type=other.get(i).optString("itemType","");
+                String id=other.get(i).optString("itemId","");
+                if("Agenda".equals(other.get(i).optString("kind",""))||
+                        ("habit".equals(type)&&("habit-morning".equals(id)||"basis-stretch".equals(id))))
+                    morningAt=i+1;
+            }
+        }
+        other.addAll(morningAt,morning);
+
+        // Middag: ná lunch en het beweeganker als dat er nog staat.
+        int lunch=mixedIndex(other,"lunch","lunch");
+        int movement=mixedIndex(other,"habit","basis-move");
+        int afternoonAt=movement>=0&&(lunch<0||movement>lunch)?movement+1:
+                lunch>=0?lunch+1:-1;
+        if(afternoonAt<0)afternoonAt=mixedIndex(other,"habit","basis-relax");
+        if(afternoonAt<0)afternoonAt=mixedIndex(other,"habit","habit-evening-reset");
+        if(afternoonAt<0)afternoonAt=mixedIndex(other,"habit","habit-day-close");
+        if(afternoonAt<0)afternoonAt=other.size();
+        other.addAll(afternoonAt,afternoon);
+
+        // Avond: ná een zichtbaar avondeten; anders bij de avondroutine,
+        // vóór de dagafsluiting. Er wordt géén nep-afspraak toegevoegd.
+        int dinner=mixedDinnerIndex(other);
+        int eveningReset=mixedIndex(other,"habit","habit-evening-reset");
+        int close=mixedIndex(other,"habit","habit-day-close");
+        int eveningAt=dinner>=0?dinner+1:
+                eveningReset>=0?eveningReset+1:
+                close>=0?close:other.size();
+        other.addAll(eveningAt,evening);
+
+        JSONArray ordered=new JSONArray();
+        for(JSONObject row:other)ordered.put(row);
+        return ordered;
     }
 
     private static boolean isMinuteRoutine(JSONArray habits, String id) {
