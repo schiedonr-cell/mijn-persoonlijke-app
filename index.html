@@ -4381,12 +4381,24 @@
       .filter(h=>!shownIds.has(h.id)&&!skipped.has(h.id)&&householdIsDue(h)&&Number(h.effort||1)<=energy)
       .sort((a,b)=>householdPriority(b)-householdPriority(a));
     const household=[...shown,...others];
-    // Dezelfde taken als in Vandaag/de Taken-widget, met andere actieve A-taken
-    // als alternatieven; uitstellen of afvinken gebeurt uitsluitend op verzoek.
-    const planned=(state.todayPlan?.taskIds||[]).map(id=>state.tasks.find(t=>t.id===id)).filter(t=>t&&isEligibleToday(t));
-    const chosen=new Set(planned.map(t=>t.id));
-    const otherTasks=state.tasks.filter(t=>isEligibleToday(t)&&!chosen.has(t.id)).sort(compareTaskPriority);
-    const tasks=[...planned,...otherTasks];
+    // Gebruik dezelfde bronnen als de Vandaag/Taken-widget: gekozen taken én
+    // taken die expliciet als dagblok zijn ingepland, ook buiten bucket A.
+    // Daarna pas snel ingevoegde taken en overige A-taken als alternatieven.
+    const validTask=t=>t&&!t.done&&!t.paused&&(!t.deferUntil||t.deferUntil<=today);
+    const chosen=new Set(),tasks=[];
+    const addTask=id=>{
+      const t=state.tasks.find(x=>x.id===id);
+      if(validTask(t)&&!chosen.has(t.id)){chosen.add(t.id);tasks.push(t);}
+    };
+    if(state.todayPlan?.date===today)(state.todayPlan.taskIds||[]).forEach(addTask);
+    if(state.dayTimeline?.date===today){
+      for(const block of state.dayTimeline.blocks||[]){
+        if(block.linkType==='task'&&!block.postponedTo&&!dayPlanBlockDone(block))addTask(block.linkId);
+      }
+    }
+    if(state.dayQuickTasks?.date===today)(state.dayQuickTasks.taskIds||[]).forEach(addTask);
+    state.tasks.filter(t=>isEligibleToday(t)&&!chosen.has(t.id))
+      .sort(compareTaskPriority).forEach(t=>addTask(t.id));
     return [
       {key:'routine',label:'Routine',type:'habit',items:routines},
       {key:'household',label:'Huishouden',type:'household',items:household},
