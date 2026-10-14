@@ -989,6 +989,10 @@
   .focus-guide-break-buttons button{flex:1;min-width:0;min-height:48px;padding:9px 4px;font-size:14px}
   .focus-guide-later{align-self:center;border:0;background:transparent;text-decoration:underline;padding:11px;cursor:pointer;opacity:.75}
   .focus-guide-reminded{padding:11px;border-radius:10px;background:rgba(120,130,150,.10);font-size:14px}
+  .focus-alternative-panel{margin-top:16px}
+  .focus-alternative-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
+  .focus-alternative-head h3{margin-top:4px}
+  .focus-alternative-close{width:44px;min-width:44px;height:44px;border:1px solid var(--line,#dfe4e8);border-radius:12px;background:var(--card,#fff);font-size:18px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -2491,6 +2495,7 @@
       +'<div class="day-plan-focus-custom" data-dayplan-focus-custom hidden><input class="text-input" type="number" min="1" max="360" placeholder="min" data-dayplan-focus-custom-minutes aria-label="Extra minuten"/><button class="secondary-button" type="button" data-dayplan-focus-custom-apply>Toevoegen</button></div>'
       +(embedded?'<button class="day-plan-focus-start" type="button" data-dayplan-focus-open style="margin-top:12px">Open Focus</button>':'')
       +'<button class="day-plan-focus-start" type="button" data-dayplan-focus-stop style="margin-top:12px">Stop zonder afvinken</button>'
+      +'<button class="secondary-button" type="button" id="chooseFocusTaskButton" style="margin-top:10px">Iets anders kiezen</button>'
       +'</div>';
   }
   function refreshDayPlanFocusPanels(){
@@ -4322,11 +4327,48 @@
       }else bridge?.cancelFocus?.();
     }catch{}
   }
+  // Alleen een keuzepaneel binnen Focus; de bestaande activiteit blijft
+  // ongewijzigd zolang de gebruiker niets anders selecteert.
+  let focusAlternativeOpen=false;
+  let focusAlternativeOffsets={routine:0,household:0,task:0};
+  function focusAlternativeMarkup(){
+    const groups=focusGuideCategories().filter(g=>g.items.length);
+    const choices=groups.slice(0,3).map(group=>{
+      const offset=Math.max(0,Number(focusAlternativeOffsets[group.key])||0)%group.items.length;
+      const item=group.items[offset];
+      return '<div class="focus-guide-option-row">'
+        +'<button type="button" class="focus-guide-option" data-focus-alternative-pick="'+escapeHtml(group.type+'|'+item.id)+'">'
+        +'<span><strong>'+escapeHtml(item.name)+'</strong><small>'+escapeHtml(group.label)+'</small></span><span aria-hidden="true">›</span></button>'
+        +(group.items.length>1?'<button type="button" class="focus-guide-swap" data-focus-alternative-swap="'+group.key+'" aria-label="Andere '+escapeHtml(group.label.toLowerCase())+' kiezen">Andere</button>':'')
+        +'</div>';
+    });
+    return '<div class="focus-guide-panel focus-alternative-panel" id="focusAlternativePanel">'
+      +'<div class="focus-alternative-head"><div><p class="eyebrow">FOCUS KIEZEN</p><h3>Wat wil je nu doen?</h3></div>'
+      +'<button type="button" class="focus-alternative-close" data-focus-alternative-close aria-label="Keuzes sluiten">✕</button></div>'
+      +'<p class="small-muted">Kies een activiteit of bekijk een andere. Niets wordt afgevinkt of verwijderd.</p>'
+      +(choices.length?'<div class="focus-guide-options">'+choices.join('')+'</div>'
+        :'<p class="small-muted">Er staat nu geen passende routine, huishoudtaak of taak open.</p>')
+      +'<button type="button" class="secondary-button" data-focus-alternative-close>Terug naar mijn Focus</button>'
+      +'</div>';
+  }
+  function toggleFocusAlternatives(){
+    focusAlternativeOpen=!focusAlternativeOpen;
+    if(focusAlternativeOpen)focusAlternativeOffsets={routine:0,household:0,task:0};
+    renderFocus();
+    if(focusAlternativeOpen)document.getElementById('focusAlternativePanel')?.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  function swapFocusAlternative(key){
+    const group=focusGuideCategories().find(g=>g.key===key);
+    if(!group||group.items.length<2)return;
+    focusAlternativeOffsets[key]=(Math.max(0,Number(focusAlternativeOffsets[key])||0)+1)%group.items.length;
+    renderFocus();
+  }
   function selectFocusItem(type,id){
     if(activeDayPlanFocus()){
       if(!confirm('Er loopt nog een dagblok in Focus. Stoppen en een ander onderdeel kiezen?'))return;
       clearDayPlanFocus();
     }
+    focusAlternativeOpen=false;
     if(state.focusGuide?.mode==='choose')state.focusGuide.mode='waiting';
     stopFocusCountdown();state.focus.targetType=type;state.focus.targetId=id;state.focus.taskId=type==='task'?id:null;state.focus.remainingSec=state.focus.durationSec||300;saveState();setDailyTab('focus'); }
   function selectFocusTask(id){selectFocusItem('task',id);}
@@ -4498,7 +4540,7 @@
     const activeDay=activeDayPlanFocus();
     if(activeDay){
       const wrap=document.getElementById('focusCard');
-      if(wrap)wrap.innerHTML=dayPlanFocusMarkup(activeDay,false);
+      if(wrap)wrap.innerHTML=dayPlanFocusMarkup(activeDay,false)+(focusAlternativeOpen?focusAlternativeMarkup():'');
       return;
     }
     const guideState=focusGuideState(),guidePanel=document.getElementById('focusCard');
@@ -4508,7 +4550,7 @@
     if(state.focus.finishPending){
       if(guidePanel)guidePanel.innerHTML=focusFinishedMarkup(focusItemByType(state.focus.targetType,state.focus.targetId));return;
     }
-    const entry=focusItem(); if(entry&&(state.focus.targetType!==entry.type||state.focus.targetId!==entry.id)){state.focus.targetType=entry.type;state.focus.targetId=entry.id;state.focus.taskId=entry.type==='task'?entry.id:null;stopFocusCountdown();state.focus.remainingSec=state.focus.durationSec||300;} const wrap=document.getElementById('focusCard'); if(!entry){wrap.innerHTML=`<div class="empty-state">Geen open onderdeel om op te focussen.</div><button class="primary-button" id="chooseFocusTaskButton">Terug naar je dag</button>`;return;} const dur=Math.round((state.focus.durationSec||300)/60),item=entry.item; wrap.innerHTML=`<div class="focus-hero"><p class="eyebrow">${escapeHtml(focusItemLabel(entry.type).toUpperCase())} · NU AAN DE BEURT</p><div class="focus-task-name">${escapeHtml(item.name)}</div><div class="focus-step">${escapeHtml(focusItemStep(entry))}</div><div class="focus-clock"><div><span class="small-muted">${state.focus.running?'nog':state.focus.remainingSec>0&&state.focus.remainingSec<state.focus.durationSec?'gepauzeerd':'ongeveer'}</span><br><strong id="focusClockText">${formatTime(state.focus.remainingSec??state.focus.durationSec??300)}</strong></div></div><div class="focus-duration-grid">${[5,15,25].map(m=>`<button class="duration-button ${dur===m?'selected':''}" data-focus-duration="${m}">${m} min</button>`).join('')}</div><div class="dump-input-row"><input class="text-input" type="number" min="1" max="180" id="customFocusMinutes" placeholder="Zelf minuten"/><button class="secondary-button" id="customFocusButton" style="width:auto;">Kies</button></div><label class="focus-signal-toggle"><div><strong>Geluid & trillen</strong><span>Signaal wanneer je focusblok klaar is.</span></div><input class="switch-check" id="focusSoundToggle" type="checkbox" ${state.focus.soundEnabled!==false?'checked':''}/></label><div class="focus-controls"><button class="primary-button" id="focusStartButton">${state.focus.running?'Pauze':state.focus.remainingSec>0&&state.focus.remainingSec<state.focus.durationSec?'Hervatten':'Start focus'}</button><button class="secondary-button" data-focus-done="${entry.type}|${entry.id}">${escapeHtml(focusItemDoneLabel(entry.type))}</button><button class="secondary-button" id="chooseFocusTaskButton">Iets anders kiezen</button></div></div>`; }
+    const entry=focusItem(); if(entry&&(state.focus.targetType!==entry.type||state.focus.targetId!==entry.id)){state.focus.targetType=entry.type;state.focus.targetId=entry.id;state.focus.taskId=entry.type==='task'?entry.id:null;stopFocusCountdown();state.focus.remainingSec=state.focus.durationSec||300;} const wrap=document.getElementById('focusCard'); if(!entry){wrap.innerHTML='<div class="empty-state">Geen open onderdeel om op te focussen.</div><button class="primary-button" id="chooseFocusTaskButton">Kies een activiteit</button>'+(focusAlternativeOpen?focusAlternativeMarkup():'');return;} const dur=Math.round((state.focus.durationSec||300)/60),item=entry.item; wrap.innerHTML=`<div class="focus-hero"><p class="eyebrow">${escapeHtml(focusItemLabel(entry.type).toUpperCase())} · NU AAN DE BEURT</p><div class="focus-task-name">${escapeHtml(item.name)}</div><div class="focus-step">${escapeHtml(focusItemStep(entry))}</div><div class="focus-clock"><div><span class="small-muted">${state.focus.running?'nog':state.focus.remainingSec>0&&state.focus.remainingSec<state.focus.durationSec?'gepauzeerd':'ongeveer'}</span><br><strong id="focusClockText">${formatTime(state.focus.remainingSec??state.focus.durationSec??300)}</strong></div></div><div class="focus-duration-grid">${[5,15,25].map(m=>`<button class="duration-button ${dur===m?'selected':''}" data-focus-duration="${m}">${m} min</button>`).join('')}</div><div class="dump-input-row"><input class="text-input" type="number" min="1" max="180" id="customFocusMinutes" placeholder="Zelf minuten"/><button class="secondary-button" id="customFocusButton" style="width:auto;">Kies</button></div><label class="focus-signal-toggle"><div><strong>Geluid & trillen</strong><span>Signaal wanneer je focusblok klaar is.</span></div><input class="switch-check" id="focusSoundToggle" type="checkbox" ${state.focus.soundEnabled!==false?'checked':''}/></label><div class="focus-controls"><button class="primary-button" id="focusStartButton">${state.focus.running?'Pauze':state.focus.remainingSec>0&&state.focus.remainingSec<state.focus.durationSec?'Hervatten':'Start focus'}</button><button class="secondary-button" data-focus-done="${entry.type}|${entry.id}">${escapeHtml(focusItemDoneLabel(entry.type))}</button><button class="secondary-button" id="chooseFocusTaskButton">Iets anders kiezen</button></div></div>`+(focusAlternativeOpen?focusAlternativeMarkup():''); }
 
   function reflectionForToday(){ const today=localDateKey(); state.reflections||={}; if(!state.reflections[today]||typeof state.reflections[today]!=='object')state.reflections[today]={good:'',tension:'',relax:'',updatedAt:null}; return state.reflections[today]; }
   function saveReflectionFromForm(silent=true){ const r=reflectionForToday(), good=document.getElementById('reflectionGood'), tension=document.getElementById('reflectionTension'), relax=document.getElementById('reflectionRelax'); if(!good||!tension||!relax)return; r.good=good.value.trim();r.tension=tension.value.trim();r.relax=relax.value.trim();r.updatedAt=Date.now();saveState();if(!silent)showToast('Reflectie bewaard.'); }
@@ -4957,7 +4999,18 @@
     if(guideBreak)return focusGuideBreak(Number(guideBreak.dataset.focusGuideBreak));
     if(e.target.closest('[data-focus-guide-resume]'))return focusGuideResume();
     if(e.target.closest('[data-focus-guide-later]')){focusGuideState().mode='waiting';saveState();return renderFocus();}
-    if(e.target.closest('#chooseFocusTaskButton')){setDailyTab('start');return showToast('Kies Focus bij een daganker, huishoudtaak of taak.');}
+    if(e.target.closest('#chooseFocusTaskButton'))return toggleFocusAlternatives();
+    if(e.target.closest('[data-focus-alternative-close]')){focusAlternativeOpen=false;return renderFocus();}
+    const focusAltSwap=e.target.closest('[data-focus-alternative-swap]');
+    if(focusAltSwap)return swapFocusAlternative(focusAltSwap.dataset.focusAlternativeSwap);
+    const focusAltPick=e.target.closest('[data-focus-alternative-pick]');
+    if(focusAltPick){
+      const [type,id]=(focusAltPick.dataset.focusAlternativePick||'').split('|');
+      if(!focusItemByType(type,id))return showToast('Dit onderdeel staat niet meer open.');
+      const current=activeDayPlanFocus()||state.focus.running;
+      if(current&&!confirm('Er loopt nog een Focus. Stoppen en deze andere activiteit kiezen?'))return;
+      return selectFocusItem(type,id);
+    }
     const focusDone=e.target.closest('[data-focus-done]');if(focusDone){const [type,id]=focusDone.dataset.focusDone.split('|');completeFocusItem(type,id);return openFocusNextGuide();}
     const doneNow=e.target.closest('[data-task-done-now]');if(doneNow){const t=state.tasks.find(x=>x.id===doneNow.dataset.taskDoneNow);if(t)return markTask(t,true);}
     const pause=e.target.closest('[data-toggle-pause]');if(pause){const t=state.tasks.find(x=>x.id===pause.dataset.togglePause);if(t){t.paused=!t.paused;if(t.paused)t.deferUntil='';refillTodayPlan(true);saveState();renderAllTasks();renderToday();renderShutdown();}return;}
