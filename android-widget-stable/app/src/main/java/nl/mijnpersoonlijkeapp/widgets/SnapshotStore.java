@@ -322,6 +322,7 @@ final class SnapshotStore {
         addRoutines(rows, state, today);
         if (!addLiveHousehold(rows, liveHouseholdJson, state, today)) addHousehold(rows, state, today, energy);
         addTasks(rows, state, today, energy);
+        addGvbToday(rows, state, today);
         addAgenda(rows, context, calendarJson, today);
 
         JSONObject snapshot = new JSONObject();
@@ -339,6 +340,7 @@ final class SnapshotStore {
         addRoutines(tomorrowRows, state, tomorrow);
         addTomorrowHousehold(tomorrowRows, state, tomorrow, energy);
         addTomorrowTasks(tomorrowRows, state, tomorrow);
+        addGvbTomorrow(tomorrowRows);
         addAgenda(tomorrowRows, context, calendarJson, tomorrow);
         snapshot.put("tomorrowRows", tomorrowRows);
         snapshot.put("mixedRows", buildMixedRows(rows, state, today));
@@ -790,6 +792,43 @@ final class SnapshotStore {
 
         for (JSONObject task : chosen) {
             addRow(rows, "Taak", task.optString("name", "Taak"), task.optString("time", ""),"task",task.optString("id",""));
+        }
+    }
+
+    // Vier vaste en twee optionele GVB-blokken; geen invloed op de energielimiet.
+    // Snapshotrijen zijn alleen weergave: nooit als gewone taak afvinken.
+    private static final String[] GVB_IDS={"o1","o2","m1","m2","a1","a2"};
+    private static final String[] GVB_LABELS={
+            "Ochtend 1","Ochtend 2","Middag 1","Middag 2","Avond 1","Avond 2"
+    };
+    private static JSONObject gvbDay(JSONObject state,String day) {
+        JSONObject gvb=state.optJSONObject("gvbPractice");
+        JSONObject days=gvb==null?null:gvb.optJSONObject("days");
+        return days==null?null:days.optJSONObject(day);
+    }
+    private static boolean hasDoneGvb(JSONArray done,String id) {
+        if(done==null)return false;
+        for(int i=0;i<done.length();i++)if(id.equals(done.optString(i,"")))return true;
+        return false;
+    }
+    private static String gvbLine(String label,String topic) {
+        String title="GVB · "+label;
+        String trimmed=topic==null?"":topic.trim();
+        return trimmed.isEmpty()?title:title+" · "+trimmed;
+    }
+    private static void addGvbToday(JSONArray rows,JSONObject state,String today) {
+        JSONObject day=gvbDay(state,today);
+        JSONArray done=day==null?null:day.optJSONArray("done");
+        JSONObject topics=day==null?null:day.optJSONObject("topics");
+        for(int i=0;i<GVB_IDS.length;i++){
+            if(hasDoneGvb(done,GVB_IDS[i]))continue;
+            addRow(rows,"Taak",gvbLine(GVB_LABELS[i],topics==null?"":topics.optString(GVB_IDS[i],"")),
+                    "", "gvb", GVB_IDS[i]);
+        }
+    }
+    private static void addGvbTomorrow(JSONArray rows) {
+        for(int i=0;i<GVB_IDS.length;i++){
+            addRow(rows,"Taak",gvbLine(GVB_LABELS[i],""),"","gvb",GVB_IDS[i]);
         }
     }
 
