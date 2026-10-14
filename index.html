@@ -970,6 +970,22 @@
     .recipe-photo-note {font-size:12px;color:var(--muted);text-align:center;}
     .replace-preview-list{display:grid;gap:9px;margin-top:10px;}.replace-preview-card{display:grid;grid-template-columns:58px 1fr;gap:10px;padding:10px;border:1px solid var(--line);border-radius:16px;align-items:center;background:#fff}.replace-preview-card strong{font-size:14px}.replace-preview-card p{font-size:12px;color:var(--muted);margin:4px 0}.replace-preview-card button{min-height:38px;border:0;background:var(--accent);color:white;border-radius:9px;font-weight:800;padding:8px 12px}.replace-refresh{margin-top:10px;width:100%;min-height:42px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft);font-weight:800}
 
+
+  /* Focus: keuze tussen activiteiten en pauzes zonder extra vaste alarmen. */
+  .focus-guide-panel{display:flex;flex-direction:column;gap:13px;padding:20px 16px;border-radius:20px;background:var(--card,#fff);border:1px solid var(--line,#dfe4e8)}
+  .focus-guide-panel h3{font-size:22px;line-height:1.2;margin:0}
+  .focus-guide-panel .eyebrow,.focus-guide-panel .small-muted{margin:0}
+  .focus-guide-options{display:flex;flex-direction:column;gap:9px}
+  .focus-guide-option{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:65px;padding:13px 14px;border:1px solid var(--line,#dfe4e8);border-radius:14px;background:var(--card,#fff);text-align:left;cursor:pointer}
+  .focus-guide-option span:first-child{display:flex;flex-direction:column;gap:5px}
+  .focus-guide-option strong{font-size:16px}
+  .focus-guide-option small{font-size:12px;opacity:.7}
+  .focus-guide-other{min-height:46px}
+  .focus-guide-rest{display:flex;flex-direction:column;gap:9px;padding:15px;border-radius:14px;background:rgba(120,130,150,.08)}
+  .focus-guide-break-buttons{display:flex;gap:8px}
+  .focus-guide-break-buttons button{flex:1;min-width:0;min-height:48px;padding:9px 4px;font-size:14px}
+  .focus-guide-later{align-self:center;border:0;background:transparent;text-decoration:underline;padding:11px;cursor:pointer;opacity:.75}
+  .focus-guide-reminded{padding:11px;border-radius:10px;background:rgba(120,130,150,.10);font-size:14px}
 </style>
 </head>
 <body>
@@ -1636,9 +1652,10 @@
     dayQuickTasks: {date:null,taskIds:[]},
     dayTimeline: { date: null, alarms: false, blocks: [], sourceText: '', overnightAllowed: false, preferredMealFirstId: '', manualOrderIds: [] },
     dayTimelineFocus: null,
+    focusGuide: {mode:'',dueAt:0,offset:0,reminded:false},
     dump: [],
     dayClosedDate: null,
-    focus: { taskId: null, targetType: null, targetId: null, durationSec: 300, remainingSec: 300, running: false, endsAt: 0, soundEnabled: true },
+    focus: { taskId: null, targetType: null, targetId: null, durationSec: 300, remainingSec: 300, running: false, endsAt: 0, soundEnabled: true, finishPending:false },
     weekMenu: [], shopping: [], projects: [], notes: [],
     foodPrefs: { people:2, selectedDays:[], mealType:"diner", usePantryMeals:true, diet:"alleseter", allergies:[], unwanted:[], preferences:["snel","simpel"], appliances:["kookplaat","oven","magnetron","airfryer"], aiWish:"" },
     weekPlan: [], pantry: [], favorites: [], recipeHistory: [], shoppingSkippedCount: 0
@@ -2526,8 +2543,9 @@
     clearDayPlanFocus();saveState();
     setDayPlanLinkedDone(block,true);
     setDailyTab('start');
-    // Een kleine adempauze aanbieden vóór de keuze voor de volgende taak.
-    if(!selfCareSuggest('timeline',block))showDayPlanNextPicker();
+    selfCareSuggest('timeline',block);
+    const care=selfCareToday();care.offer=null;saveState();renderSelfCare();
+    openFocusNextGuide();
   }
   function stopDayPlanFocus(){
     if(!state.dayTimelineFocus)return;
@@ -4257,6 +4275,7 @@
     if(remaining===0){
       f.running=false;
       f.endsAt=0;
+      f.finishPending=true;
       saveState();
       // Native Android regelt het eindsignaal ook met een vergrendeld scherm.
       if(!window.AndroidWidgetBridge)playFocusFinishedSignal();
@@ -4290,6 +4309,7 @@
     if(wasRunning)focusCountdownSync();
     state.focus.running=false;
     state.focus.endsAt=0;
+    state.focus.finishPending=false;
     try{
       const bridge=window.AndroidWidgetBridge;
       if(pause&&wasRunning&&state.focus.remainingSec>0&&bridge?.pauseFocus){
@@ -4304,6 +4324,7 @@
       if(!confirm('Er loopt nog een dagblok in Focus. Stoppen en een ander onderdeel kiezen?'))return;
       clearDayPlanFocus();
     }
+    if(state.focusGuide?.mode==='choose')state.focusGuide.mode='waiting';
     stopFocusCountdown();state.focus.targetType=type;state.focus.targetId=id;state.focus.taskId=type==='task'?id:null;state.focus.remainingSec=state.focus.durationSec||300;saveState();setDailyTab('focus'); }
   function selectFocusTask(id){selectFocusItem('task',id);}
   function completeFocusItem(type,id){
@@ -4329,6 +4350,107 @@
     }
     if(type==='household'){const h=state.householdTasks.find(x=>x.id===id);if(!h)return;h.history||={};h.history[today]=true;h.deferUntil='';saveState();renderHousehold();renderFocus();showToast(`${h.name} afgerond.`);selfCareSuggest('household',h);}
   }
+
+  // De Focus-begeleider gebruikt de bestaande routines en huishoudtaken; widgets
+  // krijgen dus dezelfde afronding en er ontstaat geen tweede afvinklijst.
+  function focusGuideState(){
+    if(!state.focusGuide||typeof state.focusGuide!=='object')
+      state.focusGuide={mode:'',dueAt:0,offset:0,reminded:false};
+    return state.focusGuide;
+  }
+  function focusGuideOptions(){
+    const today=localDateKey();
+    const habits=(state.habits||[]).filter(h=>{
+      if(h.history?.[today])return false;
+      const kind=recoveryRoutineKind(h);
+      return !kind||!selfCareDone(kind);
+    });
+    const moving=habits.filter(h=>h.id==='basis-move'||recoveryRoutineKind(h)==='stretch');
+    const relaxing=habits.filter(h=>recoveryRoutineKind(h)==='relax');
+    const routines=habits.filter(h=>!moving.includes(h)&&!relaxing.includes(h));
+    const household=householdVisibleToday().filter(h=>!h.paused&&!householdDoneToday(h));
+    const groups=[['Bewegen','habit',moving],['Ontspannen','habit',relaxing],['Huishouden','household',household],['Routine','habit',routines]];
+    const choices=[];
+    for(let i=0;i<30;i++){
+      let more=false;
+      for(const [category,type,items] of groups){
+        if(items[i]){const item=items[i];choices.push({category,type,id:item.id,name:item.name});more=true;}
+      }
+      if(!more)break;
+    }
+    return choices;
+  }
+  function focusGuideMarkup(){
+    const g=focusGuideState();
+    if(g.mode==='pause'){
+      const min=Math.max(0,Math.ceil((g.dueAt-Date.now())/60000));
+      return '<div class="focus-guide-panel"><p class="eyebrow">EVEN NIKS</p><h3>Gewoon even pauze.</h3>'
+        +'<p class="small-muted">Je hoeft nu niets. Over ongeveer '+min+' minuten helpen we je weer op weg.</p>'
+        +'<button type="button" class="secondary-button" data-focus-guide-resume>Ik wil weer verder</button></div>';
+    }
+    const all=focusGuideOptions(),n=all.length,offset=n?Number(g.offset||0)%n:0;
+    const picks=n?Array.from({length:Math.min(3,n)},(_,i)=>all[(offset+i)%n]):[];
+    return '<div class="focus-guide-panel" aria-live="polite"><p class="eyebrow">FOCUS AFGEROND</p>'
+      +'<h3>Wat kan ik nu doen?</h3><p class="small-muted">Kies iets kleins dat bij je past.</p>'
+      +(g.reminded?'<p class="focus-guide-reminded">Zullen we weer iets oppakken? Of nog even pauze.</p>':'')
+      +(picks.length?'<div class="focus-guide-options">'+picks.map(x=>
+        '<button type="button" class="focus-guide-option" data-focus-guide-pick="'+escapeHtml(x.type+'|'+x.id)+'">'
+        +'<span><strong>'+escapeHtml(x.name)+'</strong><small>'+escapeHtml(x.category)+'</small></span><span aria-hidden="true">›</span></button>').join('')+'</div>'
+        :'<p class="small-muted">Je vier vaste categorieën zijn voor nu afgerond.</p>')
+      +(n>3?'<button type="button" class="secondary-button focus-guide-other" data-focus-guide-other>Andere keuzes</button>':'')
+      +'<div class="focus-guide-rest"><strong>Even helemaal niks</strong>'
+      +'<p class="small-muted">Geen opdracht. Wanneer wil je weer een zacht seintje?</p>'
+      +'<div class="focus-guide-break-buttons">'+[10,20,30].map(m=>
+        '<button type="button" class="secondary-button" data-focus-guide-break="'+m+'">'+m+' min</button>').join('')+'</div></div>'
+      +'<button type="button" class="focus-guide-later" data-focus-guide-later>Nu nog niet kiezen</button></div>';
+  }
+  function openFocusNextGuide(){
+    const g=focusGuideState();g.mode='choose';g.dueAt=Date.now()+15*60000;g.offset=0;g.reminded=false;
+    saveState();setDailyTab('focus');renderFocus();
+  }
+  function focusGuideBreak(minutes){
+    const g=focusGuideState();g.mode='pause';g.dueAt=Date.now()+minutes*60000;g.reminded=false;
+    saveState();renderFocus();
+  }
+  function focusGuideResume(){
+    const g=focusGuideState();g.mode='choose';g.dueAt=Date.now()+15*60000;g.reminded=false;
+    saveState();renderFocus();
+  }
+  function tickFocusGuide(){
+    const g=focusGuideState();
+    if(!['choose','waiting','pause'].includes(g.mode)||!g.dueAt||Date.now()<g.dueAt||g.reminded)return;
+    if(state.focus.running||activeDayPlanFocus()){g.mode='';g.dueAt=0;saveState();return;}
+    g.mode='choose';g.dueAt=0;g.reminded=true;saveState();
+    if(document.visibilityState==='visible'){
+      showToast('Zullen we weer iets oppakken? Of nog even pauze.');
+      if(dailyTab==='focus')renderFocus();
+    }
+  }
+  function extendStandardFocus(minutes){
+    const seconds=Math.max(1,Number(minutes)||5)*60;
+    const entry=focusItemByType(state.focus.targetType,state.focus.targetId);
+    state.focus.durationSec=seconds;state.focus.remainingSec=seconds;state.focus.running=true;
+    state.focus.finishPending=false;state.focus.endsAt=Date.now()+seconds*1000;
+    const g=focusGuideState();g.mode='';g.dueAt=0;saveState();
+    try{window.AndroidWidgetBridge?.scheduleFocusNamed?.(seconds,entry?.item?.name||'Focus');}catch{}
+    renderFocus();
+  }
+  function focusFinishedMarkup(entry){
+    return '<div class="focus-guide-panel"><p class="eyebrow">FOCUS KLAAR</p>'
+      +'<h3>'+escapeHtml(entry?.item?.name||'Je activiteit')+'</h3>'
+      +'<p class="small-muted">Afronden of nog even doorgaan?</p>'
+      +'<button type="button" class="primary-button" data-focus-finish-done>Afronden</button>'
+      +'<div class="focus-guide-break-buttons">'+[5,15,30].map(m=>
+        '<button type="button" class="secondary-button" data-focus-finish-extra="'+m+'">+'+m+' min</button>').join('')+'</div>'
+      +'<button type="button" class="focus-guide-later" data-focus-finish-stop>Stop zonder afvinken</button></div>';
+  }
+  function finishStandardFocus(){
+    const entry=focusItemByType(state.focus.targetType,state.focus.targetId);
+    if(!entry)return showToast('Dit onderdeel staat niet meer open.');
+    completeFocusItem(entry.type,entry.id);
+    state.focus.finishPending=false;openFocusNextGuide();
+  }
+
   function renderFocus(){
     focusCountdownSync();
     const activeDay=activeDayPlanFocus();
@@ -4336,6 +4458,13 @@
       const wrap=document.getElementById('focusCard');
       if(wrap)wrap.innerHTML=dayPlanFocusMarkup(activeDay,false);
       return;
+    }
+    const guideState=focusGuideState(),guidePanel=document.getElementById('focusCard');
+    if(guideState.mode==='choose'||guideState.mode==='pause'){
+      if(guidePanel)guidePanel.innerHTML=focusGuideMarkup();return;
+    }
+    if(state.focus.finishPending){
+      if(guidePanel)guidePanel.innerHTML=focusFinishedMarkup(focusItemByType(state.focus.targetType,state.focus.targetId));return;
     }
     const entry=focusItem(); if(entry&&(state.focus.targetType!==entry.type||state.focus.targetId!==entry.id)){state.focus.targetType=entry.type;state.focus.targetId=entry.id;state.focus.taskId=entry.type==='task'?entry.id:null;stopFocusCountdown();state.focus.remainingSec=state.focus.durationSec||300;} const wrap=document.getElementById('focusCard'); if(!entry){wrap.innerHTML=`<div class="empty-state">Geen open onderdeel om op te focussen.</div><button class="primary-button" id="chooseFocusTaskButton">Terug naar je dag</button>`;return;} const dur=Math.round((state.focus.durationSec||300)/60),item=entry.item; wrap.innerHTML=`<div class="focus-hero"><p class="eyebrow">${escapeHtml(focusItemLabel(entry.type).toUpperCase())} · NU AAN DE BEURT</p><div class="focus-task-name">${escapeHtml(item.name)}</div><div class="focus-step">${escapeHtml(focusItemStep(entry))}</div><div class="focus-clock"><div><span class="small-muted">${state.focus.running?'nog':state.focus.remainingSec>0&&state.focus.remainingSec<state.focus.durationSec?'gepauzeerd':'ongeveer'}</span><br><strong id="focusClockText">${formatTime(state.focus.remainingSec??state.focus.durationSec??300)}</strong></div></div><div class="focus-duration-grid">${[5,15,25].map(m=>`<button class="duration-button ${dur===m?'selected':''}" data-focus-duration="${m}">${m} min</button>`).join('')}</div><div class="dump-input-row"><input class="text-input" type="number" min="1" max="180" id="customFocusMinutes" placeholder="Zelf minuten"/><button class="secondary-button" id="customFocusButton" style="width:auto;">Kies</button></div><label class="focus-signal-toggle"><div><strong>Geluid & trillen</strong><span>Signaal wanneer je focusblok klaar is.</span></div><input class="switch-check" id="focusSoundToggle" type="checkbox" ${state.focus.soundEnabled!==false?'checked':''}/></label><div class="focus-controls"><button class="primary-button" id="focusStartButton">${state.focus.running?'Pauze':state.focus.remainingSec>0&&state.focus.remainingSec<state.focus.durationSec?'Hervatten':'Start focus'}</button><button class="secondary-button" data-focus-done="${entry.type}|${entry.id}">${escapeHtml(focusItemDoneLabel(entry.type))}</button><button class="secondary-button" id="chooseFocusTaskButton">Iets anders kiezen</button></div></div>`; }
 
@@ -4494,7 +4623,7 @@
   }
 
   let focusLastSavedAt=0;
-  setInterval(()=>{ tickDayPlanFocus();tickRecovery(); if(state.focus.running){ const changed=focusCountdownSync();if(!state.focus.running){renderFocus();return;}if(changed&&Date.now()-focusLastSavedAt>5000){focusLastSavedAt=Date.now();saveState();} } },1000);
+  setInterval(()=>{ tickDayPlanFocus();tickRecovery();tickFocusGuide(); if(state.focus.running){ const changed=focusCountdownSync();if(!state.focus.running){renderFocus();return;}if(changed&&Date.now()-focusLastSavedAt>5000){focusLastSavedAt=Date.now();saveState();} } },1000);
 
   function dateFromKey(key){ return new Date(key+'T12:00:00'); }
   function upcomingDays(){ const out=[]; for(let i=0;i<7;i++){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+i);out.push({key:localDateKey(d),date:d});} return out; }
@@ -4766,9 +4895,20 @@
     const focus=e.target.closest('[data-focus-task]');if(focus)return selectFocusTask(focus.dataset.focusTask);
     const dur=e.target.closest('[data-focus-duration]');if(dur){stopFocusCountdown();state.focus.durationSec=Number(dur.dataset.focusDuration)*60;state.focus.remainingSec=state.focus.durationSec;saveState();return renderFocus();}
     if(e.target.closest('#customFocusButton')){const m=Math.max(1,Math.min(180,Number(document.getElementById('customFocusMinutes').value)||0));if(!m)return showToast('Vul een aantal minuten in.');stopFocusCountdown();state.focus.durationSec=m*60;state.focus.remainingSec=m*60;saveState();return renderFocus();}
-    if(e.target.closest('#focusStartButton')){if(state.focus.running){stopFocusCountdown(true);}else{if(state.focus.remainingSec<=0)state.focus.remainingSec=state.focus.durationSec||300;ensureFocusAudio();state.focus.endsAt=Date.now()+state.focus.remainingSec*1000;state.focus.running=true;}saveState();return renderFocus();}
+    if(e.target.closest('#focusStartButton')){if(state.focus.running){stopFocusCountdown(true);}else{if(state.focus.remainingSec<=0)state.focus.remainingSec=state.focus.durationSec||300;ensureFocusAudio();state.focus.endsAt=Date.now()+state.focus.remainingSec*1000;state.focus.running=true;const g=focusGuideState();g.mode='';g.dueAt=0;}saveState();return renderFocus();}
+    if(e.target.closest('[data-focus-finish-done]'))return finishStandardFocus();
+    const standardMore=e.target.closest('[data-focus-finish-extra]');
+    if(standardMore)return extendStandardFocus(Number(standardMore.dataset.focusFinishExtra));
+    if(e.target.closest('[data-focus-finish-stop]')){stopFocusCountdown();saveState();setDailyTab('start');return renderToday();}
+    const guidePick=e.target.closest('[data-focus-guide-pick]');
+    if(guidePick){const [type,id]=(guidePick.dataset.focusGuidePick||'').split('|');return selectFocusItem(type,id);}
+    if(e.target.closest('[data-focus-guide-other]')){const g=focusGuideState();g.offset=Number(g.offset||0)+3;saveState();return renderFocus();}
+    const guideBreak=e.target.closest('[data-focus-guide-break]');
+    if(guideBreak)return focusGuideBreak(Number(guideBreak.dataset.focusGuideBreak));
+    if(e.target.closest('[data-focus-guide-resume]'))return focusGuideResume();
+    if(e.target.closest('[data-focus-guide-later]')){focusGuideState().mode='waiting';saveState();return renderFocus();}
     if(e.target.closest('#chooseFocusTaskButton')){setDailyTab('start');return showToast('Kies Focus bij een daganker, huishoudtaak of taak.');}
-    const focusDone=e.target.closest('[data-focus-done]');if(focusDone){const [type,id]=focusDone.dataset.focusDone.split('|');return completeFocusItem(type,id);}
+    const focusDone=e.target.closest('[data-focus-done]');if(focusDone){const [type,id]=focusDone.dataset.focusDone.split('|');completeFocusItem(type,id);return openFocusNextGuide();}
     const doneNow=e.target.closest('[data-task-done-now]');if(doneNow){const t=state.tasks.find(x=>x.id===doneNow.dataset.taskDoneNow);if(t)return markTask(t,true);}
     const pause=e.target.closest('[data-toggle-pause]');if(pause){const t=state.tasks.find(x=>x.id===pause.dataset.togglePause);if(t){t.paused=!t.paused;if(t.paused)t.deferUntil='';refillTodayPlan(true);saveState();renderAllTasks();renderToday();renderShutdown();}return;}
     const tomorrow=e.target.closest('[data-tomorrow]');if(tomorrow){const t=state.tasks.find(x=>x.id===tomorrow.dataset.tomorrow);if(t){t.deferUntil=addDaysKey(1);t.paused=false;state.todayPlan.taskIds=state.todayPlan.taskIds.filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderToday();renderAllTasks();renderShutdown();showToast('Taak staat voor morgen.');}return;}
@@ -5017,7 +5157,7 @@
   });
 
   document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'){focusCountdownSync();tickDayPlanFocus();tickRecovery();renderFocus();refreshDayPlanFocusPanels();renderRecoveryPanel();restoreNativeFocusNotification();}
+    if(document.visibilityState==='visible'){focusCountdownSync();tickDayPlanFocus();tickRecovery();tickFocusGuide();renderFocus();refreshDayPlanFocusPanels();renderRecoveryPanel();restoreNativeFocusNotification();}
   });
   document.addEventListener('dragstart',e=>{const item=e.target.closest?.('[data-drag-task]');if(item&&e.dataTransfer){e.dataTransfer.setData('text/task-id',item.dataset.dragTask);e.dataTransfer.effectAllowed='move';}});
   document.addEventListener('dragover',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone){e.preventDefault();zone.classList.add('drag-over');}});
