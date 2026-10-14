@@ -2518,6 +2518,7 @@
       if(!Number.isInteger(duration)||duration<1||duration>360)return showToast('Vul eerst een Focus-duur van 1 tot 360 minuten in.');
     }
     if(duration>360)return showToast('Focus kan maximaal 360 minuten duren.');
+    stopFocusGuideWhenStarting();
     // Er is maximaal één actieve Focus-timer: voorkom dubbele alarmen.
     state.focus.running=false;
     try{window.AndroidWidgetBridge?.cancelFocus?.();}catch{}
@@ -3064,6 +3065,7 @@
   }
   function recoveryStart(){
     if(recoveryActive())return;
+    stopFocusGuideWhenStarting();
     recoveryManualMode=false;
     const now=Date.now(),date=localDateKey();
     state.recovery.active={id:uid('rest'),kind:recoveryKind,minutes:recoveryMinutes,
@@ -4414,6 +4416,31 @@
     return state.focusGuide;
   }
 
+
+  // Eenmalige vervolgherinnering via de bestaande Android-alarmservice.
+  const FOCUS_GUIDE_ALARM_ID='focus-guide-next';
+  function cancelNativeFocusGuideAlarm(){
+    try{window.AndroidWidgetBridge?.cancelReminder?.(FOCUS_GUIDE_ALARM_ID);}
+    catch(error){console.warn('Focus-herinnering annuleren mislukt',error);}
+  }
+  function scheduleNativeFocusGuideAlarm(){
+    const g=focusGuideState(),bridge=window.AndroidWidgetBridge;
+    if(!bridge?.scheduleReminder)return;
+    if(!['choose','waiting','pause'].includes(g.mode)||g.reminded||
+       state.focus.running||activeDayPlanFocus()||
+       !Number.isFinite(Number(g.dueAt))||Number(g.dueAt)<=Date.now()+1000)return;
+    const pause=g.mode==='pause';
+    const title=pause?'Pauze voorbij':'Even verder met je dag?';
+    const body=pause?'Wil je iets oppakken of nog even pauze?'
+      :'Er loopt nog geen nieuwe Focus. Wat wil je nu doen?';
+    try{bridge.scheduleReminder(FOCUS_GUIDE_ALARM_ID,title,body,Number(g.dueAt),'focus');}
+    catch(error){console.warn('Focus-herinnering instellen mislukt',error);}
+  }
+  function stopFocusGuideWhenStarting(){
+    const g=focusGuideState();
+    g.mode='';g.dueAt=0;g.reminded=false;
+    cancelNativeFocusGuideAlarm();
+  }
   function focusGuideCategories(){
     const today=localDateKey(),energy=Math.max(1,Number(state.energy)||1);
     // Alle nog openstaande routines (ook ochtend- en avondroutines)
@@ -4499,20 +4526,20 @@
   }
   function openFocusNextGuide(){
     const g=focusGuideState();g.mode='choose';g.dueAt=Date.now()+15*60000;g.offsets={routine:0,household:0,task:0};g.reminded=false;
-    saveState();setDailyTab('focus');renderFocus();
+    saveState();scheduleNativeFocusGuideAlarm();setDailyTab('focus');renderFocus();
   }
   function focusGuideBreak(minutes){
     const g=focusGuideState();g.mode='pause';g.dueAt=Date.now()+minutes*60000;g.reminded=false;
-    saveState();renderFocus();
+    saveState();scheduleNativeFocusGuideAlarm();renderFocus();
   }
   function focusGuideResume(){
     const g=focusGuideState();g.mode='choose';g.dueAt=Date.now()+15*60000;g.reminded=false;
-    saveState();renderFocus();
+    saveState();scheduleNativeFocusGuideAlarm();renderFocus();
   }
   function tickFocusGuide(){
     const g=focusGuideState();
     if(!['choose','waiting','pause'].includes(g.mode)||!g.dueAt||Date.now()<g.dueAt||g.reminded)return;
-    if(state.focus.running||activeDayPlanFocus()){g.mode='';g.dueAt=0;saveState();return;}
+    if(state.focus.running||activeDayPlanFocus()){stopFocusGuideWhenStarting();saveState();return;}
     g.mode='choose';g.dueAt=0;g.reminded=true;saveState();
     if(document.visibilityState==='visible'){
       showToast('Zullen we weer iets oppakken? Of nog even pauze.');
@@ -4524,7 +4551,7 @@
     const entry=focusItemByType(state.focus.targetType,state.focus.targetId);
     state.focus.durationSec=seconds;state.focus.remainingSec=seconds;state.focus.running=true;
     state.focus.finishPending=false;state.focus.endsAt=Date.now()+seconds*1000;
-    const g=focusGuideState();g.mode='';g.dueAt=0;saveState();
+    stopFocusGuideWhenStarting();saveState();
     try{window.AndroidWidgetBridge?.scheduleFocusNamed?.(seconds,entry?.item?.name||'Focus');}catch{}
     renderFocus();
   }
@@ -4989,7 +5016,7 @@
     const focus=e.target.closest('[data-focus-task]');if(focus)return selectFocusTask(focus.dataset.focusTask);
     const dur=e.target.closest('[data-focus-duration]');if(dur){stopFocusCountdown();state.focus.durationSec=Number(dur.dataset.focusDuration)*60;state.focus.remainingSec=state.focus.durationSec;saveState();return renderFocus();}
     if(e.target.closest('#customFocusButton')){const m=Math.max(1,Math.min(180,Number(document.getElementById('customFocusMinutes').value)||0));if(!m)return showToast('Vul een aantal minuten in.');stopFocusCountdown();state.focus.durationSec=m*60;state.focus.remainingSec=m*60;saveState();return renderFocus();}
-    if(e.target.closest('#focusStartButton')){if(state.focus.running){stopFocusCountdown(true);}else{if(state.focus.remainingSec<=0)state.focus.remainingSec=state.focus.durationSec||300;ensureFocusAudio();state.focus.endsAt=Date.now()+state.focus.remainingSec*1000;state.focus.running=true;const g=focusGuideState();g.mode='';g.dueAt=0;}saveState();return renderFocus();}
+    if(e.target.closest('#focusStartButton')){if(state.focus.running){stopFocusCountdown(true);}else{if(state.focus.remainingSec<=0)state.focus.remainingSec=state.focus.durationSec||300;ensureFocusAudio();state.focus.endsAt=Date.now()+state.focus.remainingSec*1000;state.focus.running=true;stopFocusGuideWhenStarting();}saveState();return renderFocus();}
     if(e.target.closest('[data-focus-finish-done]'))return finishStandardFocus();
     const standardMore=e.target.closest('[data-focus-finish-extra]');
     if(standardMore)return extendStandardFocus(Number(standardMore.dataset.focusFinishExtra));
@@ -5081,7 +5108,7 @@
     }
     if(e.target.closest('#reviewDumpButton'))return setDailyTab('dump');
     if(e.target.closest('#saveReflectionButton'))return saveReflectionFromForm(false);
-    if(e.target.closest('#closeDayButton')){saveReflectionFromForm(true);state.dayClosedDate=localDateKey();stopFocusCountdown();saveState();setDailyTab('start');renderToday();return showToast('Dag afgesloten.');}
+    if(e.target.closest('#closeDayButton')){saveReflectionFromForm(true);state.dayClosedDate=localDateKey();stopFocusCountdown();stopFocusGuideWhenStarting();saveState();setDailyTab('start');renderToday();return showToast('Dag afgesloten.');}
     if(e.target.closest('#addDumpButton')){const inp=document.getElementById('dumpTextInput');addDump(inp.value);inp.value='';return;}
     if(e.target.closest('#dumpMicButton')){if(!speechRecognition)return showToast('Inspreken werkt hier niet; typ je gedachte hieronder.');try{speechRecognition.start();}catch{}return;}
     const dumpTask=e.target.closest('[data-dump-task]');if(dumpTask){const item=state.dump.find(x=>x.id===dumpTask.dataset.dumpTask);if(item){const task={id:uid('task'),name:item.text,done:false,elapsed:0,running:false,deadline:'',bucket:'inbox',reminders:[],createdAt:Date.now(),completedAt:null,paused:false,deferUntil:'',subtasks:generateMicrosteps(item.text).map(name=>({id:uid('sub'),name,done:false}))};state.tasks.push(task);item.processed=true;saveState();renderDump();renderAllTasks();showToast('Als taak naar Nog indelen gezet.');}return;}
@@ -5309,6 +5336,7 @@
   const repairedQuickInsertion=repairExistingQuickPlanOrder();
   renderToday(); renderDump(); renderAllTasks(); renderFocus(); renderShutdown(); renderFoodAll(); renderProjects(); openWidgetTargetFromUrl();
   restoreNativeFocusNotification();
+  scheduleNativeFocusGuideAlarm(); // Herstel toekomstige herinnering na heropenen.
   if(repairedQuickInsertion)showToast('Volgorde hersteld: Lijn 19 staat na lijnen tekenen.');
 })();
 </script>
