@@ -972,6 +972,10 @@
 
 
   /* Focus: keuze tussen activiteiten en pauzes zonder extra vaste alarmen. */
+  .focus-reminder-control{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;margin-bottom:12px;background:var(--surface-soft);border:1px solid var(--line);border-radius:15px}
+  .focus-reminder-control strong{font-size:14px}
+  .focus-reminder-control small{display:block;font-size:12px;line-height:1.35;color:var(--muted);margin-top:4px}
+  .focus-reminder-control button{flex-shrink:0;min-height:46px;width:auto;padding:10px 14px;border-radius:11px;font-weight:800}
   .focus-guide-panel{display:flex;flex-direction:column;gap:13px;padding:20px 16px;border-radius:20px;background:var(--card,#fff);border:1px solid var(--line,#dfe4e8)}
   .focus-guide-panel h3{font-size:22px;line-height:1.2;margin:0}
   .focus-guide-panel .eyebrow,.focus-guide-panel .small-muted{margin:0}
@@ -1177,6 +1181,7 @@
         </div>
 
         <div class="daily-panel" data-daily-panel="focus">
+          <div id="focusReminderBar"></div>
           <div class="section-card" id="focusCard"></div>
           <div class="section-card gvb-practice-card" id="gvbPracticePanel"></div>
         </div>
@@ -4594,10 +4599,32 @@
     try{window.AndroidWidgetBridge?.cancelReminder?.(FOCUS_GUIDE_ALARM_ID);}
     catch(error){console.warn('Focus-herinnering annuleren mislukt',error);}
   }
+  function focusGuideRemindersEnabled(){return focusGuideState().remindersEnabled!==false;}
+  function renderFocusReminderControl(){
+    const bar=document.getElementById('focusReminderBar');
+    if(!bar)return;
+    const enabled=focusGuideRemindersEnabled();
+    bar.innerHTML='<div class="focus-reminder-control">'
+      +'<div><strong>Herinneringen: '+(enabled?'aan':'uit')+'</strong>'
+      +'<small>'+(enabled?'Seintje na Focus of pauze.':'Geen vervolg- of pauzeherinneringen.')+'</small></div>'
+      +'<button type="button" class="secondary-button" data-focus-reminder-toggle>'
+      +(enabled?'Uitzetten':'Aanzetten')+'</button></div>';
+  }
+  function toggleFocusGuideReminders(){
+    const guide=focusGuideState(),enable=!focusGuideRemindersEnabled();
+    guide.remindersEnabled=enable;
+    // Een bestaande herinnering moet direct worden ingetrokken. Aanzetten
+    // maakt geen achterstallige melding; een nieuwe Focus of pauze kan dat wel.
+    guide.dueAt=0;guide.reminded=false;
+    cancelNativeFocusGuideAlarm();
+    saveState();renderFocus();
+    showToast(enable?'Vervolg- en pauzeherinneringen aan.':'Vervolg- en pauzeherinneringen uit.');
+  }
   function scheduleNativeFocusGuideAlarm(){
     const g=focusGuideState(),bridge=window.AndroidWidgetBridge;
     if(!bridge?.scheduleReminder)return;
-    if(!['choose','waiting','pause'].includes(g.mode)||g.reminded||
+    if(!focusGuideRemindersEnabled()||
+       !['choose','waiting','pause'].includes(g.mode)||g.reminded||
        state.focus.running||activeDayPlanFocus()||
        !Number.isFinite(Number(g.dueAt))||Number(g.dueAt)<=Date.now()+1000)return;
     const pause=g.mode==='pause';
@@ -4659,9 +4686,12 @@
   function focusGuideMarkup(){
     const g=focusGuideState();
     if(g.mode==='pause'){
-      const min=Math.max(0,Math.ceil((g.dueAt-Date.now())/60000));
+      const enabled=focusGuideRemindersEnabled()&&g.dueAt>0;
+      const min=enabled?Math.max(0,Math.ceil((g.dueAt-Date.now())/60000)):0;
       return '<div class="focus-guide-panel"><p class="eyebrow">EVEN NIKS</p><h3>Gewoon even pauze.</h3>'
-        +'<p class="small-muted">Je hoeft nu niets. Over ongeveer '+min+' minuten helpen we je weer op weg.</p>'
+        +'<p class="small-muted">'+(enabled
+          ?'Je hoeft nu niets. Over ongeveer '+min+' minuten helpen we je weer op weg.'
+          :'Neem gerust pauze. Er staat geen herinnering gepland.')+'</p>'
         +'<button type="button" class="secondary-button" data-focus-guide-resume>Ik wil weer verder</button></div>';
     }
     if(!g.offsets||typeof g.offsets!=='object')g.offsets={routine:0,household:0,task:0};
@@ -4683,7 +4713,9 @@
         :'<p class="small-muted">Er staan nu geen passende routines, klusjes of taken open.</p>')
       +(hasAlternatives?'<button type="button" class="secondary-button focus-guide-other" data-focus-guide-other>Andere suggesties</button>':'')
       +'<div class="focus-guide-rest"><strong>Even helemaal niks</strong>'
-      +'<p class="small-muted">Geen opdracht. Wanneer wil je weer een zacht seintje?</p>'
+      +'<p class="small-muted">'+(focusGuideRemindersEnabled()
+        ?'Geen opdracht. Wanneer wil je weer een seintje?'
+        :'Geen opdracht. Herinneringen staan uit; pauzeren kan zonder alarm.')+'</p>'
       +'<div class="focus-guide-break-buttons">'+[10,20,30].map(m=>
         '<button type="button" class="secondary-button" data-focus-guide-break="'+m+'">'+m+' min</button>').join('')+'</div></div>'
       +'<button type="button" class="focus-guide-later" data-focus-guide-later>Nu nog niet kiezen</button></div>';
@@ -4698,20 +4730,20 @@
     saveState();renderFocus();
   }
   function openFocusNextGuide(){
-    const g=focusGuideState();g.mode='choose';g.dueAt=Date.now()+15*60000;g.offsets={routine:0,household:0,task:0};g.reminded=false;
+    const g=focusGuideState();g.mode='choose';g.dueAt=focusGuideRemindersEnabled()?Date.now()+15*60000:0;g.offsets={routine:0,household:0,task:0};g.reminded=false;
     saveState();scheduleNativeFocusGuideAlarm();setDailyTab('focus');renderFocus();
   }
   function focusGuideBreak(minutes){
-    const g=focusGuideState();g.mode='pause';g.dueAt=Date.now()+minutes*60000;g.reminded=false;
+    const g=focusGuideState();g.mode='pause';g.dueAt=focusGuideRemindersEnabled()?Date.now()+minutes*60000:0;g.reminded=false;
     saveState();scheduleNativeFocusGuideAlarm();renderFocus();
   }
   function focusGuideResume(){
-    const g=focusGuideState();g.mode='choose';g.dueAt=Date.now()+15*60000;g.reminded=false;
+    const g=focusGuideState();g.mode='choose';g.dueAt=focusGuideRemindersEnabled()?Date.now()+15*60000:0;g.reminded=false;
     saveState();scheduleNativeFocusGuideAlarm();renderFocus();
   }
   function tickFocusGuide(){
     const g=focusGuideState();
-    if(!['choose','waiting','pause'].includes(g.mode)||!g.dueAt||Date.now()<g.dueAt||g.reminded)return;
+    if(!focusGuideRemindersEnabled()||!['choose','waiting','pause'].includes(g.mode)||!g.dueAt||Date.now()<g.dueAt||g.reminded)return;
     if(state.focus.running||activeDayPlanFocus()){stopFocusGuideWhenStarting();saveState();return;}
     g.mode='choose';g.dueAt=0;g.reminded=true;saveState();
     if(document.visibilityState==='visible'){
@@ -4747,6 +4779,7 @@
 
   function renderFocus(){
     focusCountdownSync();
+    renderFocusReminderControl();
     renderGvbPractice();
     renderGvbSummaries();
     const activeDay=activeDayPlanFocus();
@@ -5207,6 +5240,7 @@
       }
       saveState();return renderFocus();
     }
+    if(e.target.closest('[data-focus-reminder-toggle]'))return toggleFocusGuideReminders();
     const guideBreak=e.target.closest('[data-focus-guide-break]');
     if(guideBreak)return focusGuideBreak(Number(guideBreak.dataset.focusGuideBreak));
     if(e.target.closest('[data-focus-guide-resume]'))return focusGuideResume();
