@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 79
-        versionName 'mijn-dag-6.21-gvb-volgorde'
+        versionCode 80
+        versionName 'mijn-dag-6.22-vandaag-morgen'
     }
 
     buildTypes {
