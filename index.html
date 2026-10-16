@@ -4412,6 +4412,7 @@
     renderFocus();
   }
   function selectFocusItem(type,id){
+    if(type==='dayplan')return startDayPlanFocus(id);
     if(type==='gvb')return selectGvbBlock(id);
     if(activeDayPlanFocus()){
       if(!confirm('Er loopt nog een dagblok in Focus. Stoppen en een ander onderdeel kiezen?'))return;
@@ -4675,12 +4676,19 @@
     if(state.dayQuickTasks?.date===today)(state.dayQuickTasks.taskIds||[]).forEach(addTask);
     state.tasks.filter(t=>isEligibleToday(t)&&!chosen.has(t.id))
       .sort(compareTaskPriority).forEach(t=>addTask(t.id));
-    const gvbItems=gvbOpenBlocks(false).map(b=>({id:b.id,name:gvbBlockName(b),type:'gvb',categoryLabel:'GVB · 45 min'}));
-    const extraGvb=gvbOpenBlocks(true).map(b=>({id:b.id,name:gvbBlockName(b),type:'gvb',categoryLabel:'GVB · extra'}));
+    // Een bestaande dagplanning is leidend voor Taak / GVB.
+    // Laat de afzonderlijke, algemene GVB-blokken dan niet meer zien.
+    const fromPlan=dayPlanIsCurrent();
+    const gvbItems=fromPlan
+      ?dayPlanNextOptions().filter(b=>!dayPlanRestLike(b.text)&&b.linkType!=='agenda')
+        .map(b=>({id:b.id,name:b.text,type:'dayplan',categoryLabel:'Dagplanning · '+dayPlanRangeLabel(b.start,b.end)}))
+      :gvbOpenBlocks(false).map(b=>({id:b.id,name:gvbBlockName(b),type:'gvb',categoryLabel:'GVB · 45 min'}));
+    const extraGvb=fromPlan?[]
+      :gvbOpenBlocks(true).map(b=>({id:b.id,name:gvbBlockName(b),type:'gvb',categoryLabel:'GVB · extra'}));
     return [
       {key:'routine',label:'Routine',type:'habit',items:routines},
       {key:'household',label:'Huishouden',type:'household',items:household},
-      {key:'task',label:'Taak / GVB',type:'task',items:[...gvbItems,...tasks,...extraGvb]}
+      {key:'task',label:'Taak / GVB',type:'task',items:[...gvbItems,...(fromPlan?[]:tasks),...extraGvb]}
     ];
   }
   function focusGuideMarkup(){
@@ -5258,7 +5266,9 @@
     const focusAltPick=e.target.closest('[data-focus-alternative-pick]');
     if(focusAltPick){
       const [type,id]=(focusAltPick.dataset.focusAlternativePick||'').split('|');
-      if(!focusItemByType(type,id))return showToast('Dit onderdeel staat niet meer open.');
+      if(type==='dayplan'){
+        if(!dayPlanNextOptions().some(b=>b.id===id))return showToast('Dit dagblok staat niet meer open.');
+      }else if(!focusItemByType(type,id))return showToast('Dit onderdeel staat niet meer open.');
       const current=activeDayPlanFocus()||state.focus.running;
       if(current&&!confirm('Er loopt nog een Focus. Stoppen en deze andere activiteit kiezen?'))return;
       return selectFocusItem(type,id);
