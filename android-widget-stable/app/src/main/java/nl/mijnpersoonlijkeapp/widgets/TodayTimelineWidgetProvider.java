@@ -164,11 +164,11 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
 
         hideRows(v);
         JSONObject snapshot = SnapshotStore.read(context);
-        JSONArray plannedRows = snapshot.optJSONArray("timelineRows");
-        boolean usingDayPlan = snapshot.optBoolean("hasDayTimeline", false) && plannedRows != null;
-        JSONArray rows = tomorrow ? snapshot.optJSONArray("tomorrowRows")
-                : (usingDayPlan ? plannedRows : snapshot.optJSONArray("mixedRows"));
-        if(tomorrow) usingDayPlan = false;
+        JSONArray plannedRows = snapshot.optJSONArray(tomorrow?"tomorrowTimelineRows":"timelineRows");
+        boolean usingDayPlan = snapshot.optBoolean(tomorrow?"hasTomorrowDayTimeline":"hasDayTimeline", false)
+                && plannedRows != null;
+        JSONArray rows = usingDayPlan ? plannedRows
+                : (tomorrow ? snapshot.optJSONArray("tomorrowRows") : snapshot.optJSONArray("mixedRows"));
         if(!tomorrow && !usingDayPlan && rows==null)rows=snapshot.optJSONArray("rows");
         if (!SnapshotStore.todayKey().equals(snapshot.optString("date", "")) || rows == null) {
             v.setViewVisibility(R.id.timeline_empty, View.VISIBLE);
@@ -208,7 +208,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         SharedPreferences pref = context.getSharedPreferences(PAGE_PREFS, Context.MODE_PRIVATE);
         // Houd de huidige pagina aan wanneer een afgevinkte regel verdwijnt.
         String token = snapshot.optString("date", "") + "|" + tomorrow + "|" + usingDayPlan + "|"
-                + (usingDayPlan ? snapshot.optInt("timelineTotal", rows.length()) : items.size());
+                + (usingDayPlan ? snapshot.optInt(tomorrow?"tomorrowTimelineTotal":"timelineTotal", rows.length()) : items.size());
         int requestedPage = token.equals(pref.getString("token-" + id, "")) ? pref.getInt("page-" + id, 0) : 0;
         int page = Math.floorMod(requestedPage, pages);
         pref.edit().putString("token-" + id, token).putInt("page-" + id, page).apply();
@@ -226,7 +226,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(TIME_IDS[i], usingDayPlan ? (clock.isEmpty() ? "—" : clock) : "");
             boolean completed=row.optBoolean("done",false);
             v.setTextViewText(TEXT_IDS[i], row.optString("text",""));
-            if(usingDayPlan && !"agenda".equals(row.optString("linkType")) && !row.optString("blockId").isEmpty()){
+            if(!tomorrow && usingDayPlan && !"agenda".equals(row.optString("linkType")) && !row.optString("blockId").isEmpty()){
                 v.setViewVisibility(CHECK_IDS[i], View.VISIBLE);
                 v.setTextViewText(CHECK_IDS[i], completed ? "☑" : "□");
                 Intent toggle=new Intent(context,TodayTimelineWidgetProvider.class);
