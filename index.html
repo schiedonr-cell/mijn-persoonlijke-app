@@ -1023,11 +1023,49 @@
   .focus-alternative-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
   .focus-alternative-head h3{margin-top:4px}
   .focus-alternative-close{width:44px;min-width:44px;height:44px;border:1px solid var(--line,#dfe4e8);border-radius:12px;background:var(--card,#fff);font-size:18px;cursor:pointer}
+
+  /* Rustige navigatie voor Mijn Dag. Bestaande gegevens en onderdelen blijven behouden. */
+  .myday-head-action{width:45px;height:45px;min-width:45px;border:1px solid var(--line);border-radius:15px;background:var(--surface);color:var(--text);font-weight:800;font-size:21px;cursor:pointer}
+  .myday-header-title{flex:1;min-width:0}
+  .myday-switch{display:grid;grid-template-columns:1fr 1fr;gap:5px;border-radius:16px;padding:5px;background:var(--accent-soft);margin:0 0 14px}
+  .myday-switch button{border:0;border-radius:12px;min-height:51px;background:transparent;color:var(--text);font-weight:800;cursor:pointer}
+  .myday-switch button.active{background:var(--surface);box-shadow:0 2px 7px rgba(0,0,0,.09);color:var(--accent-strong)}
+  .myday-part-menu{display:none;gap:10px;margin-bottom:14px}
+  .myday-part-menu button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:65px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:16px;font-weight:800;text-align:left;cursor:pointer}
+  .myday-part-menu button span{font-size:13px;font-weight:400;color:var(--muted)}
+  .myday-part-return{display:none;min-height:45px;margin:0 0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:8px 14px;font-weight:750}
+  .myday-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+  .myday-tools[hidden]{display:none!important}
+  .myday-tools button{padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);min-height:48px;font-weight:700}
+  .today-shell .daily-nav{display:none}
+  .today-shell[data-myday-mode="planning"] #dayOpenArea > .section-card:not(#dayTimelineBlock){display:none!important}
+  .today-shell[data-myday-mode="energie"] #dayOpenArea > .section-card:not(:first-child){display:none!important}
+  .today-shell[data-myday-mode="energie"] .myday-part-return{display:inline-flex;align-items:center}
+  .today-shell[data-myday-mode="onderdelen"] #dayOpenArea,.today-shell[data-myday-mode="onderdelen"] #dayClosedArea{display:none!important}
+  .today-shell[data-myday-mode="onderdelen"] .myday-part-menu{display:grid}
+  .today-shell[data-myday-mode="taken"] #dayOpenArea > .section-card:not(#todayTasksBlock),
+  .today-shell[data-myday-mode="routines"] #dayOpenArea > .section-card:not(#todayRoutinesBlock),
+  .today-shell[data-myday-mode="huishouden"] #dayOpenArea > .section-card:not(#todayHouseholdBlock),
+  .today-shell[data-myday-mode="agenda"] #dayOpenArea > .section-card:not(#todayAgendaBlock){display:none!important}
+  .today-shell[data-myday-mode="taken"] .myday-part-return,
+  .today-shell[data-myday-mode="routines"] .myday-part-return,
+  .today-shell[data-myday-mode="huishouden"] .myday-part-return,
+  .today-shell[data-myday-mode="agenda"] .myday-part-return{display:inline-flex;align-items:center}
+  .today-shell[data-myday-mode="taken"] #dayOpenArea,
+  .today-shell[data-myday-mode="routines"] #dayOpenArea,
+  .today-shell[data-myday-mode="huishouden"] #dayOpenArea,
+  .today-shell[data-myday-mode="agenda"] #dayOpenArea,
+  .today-shell[data-myday-mode="energie"] #dayOpenArea{display:block!important}
+  .today-shell[data-myday-mode="taken"] #dayClosedArea,
+  .today-shell[data-myday-mode="routines"] #dayClosedArea,
+  .today-shell[data-myday-mode="huishouden"] #dayClosedArea,
+  .today-shell[data-myday-mode="agenda"] #dayClosedArea,
+  .today-shell[data-myday-mode="energie"] #dayClosedArea{display:none!important}
 </style>
 </head>
 <body>
   <main class="app-shell" id="app">
-    <section class="view active" data-view="home">
+    <section class="view" data-view="home">
       <header class="home-header">
         <p class="eyebrow" id="todayLabel">Vandaag</p>
         <h1>Mijn dag</h1>
@@ -1062,12 +1100,31 @@
     </section>
 
 
-    <section class="view" data-view="today">
-      <div class="today-shell">
+    <section class="view active" data-view="today">
+      <div class="today-shell" data-myday-mode="planning">
         <header class="screen-header">
-          <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
-          <div class="screen-title-wrap"><h2>Vandaag</h2><p id="todaySubTitle">Je dag met vaste ankers en flexibele versies.</p></div>
+          <button class="myday-head-action" data-myday-tools-toggle aria-label="Meer mogelijkheden" type="button">⋯</button>
+          <div class="screen-title-wrap myday-header-title"><h2>Mijn dag</h2><p id="todaySubTitle">Je dag in één overzicht.</p></div>
+          <button class="myday-head-action" data-myday-focus aria-label="Focus openen" title="Focus" type="button">◎</button>
         </header>
+        <div class="myday-switch" role="group" aria-label="Dagplanning of onderdelen">
+          <button type="button" data-myday-tab="planning" class="active">Dagplanning</button>
+          <button type="button" data-myday-tab="onderdelen">Onderdelen</button>
+        </div>
+        <div class="myday-tools" id="myDayTools" hidden>
+          <button type="button" data-daily-tab="dump">Snelle invoer</button>
+          <button type="button" data-daily-tab="tasks">Volledig takenbord</button>
+          <button type="button" data-daily-tab="shutdown">Dag afsluiten</button>
+          <button type="button" data-open="home">Eten en notities</button>
+          <button type="button" data-myday-energy>Dagstart / energie</button>
+        </div>
+        <div class="myday-part-menu" aria-label="Onderdelen bekijken">
+          <button type="button" data-myday-part="routines">Routines <span>Bekijk en pas aan ›</span></button>
+          <button type="button" data-myday-part="taken">Taken <span>Inclusief GVB ›</span></button>
+          <button type="button" data-myday-part="huishouden">Huishouden <span>Bekijk en pas aan ›</span></button>
+          <button type="button" data-myday-part="agenda">Agenda <span>Afspraken bekijken ›</span></button>
+        </div>
+        <button class="myday-part-return" type="button" data-myday-tab="onderdelen">← Terug naar onderdelen</button>
 
         <div class="daily-panel active" data-daily-panel="start">
           <div id="dayClosedArea"></div>
@@ -1942,9 +1999,27 @@
   }
 
   function showView(name){ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===name)); window.scrollTo({top:0,behavior:'instant'}); if(name==='today'){ setDailyTab(dailyTab); renderToday(); } if(name==='food'){ setFoodTab(foodTab); renderFoodAll(); } if(name==='projects')renderProjects(); if(name==='notes')renderNotes(); }
+  function setMyDayMode(mode){
+    if(!['planning','onderdelen','taken','routines','huishouden','agenda','energie'].includes(mode))return;
+    const shell=document.querySelector('.today-shell');
+    if(shell)shell.dataset.mydayMode=mode;
+    document.querySelectorAll('[data-myday-tab]').forEach(button=>{
+      button.classList.toggle('active',button.dataset.mydayTab===(mode==='planning'?'planning':'onderdelen'));
+    });
+    setDailyTab('start');
+    if(mode==='energie'){
+      shell.dataset.mydayMode='energie';
+      const energy=document.getElementById('energyGrid');
+      energy?.scrollIntoView({block:'center',behavior:'instant'});
+    }
+    window.scrollTo({top:0,behavior:'instant'});
+  }
   function openTodaySection(sectionId){
     showView('today');
-    setDailyTab('start');
+    setMyDayMode(({
+      todayRoutinesBlock:'routines',todayTasksBlock:'taken',
+      todayHouseholdBlock:'huishouden',todayAgendaBlock:'agenda'
+    })[sectionId]||'planning');
     renderToday();
     setTimeout(()=>{
       const section=document.getElementById(sectionId);
@@ -1976,7 +2051,8 @@
       };
       if(todayTargets[target]){openTodaySection(todayTargets[target]);return;}
       if(target==='notes-list'||target==='note-new'){showView('notes');return;}
-      if(['home','today','food','projects','notes'].includes(target))showView(target);
+      if(target==='home'||target==='today'){showView('today');setMyDayMode('planning');return;}
+      if(['food','projects','notes'].includes(target))showView(target);
     }catch{}
   }
   function showToast(message){ const el=document.getElementById('toast'); el.textContent=message; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2100); }
@@ -5301,7 +5377,15 @@
   function renderProjects(){const wrap=document.getElementById('projectList');wrap.innerHTML=state.projects.length?state.projects.map(p=>`<div class="project-item"><div class="project-row" style="width:100%;"><div class="project-dot"></div><div class="project-name">${escapeHtml(p.name)}</div></div></div>`).join(''):`<div class="empty-state">Nog geen projecten. Voeg alleen een naam toe; verdere projectfuncties komen later.</div>`;}
 
   document.addEventListener('click',e=>{
-    const open=e.target.closest('[data-open]');if(open)return showView(open.dataset.open); if(e.target.closest('[data-back]'))return showView('home');
+    const myDayTab=e.target.closest('[data-myday-tab]');if(myDayTab)return setMyDayMode(myDayTab.dataset.mydayTab);
+    const myDayPart=e.target.closest('[data-myday-part]');if(myDayPart)return setMyDayMode(myDayPart.dataset.mydayPart);
+    if(e.target.closest('[data-myday-focus]')){showView('today');return setDailyTab('focus');}
+    if(e.target.closest('[data-myday-energy]')){document.getElementById('myDayTools').hidden=true;return setMyDayMode('energie');}
+    if(e.target.closest('[data-myday-tools-toggle]')){
+      const tools=document.getElementById('myDayTools');if(tools)tools.hidden=!tools.hidden;return;
+    }
+    const open=e.target.closest('[data-open]');if(open)return showView(open.dataset.open);
+    if(e.target.closest('[data-back]')){showView('today');return setMyDayMode('planning');}
     const tab=e.target.closest('[data-daily-tab]');if(tab)return setDailyTab(tab.dataset.dailyTab); const foodNav=e.target.closest('[data-food-tab]');if(foodNav)return setFoodTab(foodNav.dataset.foodTab); const foodJump=e.target.closest('[data-food-tab-jump]');if(foodJump)return setFoodTab(foodJump.dataset.foodTabJump);
     const energy=e.target.closest('[data-energy]');if(energy){state.energy=Number(energy.dataset.energy);state.energyHistory||={};state.energyHistory[localDateKey()]=state.energy;refillTodayPlan(false);syncRecoveryGoals();saveState();queueReminderStateSync();return renderToday();}
     if(e.target.closest('#openQuickPlanButton'))return openQuickPlanModal();
