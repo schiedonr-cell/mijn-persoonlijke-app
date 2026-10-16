@@ -1111,7 +1111,6 @@
               </div>
               <div id="dayPlanList" class="day-plan-list"></div>
               <div id="dayPlanTomorrowPreview" class="day-plan-list"></div>
-              <div id="gvbDayPlanSummary" class="gvb-inline-summary"></div>
             </div>
 
             <div class="section-card today-section-card" id="todayTasksBlock">
@@ -4605,7 +4604,7 @@
   ];
   let gvbBoardExpanded=false;
   function gvbBlockDef(id){return GVB_BLOCKS.find(b=>b.id===id)||null;}
-  function gvbBlockName(b){return 'GVB · '+b.daypart+' '+b.slot;}
+  function gvbBlockName(b){return 'GVB oefenen '+(GVB_BLOCKS.indexOf(b)+1);}
   function gvbDayState(){
     if(!state.gvbPractice||typeof state.gvbPractice!=='object')state.gvbPractice={days:{}};
     if(!state.gvbPractice.days||typeof state.gvbPractice.days!=='object')state.gvbPractice.days={};
@@ -4652,7 +4651,11 @@
   }
   function renderGvbPractice(){
     const el=document.getElementById('gvbPracticePanel');
-    if(el)el.innerHTML=gvbPracticeMarkup();
+    if(!el)return;
+    // Behoud de bestaande beheerfunctie, maar toon geen tweede GVB-overzicht in Focus.
+    el.hidden=!gvbBoardExpanded;
+    el.style.display=gvbBoardExpanded?'':'none';
+    el.innerHTML=gvbBoardExpanded?gvbPracticeMarkup():'';
   }
 
   function gvbInlineRows(blocks,day){
@@ -4673,23 +4676,16 @@
     const day=gvbDayState();
     const finished=GVB_BLOCKS.slice(0,4).filter(b=>day.done.includes(b.id)).length;
     const extra=GVB_BLOCKS.slice(4).filter(b=>day.done.includes(b.id)).length;
-    const plan=document.getElementById('gvbDayPlanSummary');
-    if(plan)plan.innerHTML='<div class="gvb-inline-title"><strong>GVB oefenen</strong>'
-      +'<span>'+finished+' / 4 vaste blokken</span></div>'
-      +'<p class="small-muted">Zonder vaste tijden · onafhankelijk van je energie.</p>'
-      +gvbInlineRows(GVB_BLOCKS.slice(0,4),day)
-      +'<p class="gvb-inline-extra-title">Avond · optioneel ('+extra+' / 2)</p>'
-      +gvbInlineRows(GVB_BLOCKS.slice(4),day);
     const tasks=document.getElementById('gvbTasksSummary');
     if(tasks){
-      const open=GVB_BLOCKS.filter(b=>!day.done.includes(b.id));
       tasks.innerHTML='<div class="gvb-inline-title"><strong>GVB oefenen</strong>'
         +'<span>'+finished+' / 4 · '+extra+' extra</span></div>'
-        +'<p class="small-muted">Oefenblokken tellen niet mee voor je belangrijkste taken.</p>'
-        +(open.length?gvbInlineRows(open.slice(0,3),day):
-           '<p class="small-muted">Alle GVB-blokken voor vandaag afgerond.</p>')
+        +'<p class="small-muted">Deze oefenblokken tellen niet mee voor je belangrijkste taken.</p>'
+        +gvbInlineRows(GVB_BLOCKS.slice(0,4),day)
+        +'<details class="gvb-inline-extra-title"><summary>Extra blokken 5 en 6 ('+extra+' / 2)</summary>'
+        +gvbInlineRows(GVB_BLOCKS.slice(4),day)+'</details>'
         +'<button type="button" class="secondary-button gvb-inline-open" data-gvb-show-all>'
-        +'Alle GVB-blokken bekijken</button>';
+        +'GVB-blokken beheren</button>';
     }
   }
 
