@@ -3053,7 +3053,7 @@
           const choice=householdTodayChoiceState();
           choice.taskIds=(choice.taskIds||[]).filter(id=>id!==household.id);
         }
-      }else if(b.linkType!=='task'){
+      }else if(!['task','household'].includes(b.linkType)){
         task=state.tasks.find(t=>!t.done&&dayPlanNormalizeText(t.name)===dayPlanNormalizeText(b.text))||null;
         if(!task){
           task=normalizeTask({id:uid('task'),name:b.text,done:false,bucket:'A',
@@ -4064,13 +4064,14 @@
        +(dayPlanFocusDuration(b)?'':'<input type="number" min="1" max="360" placeholder="min" class="day-plan-start-duration" data-dayplan-duration-for="'+escapeHtml(b.id)+'" aria-label="Focusduur in minuten"/>')
        +'<button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>'
        +(b.linkType!=='agenda'?'<button type="button" class="day-plan-mini '+(b.remind?'on':'')+'" data-dayplan-remind="'+escapeHtml(b.id)+'">'+(b.remind?'Herinnering aan':'Herinnering uit')+'</button>':'')
-       +'<button type="button" class="day-plan-remove-button" data-dayplan-remove="'+escapeHtml(b.id)+'">Uit planning halen</button></div></details>'
+       +(dayPlanMayPostpone(b)?'<button type="button" class="day-plan-mini" data-dayplan-postpone-one="'+escapeHtml(b.id)+'">Naar morgen</button>':'')
+        +'<button type="button" class="day-plan-remove-button" data-dayplan-remove="'+escapeHtml(b.id)+'">Uit planning halen</button></div></details>'
        +'</div>'
        +(b.linkType==='agenda'?'<span class="day-plan-drag-static" title="Vaste agenda-afspraak">▣</span>'
        :'<button type="button" class="day-plan-grip" data-dayplan-grip="'+escapeHtml(b.id)+'" aria-label="Sleep '+escapeHtml(b.text)+' naar een andere plek" title="Vasthouden en verslepen">☷</button>')
        +'</div>';
     }).join(''):'<div class="empty-state">Alles voor vandaag is afgevinkt.</div>')
-    +(moved.length?'<details class="day-plan-deferred"><summary>Doorgeschoven naar morgen ('+moved.length+')</summary>'
+    +(moved.length?'<details class="day-plan-deferred" open><summary>Nog inplannen voor morgen ('+moved.length+')</summary>'
        +moved.map(b=>'<div class="day-plan-deferred-item"><span>'+escapeHtml(b.text)+'</span><button type="button" data-dayplan-restore="'+escapeHtml(b.id)+'">Terug naar vandaag</button></div>').join('')
        +'</details>':'')
     +(completed.length?'<details class="day-plan-deferred"><summary>Vandaag afgerond ('+completed.length+')</summary>'
@@ -5687,6 +5688,15 @@
       const ids=selectedPostponeIds();
       if(!ids.length)return showToast('Vink één of meer taken aan die naar morgen mogen.');
       return replanDayFromNow({...dayPlanPendingChoice,postponeIds:ids});
+    }
+    const postponeOne=e.target.closest('[data-dayplan-postpone-one]');
+    if(postponeOne){
+      const b=state.dayTimeline?.blocks?.find(x=>x.id===postponeOne.dataset.dayplanPostponeOne);
+      if(!b||!dayPlanMayPostpone(b))return showToast('Dit onderdeel kun je niet doorschuiven.');
+      postponeDayPlanBlocks([b.id]);
+      saveState();scheduleDayPlanAlarms();renderToday();renderAllTasks();
+      showToast('Bij nog inplannen voor morgen gezet.');
+      return;
     }
     const restore=e.target.closest('[data-dayplan-restore]');
     if(restore)return restorePostponedDayPlanBlock(restore.dataset.dayplanRestore);
