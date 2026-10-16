@@ -344,6 +344,19 @@ final class SnapshotStore {
         addAgenda(tomorrowRows, context, calendarJson, tomorrow);
         snapshot.put("tomorrowRows", tomorrowRows);
         snapshot.put("mixedRows", buildMixedRows(rows, state, today));
+        JSONObject futurePlans=state.optJSONObject("dayTimelines");
+        JSONObject tomorrowPlan=futurePlans==null?null:futurePlans.optJSONObject(tomorrow);
+        if(tomorrowPlan==null){
+            JSONObject legacy=state.optJSONObject("dayTimeline");
+            if(legacy!=null&&tomorrow.equals(legacy.optString("date")))tomorrowPlan=legacy;
+        }
+        if(tomorrowPlan!=null&&tomorrow.equals(tomorrowPlan.optString("date"))
+                &&tomorrowPlan.optJSONArray("blocks")!=null
+                &&tomorrowPlan.optJSONArray("blocks").length()>0){
+            snapshot.put("hasTomorrowDayTimeline",true);
+            snapshot.put("tomorrowTimelineTotal",tomorrowPlan.optJSONArray("blocks").length());
+            snapshot.put("tomorrowTimelineRows",buildDayTimelineRows(state,tomorrowPlan,tomorrow));
+        }
 
         JSONObject plan = state.optJSONObject("dayTimeline");
         JSONArray blocks = plan == null ? null : plan.optJSONArray("blocks");
@@ -357,8 +370,11 @@ final class SnapshotStore {
     }
 
     private static JSONArray buildDayTimelineRows(JSONObject state, String today) {
+        return buildDayTimelineRows(state,state.optJSONObject("dayTimeline"),today);
+    }
+
+    private static JSONArray buildDayTimelineRows(JSONObject state, JSONObject plan, String today) {
         JSONArray out = new JSONArray();
-        JSONObject plan = state.optJSONObject("dayTimeline");
         if (plan == null || !today.equals(plan.optString("date", ""))) return out;
         JSONArray blocks = plan.optJSONArray("blocks");
         if (blocks == null) return out;
