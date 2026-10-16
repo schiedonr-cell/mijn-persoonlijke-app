@@ -1041,6 +1041,9 @@
   .myday-tools[hidden]{display:none!important}
   .myday-tools button{padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);min-height:48px;font-weight:700}
   .today-shell .daily-nav{display:none}
+  .day-clock-gap{display:flex;align-items:center;justify-content:space-between;min-height:42px;margin-left:24px;padding:8px 9px;border:1px dashed var(--line);border-radius:11px;background:var(--surface-soft);color:var(--muted);font-size:12px}
+  .day-clock-gap strong{font-variant-numeric:tabular-nums;font-size:12px}
+  .day-clock-gap span{font-style:italic}
   .day-plan-more{display:block;margin-top:8px}
   .day-plan-more summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:36px;padding:5px 12px;border:1px solid var(--line);border-radius:11px;background:var(--surface-soft);font-size:19px;letter-spacing:2px;font-weight:700}
   .day-plan-more summary::-webkit-details-marker{display:none}
@@ -4056,10 +4059,18 @@
       +(moved.length?' · '+moved.length+' naar morgen':'')+'</p>';
     box.innerHTML=countHtml
     +(visible.length>1?'<p class="day-plan-order-note">Houd ☷ vast en sleep een activiteit naar een ander tijdvak.</p>':'')
-    +(visible.length?visible.map(b=>{
+    +(visible.length?visible.map((b,i)=>{
+      const previous=visible[i-1],previousEnd=previous?dayPlanMinutes(previous.end||previous.start):null;
+      const nextStart=dayPlanMinutes(b.start);
+      const gap=previousEnd!==null&&nextStart!==null&&nextStart-previousEnd>=15
+        ?'<div class="day-clock-gap" aria-label="Vrije ruimte tussen activiteiten"><strong>'
+          +escapeHtml(dayPlanClockLabel(previousEnd))+' – '+escapeHtml(dayPlanClockLabel(nextStart))
+          +'</strong><span>Vrije ruimte · '+(nextStart-previousEnd)+' min</span></div>'
+        :'';
+
       const linked=b.linkType!=='agenda',time=escapeHtml(dayPlanRangeLabel(b.start,b.end));
       const mark=linked?'<input class="check" type="checkbox" data-day-plan-check="'+b.id+'" aria-label="Afvinken"/>':(b.linkType==='agenda'?'▣':'•');
-      return '<div class="day-plan-row" data-dayplan-reorder-id="'+escapeHtml(b.id)+'"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div>'+dayPlanTaskDetails(b)+'<div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
+      return gap+'<div class="day-plan-row" data-dayplan-reorder-id="'+escapeHtml(b.id)+'"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div>'+dayPlanTaskDetails(b)+'<div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
        +'<details class="day-plan-more"><summary aria-label="Meer opties">•••</summary><div class="day-plan-settings"><button type="button" class="day-plan-focus-start '+(activeDayPlanFocus()?.block.id===b.id?'active':'')+'" data-dayplan-focus-start="'+escapeHtml(b.id)+'">▶ '+(activeDayPlanFocus()?.block.id===b.id?'Focus bezig':'Start Focus')+'</button>'
        +(dayPlanFocusDuration(b)?'':'<input type="number" min="1" max="360" placeholder="min" class="day-plan-start-duration" data-dayplan-duration-for="'+escapeHtml(b.id)+'" aria-label="Focusduur in minuten"/>')
        +'<button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>'
