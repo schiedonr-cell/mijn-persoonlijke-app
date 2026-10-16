@@ -1071,6 +1071,15 @@
   .today-shell[data-myday-mode="huishouden"] #dayClosedArea,
   .today-shell[data-myday-mode="agenda"] #dayClosedArea,
   .today-shell[data-myday-mode="energie"] #dayClosedArea{display:none!important}
+  #myDayHouseholdAll{display:none}
+  .today-shell[data-myday-mode="huishouden"] #myDayHouseholdAll{display:block}
+  .today-shell[data-myday-mode="huishouden"] #householdList,
+  .today-shell[data-myday-mode="huishouden"] #completedHouseholdWrap,
+  .today-shell[data-myday-mode="huishouden"] #householdNote{display:none}
+  .today-shell[data-myday-mode="huishouden"] .household-manage-item{margin-bottom:12px}
+  .today-shell[data-myday-mode="huishouden"] .household-manage-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .today-shell[data-myday-mode="huishouden"] .household-manage-actions button{min-height:40px}
+  .today-shell[data-myday-mode="huishouden"] #householdCounter{display:none}
 </style>
 </head>
 <body>
@@ -1207,6 +1216,7 @@
               </div>
               <div class="household-list" id="householdList"></div>
               <div id="completedHouseholdWrap"></div>
+              <div id="myDayHouseholdAll" aria-label="Alle huishoudelijke taken"></div>
               <p class="basis-note" id="householdNote">Je energieniveau bepaalt hoeveel klusjes vandaag worden getoond.</p>
             </div>
 
@@ -2017,6 +2027,13 @@
       button.classList.toggle('active',button.dataset.mydayTab===(mode==='planning'?'planning':'onderdelen'));
     });
     setDailyTab(mode==='taken'?'tasks':'start');
+    if(mode==='huishouden'){
+      renderHouseholdManage();
+      const el=document.getElementById('myDayHouseholdAll');
+      if(el)el.innerHTML='<p class="small-muted">Alle huishoudelijke klusjes, ook als ze niet voor vandaag zijn ingepland.</p>'
+        +(document.getElementById('householdManageList')?.innerHTML||'');
+    }
+    if(mode==='agenda')renderTodayAgenda();
     if(mode==='energie'){
       shell.dataset.mydayMode='energie';
       const energy=document.getElementById('energyGrid');
@@ -4311,7 +4328,8 @@
         if(Array.isArray(nativeEvents))events=nativeEvents;
       }
     }catch{}
-    events=(Array.isArray(events)?events:[]).filter(e=>e&&e.status!=='cancelled').slice(0,3);
+    events=(Array.isArray(events)?events:[]).filter(e=>e&&e.status!=='cancelled');
+    if(document.querySelector('.today-shell')?.dataset.mydayMode!=='agenda')events=events.slice(0,3);
     list.innerHTML=events.length?events.map(e=>`<div class="today-agenda-item"><div class="today-agenda-time">${escapeHtml(todayAgendaMeta(e))}</div><div class="today-agenda-name">${escapeHtml(e.summary||'Afspraak')}</div></div>`).join(''):`<div class="empty-state">Geen afspraken geladen.</div>`;
   }
 
