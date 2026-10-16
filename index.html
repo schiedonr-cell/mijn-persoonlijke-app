@@ -625,7 +625,10 @@
     .item-action-grid button.accent { background:var(--accent-soft); color:var(--accent-strong); border-color:transparent; }
     .item-action-grid button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
     .item-action-grid button.full { grid-column:1/-1; }
-    .task-board-item[draggable="true"] { cursor:grab; }
+    .task-board-item[draggable="true"] { cursor:pointer; }
+    .task-drag-grip{display:flex;align-items:center;justify-content:center;flex:0 0 34px;min-width:34px;min-height:38px;border-radius:10px;background:var(--accent-soft);color:var(--accent-strong);touch-action:none;cursor:grab;font-size:23px}
+    .task-board-item.task-touch-dragging{outline:2px solid var(--accent-strong);background:var(--accent-soft)}
+    .task-board .task-bucket.drag-over{outline:3px solid var(--accent-strong);outline-offset:1px}
     .task-board-name { font-weight:800; font-size:13px; line-height:1.35; }
     .task-board-meta { color:var(--muted); font-size:10px; margin-top:4px; }
     .task-board-actions { display:grid; grid-template-columns:1fr auto; gap:6px; margin-top:8px; }
@@ -4345,7 +4348,7 @@
     D:{title:'D · Later / ooit',sub:'Bewaren zonder druk'}
   };
   function taskBucketOptions(selected){return ['A','B','C','D'].map(k=>`<option value="${k}" ${selected===k?'selected':''}>${TASK_BUCKETS[k].title}</option>`).join('');}
-  function taskBoardMini(t){const meta=[t.deadline?`deadline ${formatDateShort(t.deadline)}`:'',t.reminders?.length?`🔔 ${t.reminders.length}`:'',t.subtasks?.length?`${t.subtasks.filter(x=>x.done).length}/${t.subtasks.length} stappen`:''].filter(Boolean).join(' · ');return `<button class="task-board-item" draggable="true" data-drag-task="${t.id}" data-open-task-action="${t.id}"><div class="task-board-line"><div style="min-width:0;flex:1;"><div class="task-board-name">${escapeHtml(t.name)}</div>${meta?`<div class="task-board-meta">${escapeHtml(meta)}</div>`:''}</div><span class="task-board-chevron">›</span></div></button>`;}
+  function taskBoardMini(t){const meta=[t.deadline?`deadline ${formatDateShort(t.deadline)}`:'',t.reminders?.length?`🔔 ${t.reminders.length}`:'',t.subtasks?.length?`${t.subtasks.filter(x=>x.done).length}/${t.subtasks.length} stappen`:''].filter(Boolean).join(' · ');return `<button class="task-board-item" draggable="true" data-drag-task="${t.id}" data-open-task-action="${t.id}"><div class="task-board-line"><div style="min-width:0;flex:1;"><div class="task-board-name">${escapeHtml(t.name)}</div>${meta?`<div class="task-board-meta">${escapeHtml(meta)}</div>`:''}</div><span class="task-drag-grip" aria-hidden="true" title="Vasthouden en verplaatsen">☷</span></div></button>`;}
   function renderAllTasks(){
     const inbox=state.tasks.filter(t=>!t.done&&t.bucket==='inbox').sort(compareTaskPriority);
     const inboxBox=document.getElementById('taskInbox');
@@ -5775,10 +5778,73 @@
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible'){focusCountdownSync();tickDayPlanFocus();tickRecovery();tickFocusGuide();renderFocus();refreshDayPlanFocusPanels();renderRecoveryPanel();restoreNativeFocusNotification();}
   });
-  document.addEventListener('dragstart',e=>{const item=e.target.closest?.('[data-drag-task]');if(item&&e.dataTransfer){e.dataTransfer.setData('text/task-id',item.dataset.dragTask);e.dataTransfer.effectAllowed='move';}});
-  document.addEventListener('dragover',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone){e.preventDefault();zone.classList.add('drag-over');}});
-  document.addEventListener('dragleave',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone)zone.classList.remove('drag-over');});
-  document.addEventListener('drop',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(!zone)return;e.preventDefault();document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));const id=e.dataTransfer?.getData('text/task-id'),t=state.tasks.find(x=>x.id===id),bucket=zone.dataset.dropBucket;if(t&&['A','B','C','D'].includes(bucket)){t.bucket=bucket;t.paused=false;t.deferUntil='';if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(x=>x!==t.id);refillTodayPlan(false);saveState();renderAllTasks();renderToday();showToast('Taak verplaatst.');}});
+  function moveBoardTaskToBucket(id,bucket){
+    const t=state.tasks.find(x=>x.id===id);
+    if(!t||!['A','B','C','D'].includes(bucket)||t.bucket===bucket)return false;
+    t.bucket=bucket;t.paused=false;t.deferUntil='';
+    if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(x=>x!==t.id);
+    refillTodayPlan(false);saveState();renderAllTasks();renderToday();
+    showToast('Taak verplaatst.');return true;
+  }
+  // Aanraken via sleepgreep werkt ook op Samsung, waar HTML5 drag vaak niet werkt.
+  let taskTouchDrag=null,taskBoardSuppressClickUntil=0;
+  document.addEventListener('pointerdown',e=>{
+    const grip=e.target.closest?.('.task-drag-grip');
+    if(!grip||e.button!==0)return;
+    const item=grip.closest('[data-drag-task]');
+    if(!item)return;
+    e.preventDefault();
+    taskTouchDrag={id:item.dataset.dragTask,pointerId:e.pointerId,grip,item,zone:null};
+    item.classList.add('task-touch-dragging');
+    try{grip.setPointerCapture(e.pointerId)}catch{}
+  });
+  document.addEventListener('pointermove',e=>{
+    const drag=taskTouchDrag;
+    if(!drag||drag.pointerId!==e.pointerId)return;
+    if(e.cancelable)e.preventDefault();
+    const beneath=document.elementFromPoint(e.clientX,e.clientY);
+    const zone=beneath?.closest?.('[data-drop-bucket]')||null;
+    document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));
+    if(zone)zone.classList.add('drag-over');
+    drag.zone=zone;
+  });
+  function endTaskTouchDrag(e,cancelled=false){
+    const drag=taskTouchDrag;
+    if(!drag||drag.pointerId!==e.pointerId)return;
+    taskTouchDrag=null;
+    drag.item.classList.remove('task-touch-dragging');
+    document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));
+    if(!cancelled&&drag.zone){
+      taskBoardSuppressClickUntil=Date.now()+450;
+      moveBoardTaskToBucket(drag.id,drag.zone.dataset.dropBucket);
+    }
+  }
+  document.addEventListener('pointerup',e=>endTaskTouchDrag(e));
+  document.addEventListener('pointercancel',e=>endTaskTouchDrag(e,true));
+  document.addEventListener('click',e=>{
+    if(Date.now()<taskBoardSuppressClickUntil&&e.target.closest?.('[data-drag-task]')){
+      taskBoardSuppressClickUntil=0;e.preventDefault();e.stopImmediatePropagation();
+    }
+  },true);
+  document.addEventListener('dragstart',e=>{
+    const item=e.target.closest?.('[data-drag-task]');
+    if(item&&e.dataTransfer){e.dataTransfer.setData('text/task-id',item.dataset.dragTask);e.dataTransfer.effectAllowed='move';}
+  });
+  document.addEventListener('dragover',e=>{
+    const zone=e.target.closest?.('[data-drop-bucket]');
+    if(zone){e.preventDefault();zone.classList.add('drag-over');}
+  });
+  document.addEventListener('dragleave',e=>{
+    const zone=e.target.closest?.('[data-drop-bucket]');
+    if(zone)zone.classList.remove('drag-over');
+  });
+  document.addEventListener('drop',e=>{
+    const zone=e.target.closest?.('[data-drop-bucket]');
+    if(!zone)return;
+    e.preventDefault();
+    document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));
+    moveBoardTaskToBucket(e.dataTransfer?.getData('text/task-id'),zone.dataset.dropBucket);
+  });
   document.addEventListener('toggle',e=>{
     if(e.target.matches?.('.task-step-details[data-task-step-details]')){
       const id=e.target.dataset.taskStepDetails;
