@@ -1036,6 +1036,8 @@
   .myday-part-menu{display:none;gap:10px;margin-bottom:14px}
   .myday-part-menu button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:65px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:16px;font-weight:800;text-align:left;cursor:pointer}
   .myday-part-menu button span{font-size:13px;font-weight:400;color:var(--muted)}
+  .myday-panel-back{display:block;min-height:44px;margin:0 0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:8px 14px;font-weight:750}
+  .myday-panel-back[hidden]{display:none!important}
   .myday-part-return{display:none;min-height:45px;margin:0 0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:8px 14px;font-weight:750}
   .myday-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
   .myday-tools[hidden]{display:none!important}
@@ -1145,6 +1147,7 @@
         </div>
         <button class="myday-part-return" type="button" data-myday-tab="onderdelen">← Terug naar onderdelen</button>
 
+        <button type="button" class="myday-panel-back" id="myDayPanelBack" data-myday-return hidden>← Terug naar Mijn dag</button>
         <div class="daily-panel active" data-daily-panel="start">
           <div id="dayClosedArea"></div>
           <div id="dayOpenArea">
@@ -2153,7 +2156,7 @@
     finally{button.disabled=false;button.textContent='Test melding';}
   }
 
-  function setDailyTab(tab){ dailyTab=tab; document.querySelectorAll('[data-daily-panel]').forEach(p=>p.classList.toggle('active',p.dataset.dailyPanel===tab)); document.querySelectorAll('[data-daily-tab]').forEach(b=>b.classList.toggle('active',b.dataset.dailyTab===tab)); const titles={start:'Je dag passend bij je energie.',dump:'Even uit je hoofd.',tasks:'Van inbox naar Vandaag, deze week of later.',focus:'Eén ding tegelijk.',shutdown:'Rustig de dag dicht.'}; document.getElementById('todaySubTitle').textContent=titles[tab]||''; if(tab==='focus')renderFocus(); if(tab==='shutdown')renderShutdown(); if(tab==='dump')renderDump(); if(tab==='tasks')renderAllTasks(); window.scrollTo({top:0,behavior:'instant'}); }
+  function setDailyTab(tab){ dailyTab=tab; document.querySelectorAll('[data-daily-panel]').forEach(p=>p.classList.toggle('active',p.dataset.dailyPanel===tab)); document.querySelectorAll('[data-daily-tab]').forEach(b=>b.classList.toggle('active',b.dataset.dailyTab===tab)); const panelBack=document.getElementById('myDayPanelBack');if(panelBack)panelBack.hidden=tab==='start'||(tab==='tasks'&&document.querySelector('.today-shell')?.dataset.mydayMode==='taken'); const titles={start:'Je dag passend bij je energie.',dump:'Even uit je hoofd.',tasks:'Van inbox naar Vandaag, deze week of later.',focus:'Eén ding tegelijk.',shutdown:'Rustig de dag dicht.'}; document.getElementById('todaySubTitle').textContent=titles[tab]||''; if(tab==='focus')renderFocus(); if(tab==='shutdown')renderShutdown(); if(tab==='dump')renderDump(); if(tab==='tasks')renderAllTasks(); window.scrollTo({top:0,behavior:'instant'}); }
 
   function energyLimit(){ return Number(state.energy)||1; }
   function deadlinePriority(task){
@@ -5438,6 +5441,7 @@
   function renderProjects(){const wrap=document.getElementById('projectList');wrap.innerHTML=state.projects.length?state.projects.map(p=>`<div class="project-item"><div class="project-row" style="width:100%;"><div class="project-dot"></div><div class="project-name">${escapeHtml(p.name)}</div></div></div>`).join(''):`<div class="empty-state">Nog geen projecten. Voeg alleen een naam toe; verdere projectfuncties komen later.</div>`;}
 
   document.addEventListener('click',e=>{
+    if(e.target.closest('[data-myday-return]'))return setMyDayMode('planning');
     const myDayTab=e.target.closest('[data-myday-tab]');if(myDayTab)return setMyDayMode(myDayTab.dataset.mydayTab);
     const myDayPart=e.target.closest('[data-myday-part]');if(myDayPart)return setMyDayMode(myDayPart.dataset.mydayPart);
     if(e.target.closest('[data-myday-focus]')){showView('today');return setDailyTab('focus');}
