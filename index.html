@@ -2342,6 +2342,14 @@
     if(dayPlanRestLike(name))return null;
     const alias=dayPlanAlias(name);if(alias)return alias;
     const n=dayPlanNormalizeText(name);if(!n)return null;
+    // GVB-oefenblokken mogen niet aan een willekeurige oudere taak met
+    // enkele dezelfde woorden worden gekoppeld. Anders lijkt een nieuw
+    // tekenblok onterecht afgerond door de status van die oude taak.
+    if(n.startsWith('gvb ')){
+      return dayPlanCandidates().find(c=>c.type==='task'
+        &&dayPlanNormalizeText(c.name)===n
+        &&!state.tasks.find(t=>t.id===c.id)?.done)||null;
+    }
     const contactAction=/\b(bellen|terugbellen|mailen|appen|contact opnemen)\b/.test(n);
     const scored=dayPlanCandidates().filter(c=>c.type!=='agenda'||!contactAction||dayPlanNormalizeText(c.name)===n).map(c=>{
       const m=dayPlanNormalizeText(c.name);let score=0;
@@ -2674,13 +2682,27 @@
   function repairDayPlanContactLinks(){
     const plan=state.dayTimeline;
     if(!plan?.blocks)return;
+    let repaired=false;
     for(const b of plan.blocks){
+      const name=dayPlanNormalizeText(b.text);
+      // Herstel ook al geplakte GVB-blokken: haal een onterechte link
+      // naar een andere of afgeronde oude taak weg, maar raak de taak,
+      // de bloktijden en een eventueel bewust afgevinkt blok niet aan.
+      if(name.startsWith('gvb ')&&b.linkType==='task'&&!b.done){
+        const linked=state.tasks.find(t=>t.id===b.linkId);
+        if(!linked||dayPlanNormalizeText(linked.name)!==name||linked.done){
+          b.linkType='';b.linkId='';b.kind='Plan';b.matchedName='';
+          repaired=true;
+        }
+      }
       if(b.linkType!=='agenda'||b.fixed===true)continue;
-      const name=dayPlanNormalizeText(b.text),match=dayPlanNormalizeText(b.matchedName);
+      const match=dayPlanNormalizeText(b.matchedName);
       if(/\b(bellen|terugbellen|mailen|appen|contact opnemen)\b/.test(name)&&match&&name!==match){
         b.linkType='';b.linkId='';b.kind='Plan';b.matchedName='';
+        repaired=true;
       }
     }
+    if(repaired)saveState();
   }
   repairDayPlanContactLinks();
   function dayPlanBlockMode(block){
