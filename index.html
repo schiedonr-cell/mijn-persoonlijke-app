@@ -4159,6 +4159,136 @@
     saveState();renderToday();
     showToast('Dagplanning verplaatst naar morgen. Vandaag blijft leeg.');
   }
+
+  // Kalenderweergave voor vandaag én een voorbereide dag van morgen.
+  let dayCalendarSelected='today',dayCalendarDrag=null,dayCalendarScroll={};
+  function calendarPlan(){
+    return dayCalendarSelected==='tomorrow'?storedDayTimeline(addDaysKey(1)):storedDayTimeline(localDateKey());
+  }
+  function calendarMoveBlock(plan,id,newStart){
+    if(!plan||!Array.isArray(plan.blocks))return false;
+    const b=plan.blocks.find(x=>x.id===id);
+    if(!b||dayPlanBlockMode(b)==='fixed'||b.postponedTo||dayPlanBlockDone(b))return false;
+    if(state.focus.running||activeDayPlanFocus())return showToast('Stop eerst Focus voordat je een activiteit verplaatst.'),false;
+    const old=dayPlanMinutes(b.start),oldEnd=dayPlanMinutes(b.end);
+    if(old===null||!Number.isInteger(newStart)||newStart<0||newStart>=2880)return false;
+    if(old===newStart)return false;
+    const duration=oldEnd!==null&&oldEnd>old?oldEnd-old:30;
+    if(newStart+duration>2880)return false;
+    // Verplaats uitsluitend dit blok. Andere taken, afspraken en vrije ruimte
+    // houden hun tijden. Eventuele overlap is zichtbaar in de kalender.
+    try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}
+    b.start=dayPlanClock(newStart);b.originalStart=b.start;
+    if(oldEnd!==null){b.end=dayPlanClock(newStart+duration);b.originalEnd=b.end;}
+    plan.blocks.sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
+    plan.manualOrderIds=plan.blocks.map(x=>x.id);
+    plan.sourceText=plan.blocks.filter(x=>!x.postponedTo).map(x=>x.start+(x.end?'–'+x.end:'')+' '+x.text).join('\n');
+    state.dayTimelines||={};state.dayTimelines[plan.date]=structuredClone(plan);
+    if(state.dayTimeline?.date===plan.date)state.dayTimeline=plan;
+    saveState();scheduleDayPlanAlarms();renderDayTimeline();
+    showToast('Alleen deze activiteit verplaatst naar '+dayPlanClockLabel(newStart)+'.');
+    return true;
+  }
+  function renderDayCalendar(){
+    const root=document.getElementById('dayCalendarView');
+    if(!root)return;
+    const priorScroll=root.querySelector('.day-calendar-scroll');
+    if(priorScroll)dayCalendarScroll[dayCalendarSelected]=priorScroll.scrollTop;
+    const tomorrow=storedDayTimeline(addDaysKey(1));
+    const plan=calendarPlan(),blocks=(plan?.blocks||[]).filter(b=>!b.postponedTo&&dayPlanMinutes(b.start)!==null);
+    const minStart=Math.min(360,...blocks.map(b=>dayPlanMinutes(b.start)));
+    const maxEnd=Math.max(1320,...blocks.map(b=>dayPlanMinutes(b.end)??dayPlanMinutes(b.start)+30));
+    const first=Math.max(0,Math.floor(minStart/60)*60),last=Math.min(2880,Math.ceil(maxEnd/60)*60+60);
+    const height=last-first;
+    const available=blocks.slice().sort((a,b)=>dayPlanMinutes(a.start)-dayPlanMinutes(b.start));
+    // Overlappende blokken krijgen naast elkaar ruimte; niets wordt verplaatst.
+    const layout=new Map();
+    for(const b of available){
+      const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end)??start+30;
+      const overlap=available.filter(o=>{
+        const os=dayPlanMinutes(o.start),oe=dayPlanMinutes(o.end)??os+30;
+        return os<end&&oe>start;
+      });
+      const column=overlap.findIndex(x=>x.id===b.id);
+      layout.set(b.id,{column:Math.max(0,column),count:overlap.length});
+    }
+    const hours=[];
+    for(let m=first;m<=last;m+=60)hours.push('<span class="day-calendar-hour" style="top:'+(m-first)+'px">'+escapeHtml(dayPlanClockLabel(m))+'</span>');
+    const halves=[];
+    for(let m=first+30;m<last;m+=60)halves.push('<div class="day-calendar-half" style="top:'+(m-first)+'px"></div>');
+    const cards=available.map(b=>{
+      const start=dayPlanMinutes(b.start),rawEnd=dayPlanMinutes(b.end),duration=Math.max(1,rawEnd!==null&&rawEnd>start?rawEnd-start:30);
+      const fixed=dayPlanBlockMode(b)==='fixed',done=dayPlanBlockDone(b),loc=layout.get(b.id),width=100/loc.count,left=loc.column*width;
+      return '<div class="day-calendar-event'+(fixed?' is-fixed':'')+(done?' is-done':'')+'" data-daycal-id="'+escapeHtml(b.id)+'"'
+       +' style="top:'+(start-first)+'px;height:'+Math.max(25,duration)+'px;left:calc('+left+'% + 2px);width:calc('+width+'% - 4px)"'
+       +' aria-label="'+escapeHtml(dayPlanRangeLabel(b.start,b.end)+' '+b.text)+'">'
+       +(b.linkType==='agenda'?'':('<input class="daycal-checkbox" type="checkbox" data-daycal-check="'+escapeHtml(b.id)+'" '+(done?'checked':'')+' aria-label="Afvinken '+escapeHtml(b.text)+'">'))
+       +'<div class="day-calendar-event-body"><strong>'+escapeHtml(b.text)+'</strong><small>'+escapeHtml(dayPlanRangeLabel(b.start,b.end))+'</small></div>'
+       +(!fixed&&!done?'<button type="button" class="day-calendar-grip" data-daycal-grip="'+escapeHtml(b.id)+'" aria-label="Versleep '+escapeHtml(b.text)+' naar een andere tijd">☷</button>':'')+'</div>';
+    }).join('');
+    root.innerHTML='<div class="day-calendar-chooser"><button type="button" data-daycal-day="today" class="'+(dayCalendarSelected==='today'?'active':'')+'">Vandaag</button>'
+      +'<button type="button" data-daycal-day="tomorrow" class="'+(dayCalendarSelected==='tomorrow'?'active':'')+'">Morgen'+(tomorrow?.blocks?.length?' ✓':'')+'</button></div>'
+      +'<p class="day-calendar-hint">Houd ☷ vast en sleep naar een andere tijd. Alleen die activiteit verandert; de rest blijft staan.</p>'
+      +(blocks.length?'<div class="day-calendar-scroll" data-daycal-first="'+first+'" data-daycal-last="'+last+'"><div class="day-calendar-inner" style="height:'+height+'px">'
+        +'<div class="day-calendar-grid">'+hours.join('')+halves.join('')+cards+'</div></div></div>'
+        :'<div class="day-calendar-empty">Voor '+(dayCalendarSelected==='today'?'vandaag':'morgen')+' staat nog geen planning met tijden klaar.'
+        +(dayCalendarSelected==='tomorrow'?'<div><button class="secondary-button" type="button" data-dayplan-edit-tomorrow>Planning voor morgen maken</button></div>':'')+'</div>');
+    const sc=root.querySelector('.day-calendar-scroll');
+    if(sc)sc.scrollTop=dayCalendarScroll[dayCalendarSelected]??Math.max(0,(540-first)-80);
+  }
+  document.addEventListener('click',e=>{
+    const day=e.target.closest?.('[data-daycal-day]');
+    if(day){dayCalendarSelected=day.dataset.daycalDay;renderDayCalendar();return;}
+    const check=e.target.closest?.('[data-daycal-check]');
+    if(check){
+      const plan=calendarPlan(),b=plan?.blocks.find(x=>x.id===check.dataset.daycalCheck);
+      if(!b)return;
+      if(plan.date===state.dayTimeline?.date)setDayPlanLinkedDone(b,check.checked);
+      else {b.done=check.checked;state.dayTimelines[plan.date]=structuredClone(plan);saveState();}
+      renderDayTimeline();
+    }
+  });
+  document.addEventListener('pointerdown',e=>{
+    const grip=e.target.closest?.('[data-daycal-grip]');if(!grip)return;
+    const sc=grip.closest('.day-calendar-scroll'),card=grip.closest('.day-calendar-event');
+    if(!sc||!card)return;
+    e.preventDefault();
+    dayCalendarDrag={id:grip.dataset.daycalGrip,pointerId:e.pointerId,grip,sc,card,
+      y:e.clientY,origin:dayPlanMinutes(calendarPlan()?.blocks.find(b=>b.id===grip.dataset.daycalGrip)?.start),
+      first:Number(sc.dataset.daycalFirst),newStart:null,preview:null};
+    card.classList.add('is-dragged');
+    const preview=document.createElement('div');
+    preview.className='day-calendar-preview';
+    preview.style.left='2px';preview.style.right='2px';preview.style.height=card.style.height;
+    sc.querySelector('.day-calendar-grid')?.appendChild(preview);
+    dayCalendarDrag.preview=preview;
+    try{grip.setPointerCapture(e.pointerId)}catch{}
+  });
+  document.addEventListener('pointermove',e=>{
+    const d=dayCalendarDrag;if(!d||d.pointerId!==e.pointerId)return;
+    if(e.cancelable)e.preventDefault();
+    const grid=d.sc.querySelector('.day-calendar-grid');if(!grid)return;
+    const y=e.clientY-grid.getBoundingClientRect().top;
+    const candidate=Math.round((d.first+y)/15)*15;
+    d.newStart=Math.min(2865,Math.max(0,candidate));
+    d.preview.style.top=(d.newStart-d.first)+'px';
+    d.preview.textContent=dayPlanClockLabel(d.newStart);
+    const bounds=d.sc.getBoundingClientRect();
+    if(e.clientY>bounds.bottom-44)d.sc.scrollTop+=15;
+    if(e.clientY<bounds.top+44)d.sc.scrollTop-=15;
+  });
+  function finishDayCalendarDrag(e){
+    const d=dayCalendarDrag;if(!d||d.pointerId!==e.pointerId)return;
+    dayCalendarDrag=null;
+    d.preview?.remove();d.card.classList.remove('is-dragged');
+    if(d.newStart!==null&&Math.abs(e.clientY-d.y)>5)calendarMoveBlock(calendarPlan(),d.id,d.newStart);
+    else renderDayCalendar();
+  }
+  document.addEventListener('pointerup',finishDayCalendarDrag);
+  document.addEventListener('pointercancel',e=>{if(dayCalendarDrag?.pointerId===e.pointerId){
+    dayCalendarDrag.preview?.remove();dayCalendarDrag=null;renderDayCalendar();
+  }});
+
   function renderDayTimeline(){
     const box=document.getElementById('dayPlanList'),clear=document.getElementById('clearDayPlanButton');if(!box)return;
     const status=document.getElementById('dayPlanReplanStatus'),hasPlan=dayPlanIsCurrent();
@@ -4177,6 +4307,7 @@
     renderGvbSummaries();
     const plan=state.dayTimeline||{blocks:[]},active=dayPlanIsCurrent(plan);
     renderTomorrowDayPlanPreview();
+    renderDayCalendar();
     refreshDayPlanFocusPanels();
     if(active)(plan.blocks||[]).filter(dayPlanBlockDone).forEach(b=>{try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}});
     if(clear)clear.style.display=plan.blocks?.length?'inline-flex':'none';
