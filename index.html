@@ -1348,7 +1348,7 @@
               <div id="dayPlanActiveFocus" aria-live="polite"></div>
               <div class="day-plan-conflict" id="dayPlanConflict" hidden aria-live="polite"></div>
               <div class="day-plan-actions">
-                <button class="primary-button" id="openQuickPlanButton" type="button">+ Taak invoegen</button>
+                <button class="primary-button" id="openQuickPlanButton" type="button">+ Activiteit invoegen</button>
                 <button class="secondary-button" id="openDayPlanPasteButton">Planning plakken</button>
                 <button class="secondary-button" id="clearDayPlanButton" style="display:none;">Planning wissen</button>
               </div>
@@ -1583,10 +1583,10 @@
   <div class="modal-backdrop" id="quickPlanModal" role="dialog" aria-modal="true" aria-labelledby="quickPlanModalTitle">
     <div class="sheet">
       <div class="sheet-head">
-        <div><h3 id="quickPlanModalTitle">Taak invoegen</h3><p id="quickPlanModalHint" class="small-muted" style="margin:5px 0 0;">Andere taken en afspraken behouden hun tijden.</p></div>
+        <div><h3 id="quickPlanModalTitle">Activiteit invoegen</h3><p id="quickPlanModalHint" class="small-muted" style="margin:5px 0 0;">Andere taken en afspraken behouden hun tijden.</p></div>
         <button class="close-button" type="button" data-close-quick-plan aria-label="Sluiten">×</button>
       </div>
-      <label class="field-label" for="quickPlanExistingTask">Taak</label>
+      <label class="field-label" for="quickPlanExistingTask">Wat wil je inplannen?</label>
       <select class="text-input" id="quickPlanExistingTask"><option value="">Nieuwe taak typen</option></select>
       <div id="quickPlanNewTaskWrap" style="margin-top:12px">
         <label class="field-label" for="quickPlanTaskName">Wat moet er nog gebeuren?</label>
@@ -1602,7 +1602,7 @@
         <p class="quick-plan-note">De gekozen begintijd bepaalt de plek in de kalender. Andere blokken verschuiven niet.</p>
         <p class="quick-plan-note" id="quickPlanError" role="status" aria-live="polite" hidden style="color:var(--danger);font-weight:700"></p>
       </div>
-      <div id="quickPlanUntimedNote" class="quick-plan-note" hidden>Zonder tijden: de taak komt bovenaan in je dagvolgorde. Andere onderdelen blijven staan.</div>
+      <div id="quickPlanUntimedNote" class="quick-plan-note" hidden>Zonder tijden: het gekozen onderdeel komt bovenaan in je dagvolgorde. Andere onderdelen blijven staan.</div>
       <div class="button-stack">
         <button class="primary-button" id="saveQuickPlanButton" type="button">Toevoegen aan planning</button>
         <button class="secondary-button" type="button" data-close-quick-plan>Annuleren</button>
@@ -3899,8 +3899,19 @@
   }
   function openQuickPlanModal(){
     const timed=dayPlanIsCurrent(),select=document.getElementById('quickPlanExistingTask');
-    select.innerHTML='<option value="">+ Nieuwe taak typen</option>'+quickPlanExistingCandidates()
-      .map(t=>'<option value="'+escapeHtml(t.id)+'">'+escapeHtml(t.name)+'</option>').join('');
+    const used=new Set((state.dayTimeline?.blocks||[]).filter(b=>!b.postponedTo)
+      .map(b=>b.linkType+':'+b.linkId));
+    const formatOptions=(type,items)=>items.filter(item=>!used.has(type+':'+item.id))
+      .map(item=>'<option value="'+escapeHtml(type+':'+item.id)+'">'+escapeHtml(item.name)+'</option>').join('');
+    const tasks=quickPlanExistingCandidates();
+    const today=localDateKey();
+    const habits=state.habits.filter(h=>(!h.startedOn||h.startedOn<=today)&&!h.history?.[today]);
+    const household=(timed?state.householdTasks:householdVisibleToday())
+      .filter(h=>!h.paused&&!householdDoneToday(h));
+    select.innerHTML='<option value="">+ Nieuwe taak typen</option>'
+      +(tasks.length?'<optgroup label="Bestaande taken">'+formatOptions('task',tasks)+'</optgroup>':'')
+      +(habits.length?'<optgroup label="Routines">'+formatOptions('habit',habits)+'</optgroup>':'')
+      +(household.length?'<optgroup label="Huishouden">'+formatOptions('household',household)+'</optgroup>':'');
     document.getElementById('quickPlanTaskName').value='';
     document.getElementById('quickPlanDuration').value='15';
     const nowMinutes=dayPlanElapsedMinutes();
@@ -3909,8 +3920,8 @@
     document.getElementById('quickPlanTimeOptions').hidden=!timed;
     document.getElementById('quickPlanUntimedNote').hidden=timed;
     document.getElementById('quickPlanModalHint').textContent=timed
-      ?'Kies een starttijd en duur. Andere activiteiten behouden hun tijden; overlap blijft zichtbaar.'
-      :'Je taak verschijnt in de volgorde voor vandaag.';
+      ?'Kies een begintijd en duur. Andere activiteiten blijven op hun tijd staan.'
+      :'Je gekozen activiteit verschijnt in de dagvolgorde.';
     updateQuickPlanTaskName();
     document.getElementById('quickPlanModal').classList.add('open');
     setTimeout(()=>document.getElementById('quickPlanTaskName')?.focus(),90);
@@ -4066,24 +4077,37 @@
   }
 
   function saveQuickPlan(){
-    const existingId=document.getElementById('quickPlanExistingTask').value;
-    const existing=existingId?state.tasks.find(t=>t.id===existingId):null;
-    if(existingId&&!existing)return showToast('Deze taak bestaat niet meer. Kies opnieuw.');
+    const selected=document.getElementById('quickPlanExistingTask').value;
+    const cut=selected.indexOf(':');
+    const selectedType=selected&&cut>0?selected.slice(0,cut):'task';
+    const selectedId=selected&&cut>0?selected.slice(cut+1):'';
+    const source=selectedType==='habit'?state.habits
+      :selectedType==='household'?state.householdTasks:state.tasks;
+    const existing=selectedId?source.find(x=>x.id===selectedId):null;
+    if(selected&&!existing)return showToast('Deze activiteit bestaat niet meer. Kies opnieuw.');
     const name=existing?.name||document.getElementById('quickPlanTaskName').value.trim();
-    if(!name)return showToast('Vul een taaknaam in of kies een bestaande taak.');
-    const task=existing||normalizeTask({id:uid('task'),name,bucket:'A',subtasks:[]});
+    if(!name)return showToast('Vul een taaknaam in of kies een bestaande activiteit.');
+    const task=!existing?normalizeTask({id:uid('task'),name,bucket:'A',subtasks:[]}):null;
+    const item=existing||task, type=existing?selectedType:'task';
     const plan=state.dayTimeline;
     if(!dayPlanIsCurrent()){
-      if(!existing)state.tasks.push(task);
-      else{task.bucket='A';task.paused=false;task.deferUntil='';}
-      const day=localDateKey(),old=state.dayQuickTasks?.date===day?(state.dayQuickTasks.taskIds||[]):[];
-      state.dayQuickTasks={date:day,taskIds:[...new Set([...old,task.id])]};
-      refillTodayPlan(false);
-      const key='task:'+task.id,keys=untimedEffectiveOrder().map(untimedItemKey);
+      if(type==='task'){
+        if(task)state.tasks.push(task);
+        else{existing.bucket='A';existing.paused=false;existing.deferUntil='';}
+        const day=localDateKey(),old=state.dayQuickTasks?.date===day?(state.dayQuickTasks.taskIds||[]):[];
+        state.dayQuickTasks={date:day,taskIds:[...new Set([...old,item.id])]};
+        refillTodayPlan(false);
+      }else{
+        // Routines en huishoudklussen zitten al in de tijdloze dagvolgorde.
+        // We veranderen alleen de volgorde; nooit de bronlijst.
+        const available=untimedNextOptions().some(x=>x.type===type&&x.itemId===item.id);
+        if(!available)return showToast('Dit onderdeel is vandaag niet beschikbaar in de dagvolgorde.');
+      }
+      const day=localDateKey(),key=type+':'+item.id,keys=untimedEffectiveOrder().map(untimedItemKey);
       state.untimedOrder={date:day,keys:[key,...keys.filter(k=>k!==key)]};
       state.untimedNext={date:null,type:'',itemId:''};
       saveState();closeQuickPlanModal();renderToday();renderAllTasks();
-      showToast('Toegevoegd bovenaan je dagvolgorde (zonder tijden).');
+      showToast('Bovenaan de dagvolgorde gezet (zonder tijden).');
       return;
     }
     if(activeDayPlanFocus())return showToast('Rond eerst je actieve Focus af of stop die.');
@@ -4095,24 +4119,22 @@
     if(start+duration>=2880)return quickPlanError('Dit past niet meer in deze dag.');
     const clash=calendarTimeConflict(plan,null,start,start+duration);
     if(clash)return quickPlanError('Er staat al '+clash.text+' van '+dayPlanRangeLabel(clash.start,clash.end)+'. Kies een vrij tijdstip of maak dat blok eerst korter.');
+    const linkedType=type,linkedKind=type==='habit'?'Routine':type==='household'?'Huis':'Taak';
     const block={id:uid('plan'),originalOrder:plan.blocks.length,start:dayPlanClock(start),
       end:dayPlanClock(start+duration),originalStart:dayPlanClock(start),originalEnd:dayPlanClock(start+duration),
-      text:name,linkType:'task',linkId:task.id,kind:'Taak',matchedName:name,done:false,fixed:false,remind:false};
-    // Kalenderafspraak: een taak invoegen verandert nooit de tijden van
-    // bestaande taken, routines, vrije ruimte of afspraken.
-    // Bij overlap toont de kalender de twee blokken naast elkaar.
+      text:name,linkType:linkedType,linkId:item.id,kind:linkedKind,matchedName:name,
+      done:false,fixed:false,remind:false};
     plan.blocks.push(block);
-    if(!existing)state.tasks.push(task);
-    else{task.bucket='A';task.paused=false;task.deferUntil='';}
-    plan.blocks.sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
+    if(task)state.tasks.push(task);
+    else if(type==='task'){existing.bucket='A';existing.paused=false;existing.deferUntil='';}
+    plan.blocks.sort((x,y)=>(dayPlanMinutes(x.start)??99999)-(dayPlanMinutes(y.start)??99999));
     plan.manualOrderIds=plan.blocks.map(b=>b.id);
     plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
       .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
-    state.dayTimelines||={};
-    state.dayTimelines[plan.date]=structuredClone(plan);
+    state.dayTimelines||={};state.dayTimelines[plan.date]=structuredClone(plan);
     refillTodayPlan(false);saveState();scheduleDayPlanAlarms();
     closeQuickPlanModal();renderToday();renderAllTasks();
-    showToast('Taak ingevoegd om '+dayPlanClockLabel(start)+'. Andere tijden zijn niet veranderd.');
+    showToast(linkedKind+' ingevoegd om '+dayPlanClockLabel(start)+'. Andere tijden zijn niet gewijzigd.');
   }
 
   function loadDayPlanEditor(date){
