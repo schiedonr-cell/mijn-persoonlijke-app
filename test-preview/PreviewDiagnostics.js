@@ -15,7 +15,9 @@
       label.textContent='Versie: '+status.version+' · Android: verbonden · Meldingen: '
         +(allowed?'TOEGESTAAN':'GEBLOKKEERD')
         +' · Laatste alarm: '+(status.lastAlarm||'nog niet ontvangen')
-        +(status.focusScheduled?' · Focus-alarm ingepland':'');
+        +(status.focusScheduled?' · Focus-alarm ingepland':'')
+        +' · Alarmvolume: '+status.alarmVolume+'/'+status.alarmVolumeMax
+        +' · Geluid: '+(status.audioStatus||'nog niet afgespeeld');
       label.style.color=allowed?'#253d2d':'#852c27';
       const settings=el('preview-test-settings');
       if(settings)settings.hidden=allowed;
