@@ -2763,7 +2763,9 @@
     clearDayPlanFocus();
     const now=Date.now(),endsAt=now+duration*60000;
     state.dayTimelineFocus={date:plan.date,blockId:block.id,startedAt:now,endsAt};
-    cancelDayPlanAlarms(plan); // optionele startmeldingen van flexibele blokken niet stapelen
+    // Tijdens Focus pauzeren gewone blokmeldingen, maar niet herinneringen
+    // van andere vaste afspraken. De melding van het actieve blok vervalt wel.
+    cancelDayPlanAlarms(plan,{duringFocus:true,focusBlockId:block.id});
     saveState();
     dayPlanFocusReminder(block,endsAt);
     renderToday();
@@ -2818,7 +2820,12 @@
     }
   }
 
-  function cancelDayPlanAlarms(plan){(plan?.blocks||[]).forEach(b=>{try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}});}
+  function cancelDayPlanAlarms(plan,options={}){
+    (plan?.blocks||[]).forEach(b=>{
+      if(options.duringFocus&&dayPlanBlockMode(b)==='fixed'&&b.id!==options.focusBlockId)return;
+      try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}
+    });
+  }
   function scheduleDayPlanAlarms(){
     const plans=[state.dayTimeline,storedDayTimeline(addDaysKey(1))];
     for(const plan of plans){
