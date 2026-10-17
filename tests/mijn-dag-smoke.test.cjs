@@ -173,3 +173,41 @@ test('begintijd handmatig wijzigen: alleen flexibel blok en behoud van duur', ()
   assert.equal(env.setStart('a','ongeldig'),false);
   assert.equal(blocks.find(x=>x.id==='a').start,'09:00');
 });
+
+
+test('Focus en andere extra panelen verbergen het onderdelenmenu', () => {
+  const from = main.indexOf('  function setDailyTab(tab){');
+  const to = main.indexOf('  function energyLimit(){', from);
+  assert.ok(from > 0 && to > from, 'Tabwissel gevonden');
+  const shell = { dataset: { mydayMode: 'onderdelen' } };
+  const tools = { hidden: false };
+  const back = { hidden: true, textContent: '' };
+  const subtitle = { textContent: '' };
+  const elements = { myDayTools: tools, myDayPanelBack: back, todaySubTitle: subtitle };
+  const context = {
+    document: {
+      querySelector: selector => selector === '.today-shell' ? shell : null,
+      querySelectorAll: () => [],
+      getElementById: id => elements[id] || null
+    },
+    window: { scrollTo: () => {} },
+    renderFocus: () => {},
+    renderShutdown: () => {},
+    renderDump: () => {},
+    renderAllTasks: () => {}
+  };
+  vm.runInNewContext(main.slice(from, to) + '\nthis.setTab = setDailyTab;', context);
+  context.setTab('focus');
+  assert.equal(shell.dataset.mydayPanel, 'focus');
+  assert.equal(tools.hidden, true);
+  assert.equal(back.hidden, false);
+  context.setTab('start');
+  assert.equal(shell.dataset.mydayPanel, 'start');
+  assert.equal(back.hidden, true);
+  assert.match(html, /\.today-shell\[data-myday-panel\]:not\(\[data-myday-panel="start"\]\) \.myday-part-menu/);
+});
+
+test('agenda heeft geen wijzigbare Vast/Flexibel-knop', () => {
+  assert.match(main, /b\.linkType==='agenda'\?'':'<button type="button" class="day-plan-mini/);
+  assert.match(main, /if\(b&&b\.linkType!=='agenda'\)\{b\.fixed=/);
+});
