@@ -13,6 +13,10 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.ServiceWorkerController;
+import android.webkit.ServiceWorkerClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -37,6 +41,7 @@ import java.util.List;
 
 public class MainActivity extends Activity {
     private static final String BASE = "https://schiedonr-cell.github.io/mijn-persoonlijke-app/";
+    private static final String APP_PATH = "/mijn-persoonlijke-app/";
     private static final String TRANSFER = BASE + "transfer.html";
     private static final String PREFS = "native_app_state";
     private static final String IMPORT_DONE = "import_done";
@@ -194,6 +199,27 @@ public class MainActivity extends Activity {
         } catch (Exception e) { return false; }
     }
 
+    private WebResourceResponse bundledResource(Uri uri) {
+        if (uri == null || !"https".equalsIgnoreCase(uri.getScheme())
+                || !"schiedonr-cell.github.io".equalsIgnoreCase(uri.getHost())) return null;
+        String path = uri.getPath();
+        if (path == null || !path.startsWith(APP_PATH)) return null;
+        String resource = path.substring(APP_PATH.length());
+        if (resource.isEmpty()) resource = "index.html";
+        if (resource.contains("..") || resource.contains("\\") || resource.startsWith("/")) return null;
+        // Bestaande server-herinneringen mogen geen SW-bestanden blijven ophalen.
+        if ("service-worker.js".equals(resource)) return null;
+        String mime = "text/plain";
+        if (resource.endsWith(".html")) mime = "text/html";
+        else if (resource.endsWith(".js")) mime = "application/javascript";
+        else if (resource.endsWith(".png")) mime = "image/png";
+        else if (resource.endsWith(".webmanifest") || resource.endsWith(".json")) mime = "application/json";
+        try {
+            InputStream stream = getAssets().open("app/" + resource);
+            return new WebResourceResponse(mime, "UTF-8", stream);
+        } catch (Exception ignored) { return null; }
+    }
+
     private void openApp() {
         handler.removeCallbacks(syncLoop);
         webView = new WebView(this);
@@ -202,7 +228,19 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         webView.addJavascriptInterface(new Bridge(), "AndroidWidgetBridge");
+        // Bundel het nieuwe scherm onder dezelfde HTTPS-origin: bestaande
+        // localStorage en widgetgegevens blijven daardoor op hun plaats.
+        if (android.os.Build.VERSION.SDK_INT >= 24) {
+            ServiceWorkerController.getInstance().setServiceWorkerClient(new ServiceWorkerClient() {
+                @Override public WebResourceResponse shouldInterceptRequest(WebResourceRequest request) {
+                    return bundledResource(request.getUrl());
+                }
+            });
+        }
         webView.setWebViewClient(new WebViewClient() {
+            @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                return bundledResource(request.getUrl());
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
                 Uri u = request.getUrl();
                 if ("https".equalsIgnoreCase(u.getScheme()) && "schiedonr-cell.github.io".equalsIgnoreCase(u.getHost())) return false;
@@ -220,7 +258,7 @@ public class MainActivity extends Activity {
             }
         });
         setContentView(webView);
-        webView.loadUrl(BASE + "?open=" + Uri.encode(target));
+        webView.loadUrl(BASE + "?nativev=1&open=" + Uri.encode(target));
     }
 
     private void importIntoWebView() {
