@@ -625,7 +625,10 @@
     .item-action-grid button.accent { background:var(--accent-soft); color:var(--accent-strong); border-color:transparent; }
     .item-action-grid button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
     .item-action-grid button.full { grid-column:1/-1; }
-    .task-board-item[draggable="true"] { cursor:grab; }
+    .task-board-item[draggable="true"] { cursor:pointer; }
+    .task-drag-grip{display:flex;align-items:center;justify-content:center;flex:0 0 34px;min-width:34px;min-height:38px;border-radius:10px;background:var(--accent-soft);color:var(--accent-strong);touch-action:none;cursor:grab;font-size:23px}
+    .task-board-item.task-touch-dragging{outline:2px solid var(--accent-strong);background:var(--accent-soft)}
+    .task-board .task-bucket.drag-over{outline:3px solid var(--accent-strong);outline-offset:1px}
     .task-board-name { font-weight:800; font-size:13px; line-height:1.35; }
     .task-board-meta { color:var(--muted); font-size:10px; margin-top:4px; }
     .task-board-actions { display:grid; grid-template-columns:1fr auto; gap:6px; margin-top:8px; }
@@ -831,6 +834,10 @@
     .day-plan-time{font-size:12px;font-weight:850;color:var(--accent-strong);font-variant-numeric:tabular-nums;white-space:nowrap}
     .day-plan-name{font-weight:760;min-width:0}.day-plan-meta{font-size:11px;color:var(--muted);margin-top:2px}
     .day-plan-count{font-size:12px;color:var(--muted);margin:5px 0 3px}
+    .day-plan-progress{display:flex;align-items:center;gap:10px;margin:8px 0 13px}
+    .day-plan-progress-track{flex:1;height:9px;border-radius:999px;background:var(--accent-soft);overflow:hidden}
+    .day-plan-progress-fill{display:block;height:100%;border-radius:999px;background:var(--accent-strong);transition:width .15s ease}
+    .day-plan-progress-label{font-size:12px;font-weight:800;white-space:nowrap;color:var(--text);font-variant-numeric:tabular-nums}
     .day-plan-paste-status{font-size:13px;line-height:1.55;margin:8px 0 0;color:var(--muted);white-space:pre-line}
     #dayPlanInput{min-height:230px}
     .day-plan-focus-start{border:1px solid var(--accent-strong);color:var(--accent-strong);background:var(--card,#fff);border-radius:9px;padding:5px 9px;font-weight:750;font-size:12px;min-height:32px}
@@ -1023,11 +1030,90 @@
   .focus-alternative-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
   .focus-alternative-head h3{margin-top:4px}
   .focus-alternative-close{width:44px;min-width:44px;height:44px;border:1px solid var(--line,#dfe4e8);border-radius:12px;background:var(--card,#fff);font-size:18px;cursor:pointer}
+
+  /* Rustige navigatie voor Mijn Dag. Bestaande gegevens en onderdelen blijven behouden. */
+  .myday-head-action{width:45px;height:45px;min-width:45px;border:1px solid var(--line);border-radius:15px;background:var(--surface);color:var(--text);font-weight:800;font-size:21px;cursor:pointer}
+  .myday-header-title{flex:1;min-width:0}
+  .myday-switch{display:grid;grid-template-columns:1fr 1fr;gap:5px;border-radius:16px;padding:5px;background:var(--accent-soft);margin:0 0 14px}
+  .myday-switch button{border:0;border-radius:12px;min-height:51px;background:transparent;color:var(--text);font-weight:800;cursor:pointer}
+  .myday-switch button.active{background:var(--surface);box-shadow:0 2px 7px rgba(0,0,0,.09);color:var(--accent-strong)}
+  .myday-part-menu{display:none;gap:10px;margin-bottom:14px}
+  .myday-part-menu button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:65px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:16px;font-weight:800;text-align:left;cursor:pointer}
+  .myday-part-menu button span{font-size:13px;font-weight:400;color:var(--muted)}
+  .myday-panel-back{display:block;min-height:44px;margin:0 0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:8px 14px;font-weight:750}
+  .myday-panel-back[hidden]{display:none!important}
+  .myday-part-return{display:none;min-height:45px;margin:0 0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:8px 14px;font-weight:750}
+  .myday-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+  .myday-tools[hidden]{display:none!important}
+  .myday-tools button{padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);min-height:48px;font-weight:700}
+  .today-shell .daily-nav{display:none}
+  /* Een geopend Focus- of bewerkingspaneel blijft vrij van het onderdelenmenu. */
+  .today-shell[data-myday-panel]:not([data-myday-panel="start"]) .myday-part-menu,
+  .today-shell[data-myday-panel]:not([data-myday-panel="start"]) .myday-part-return,
+  .today-shell[data-myday-panel]:not([data-myday-panel="start"]) .myday-switch{display:none!important}
+  .day-clock-gap{display:flex;align-items:center;justify-content:space-between;min-height:42px;margin-left:24px;padding:8px 9px;border:1px dashed var(--line);border-radius:11px;background:var(--surface-soft);color:var(--muted);font-size:12px}
+  .day-clock-gap strong{font-variant-numeric:tabular-nums;font-size:12px}
+  .day-clock-gap span{font-style:italic}
+  .day-clock-gap[data-dayplan-gap-time]{min-height:48px;cursor:default;transition:background .12s}
+  .day-clock-gap.day-clock-gap-target{border-color:var(--accent-strong);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-strong)}
+  .day-plan-more{display:block;margin-top:8px}
+  .day-plan-time-edit{display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:100%;margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft)}
+  .day-plan-time-edit label{font-size:13px;font-weight:750}
+  .day-plan-time-edit input{font:inherit;min-height:44px;width:125px;max-width:100%;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text)}
+  .day-plan-time-edit button{min-height:44px;padding:8px 12px;border-radius:10px;border:1px solid var(--accent);background:var(--surface);color:var(--accent-strong);font-weight:800}
+  .day-plan-time-edit small{display:block;flex-basis:100%;color:var(--muted);line-height:1.4}
+  .day-plan-row .day-plan-focus-start{display:inline-flex;align-items:center;justify-content:center;min-height:40px;margin-top:8px;padding:7px 12px;border-radius:11px;white-space:nowrap;font-size:13px}
+  .day-plan-row .day-plan-more .day-plan-settings{margin-top:8px}
+  .day-plan-more summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:36px;padding:5px 12px;border:1px solid var(--line);border-radius:11px;background:var(--surface-soft);font-size:19px;letter-spacing:2px;font-weight:700}
+  .day-plan-more summary::-webkit-details-marker{display:none}
+  .day-plan-more:not([open]) .day-plan-settings{display:none}
+  .today-shell[data-myday-mode="planning"] #dayOpenArea > .section-card:not(#dayTimelineBlock){display:none!important}
+  .today-shell[data-myday-mode="energie"] #dayOpenArea > .section-card:not(:first-child){display:none!important}
+  .today-shell[data-myday-mode="energie"] .myday-part-return{display:inline-flex;align-items:center}
+  .today-shell[data-myday-mode="onderdelen"] #dayOpenArea,.today-shell[data-myday-mode="onderdelen"] #dayClosedArea{display:none!important}
+  .today-shell[data-myday-mode="onderdelen"] .myday-part-menu{display:grid}
+  .today-shell[data-myday-mode="taken"] #dayOpenArea > .section-card:not(#todayTasksBlock),
+  .today-shell[data-myday-mode="routines"] #dayOpenArea > .section-card:not(#todayRoutinesBlock),
+  .today-shell[data-myday-mode="huishouden"] #dayOpenArea > .section-card:not(#todayHouseholdBlock),
+  .today-shell[data-myday-mode="agenda"] #dayOpenArea > .section-card:not(#todayAgendaBlock){display:none!important}
+  .today-shell[data-myday-mode="taken"] .myday-part-return,
+  .today-shell[data-myday-mode="routines"] .myday-part-return,
+  .today-shell[data-myday-mode="huishouden"] .myday-part-return,
+  .today-shell[data-myday-mode="agenda"] .myday-part-return{display:inline-flex;align-items:center}
+  .today-shell[data-myday-mode="taken"] #dayOpenArea,
+  .today-shell[data-myday-mode="routines"] #dayOpenArea,
+  .today-shell[data-myday-mode="huishouden"] #dayOpenArea,
+  .today-shell[data-myday-mode="agenda"] #dayOpenArea,
+  .today-shell[data-myday-mode="energie"] #dayOpenArea{display:block!important}
+  .today-shell[data-myday-mode="taken"] #dayClosedArea,
+  .today-shell[data-myday-mode="routines"] #dayClosedArea,
+  .today-shell[data-myday-mode="huishouden"] #dayClosedArea,
+  .today-shell[data-myday-mode="agenda"] #dayClosedArea,
+  .today-shell[data-myday-mode="energie"] #dayClosedArea{display:none!important}
+  #myDayAllRoutines{display:none}
+  .today-shell[data-myday-mode="routines"] #myDayAllRoutines{display:grid;gap:10px}
+  .today-shell[data-myday-mode="routines"] #habitList,
+  .today-shell[data-myday-mode="routines"] #completedHabitsWrap{display:none}
+  .myday-routine-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+  .myday-routine-content{flex:1;min-width:0}
+  .myday-routine-content strong{display:block;overflow-wrap:anywhere}
+  .myday-routine-content small{display:block;margin-top:5px;color:var(--muted);line-height:1.35}
+  .myday-routine-actions{display:flex;align-items:center;gap:6px}
+  .myday-routine-actions button{min-height:43px;border:1px solid var(--line);background:var(--surface-soft);border-radius:11px;padding:7px 10px;color:var(--text);font-weight:750}
+  #myDayHouseholdAll{display:none}
+  .today-shell[data-myday-mode="huishouden"] #myDayHouseholdAll{display:block}
+  .today-shell[data-myday-mode="huishouden"] #householdList,
+  .today-shell[data-myday-mode="huishouden"] #completedHouseholdWrap,
+  .today-shell[data-myday-mode="huishouden"] #householdNote{display:none}
+  .today-shell[data-myday-mode="huishouden"] .household-manage-item{margin-bottom:12px}
+  .today-shell[data-myday-mode="huishouden"] .household-manage-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .today-shell[data-myday-mode="huishouden"] .household-manage-actions button{min-height:40px}
+  .today-shell[data-myday-mode="huishouden"] #householdCounter{display:none}
 </style>
 </head>
 <body>
   <main class="app-shell" id="app">
-    <section class="view active" data-view="home">
+    <section class="view" data-view="home">
       <header class="home-header">
         <p class="eyebrow" id="todayLabel">Vandaag</p>
         <h1>Mijn dag</h1>
@@ -1062,13 +1148,35 @@
     </section>
 
 
-    <section class="view" data-view="today">
-      <div class="today-shell">
+    <section class="view active" data-view="today">
+      <div class="today-shell" data-myday-mode="planning">
         <header class="screen-header">
-          <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
-          <div class="screen-title-wrap"><h2>Vandaag</h2><p id="todaySubTitle">Je dag met vaste ankers en flexibele versies.</p></div>
+          <button class="myday-head-action" data-myday-tools-toggle aria-label="Meer mogelijkheden" type="button">⋯</button>
+          <div class="screen-title-wrap myday-header-title"><h2>Mijn dag</h2><p id="todaySubTitle">Je dag in één overzicht.</p></div>
+          <button class="myday-head-action" data-myday-focus aria-label="Focus openen" title="Focus" type="button">◎</button>
         </header>
+        <div class="myday-switch" role="group" aria-label="Dagplanning of onderdelen">
+          <button type="button" data-myday-tab="planning" class="active">Dagplanning</button>
+          <button type="button" data-myday-tab="onderdelen">Onderdelen</button>
+        </div>
+        <div class="myday-tools" id="myDayTools" hidden>
+          <button type="button" data-daily-tab="dump">Snelle invoer</button>
+          <button type="button" data-daily-tab="tasks">Volledig takenbord</button>
+          <button type="button" data-daily-tab="shutdown">Dag afsluiten</button>
+          <button type="button" id="myDayBackupButton" data-myday-backup>Back-up opslaan</button>
+          <button type="button" data-open="food">Eten & boodschappen</button>
+          <button type="button" data-open="notes">Notities</button>
+          <button type="button" data-myday-energy>Dagstart / energie</button>
+        </div>
+        <div class="myday-part-menu" aria-label="Onderdelen bekijken">
+          <button type="button" data-myday-part="routines">Routines <span>Bekijk en pas aan ›</span></button>
+          <button type="button" data-myday-part="taken">Taken <span>Inclusief GVB ›</span></button>
+          <button type="button" data-myday-part="huishouden">Huishouden <span>Bekijk en pas aan ›</span></button>
+          <button type="button" data-myday-part="agenda">Agenda <span>Afspraken bekijken ›</span></button>
+        </div>
+        <button class="myday-part-return" type="button" data-myday-tab="onderdelen">← Terug naar onderdelen</button>
 
+        <button type="button" class="myday-panel-back" id="myDayPanelBack" data-myday-return hidden>← Terug naar Mijn dag</button>
         <div class="daily-panel active" data-daily-panel="start">
           <div id="dayClosedArea"></div>
           <div id="dayOpenArea">
@@ -1131,6 +1239,7 @@
               </div>
               <div class="basis-list" id="habitList"></div>
               <div id="completedHabitsWrap"></div>
+              <div id="myDayAllRoutines" class="myday-all-routines" aria-label="Al je routines"></div>
             </div>
 
             <div class="section-card household-card today-section-card" id="todayHouseholdBlock">
@@ -1140,6 +1249,7 @@
               </div>
               <div class="household-list" id="householdList"></div>
               <div id="completedHouseholdWrap"></div>
+              <div id="myDayHouseholdAll" aria-label="Alle huishoudelijke taken"></div>
               <p class="basis-note" id="householdNote">Je energieniveau bepaalt hoeveel klusjes vandaag worden getoond.</p>
             </div>
 
@@ -1942,9 +2052,30 @@
   }
 
   function showView(name){ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===name)); window.scrollTo({top:0,behavior:'instant'}); if(name==='today'){ setDailyTab(dailyTab); renderToday(); } if(name==='food'){ setFoodTab(foodTab); renderFoodAll(); } if(name==='projects')renderProjects(); if(name==='notes')renderNotes(); }
+  function setMyDayMode(mode){
+    if(!['planning','onderdelen','taken','routines','huishouden','agenda','energie'].includes(mode))return;
+    const shell=document.querySelector('.today-shell');
+    if(shell)shell.dataset.mydayMode=mode;
+    document.querySelectorAll('[data-myday-tab]').forEach(button=>{
+      button.classList.toggle('active',button.dataset.mydayTab===(mode==='planning'?'planning':'onderdelen'));
+    });
+    const extra=document.getElementById('myDayTools');if(extra)extra.hidden=true;
+    setDailyTab(mode==='taken'?'tasks':'start');
+    if(mode==='huishouden')renderHouseholdManage();
+    if(mode==='agenda')renderTodayAgenda();
+    if(mode==='energie'){
+      shell.dataset.mydayMode='energie';
+      const energy=document.getElementById('energyGrid');
+      energy?.scrollIntoView({block:'center',behavior:'instant'});
+    }
+    window.scrollTo({top:0,behavior:'instant'});
+  }
   function openTodaySection(sectionId){
     showView('today');
-    setDailyTab('start');
+    setMyDayMode(({
+      todayRoutinesBlock:'routines',todayTasksBlock:'taken',
+      todayHouseholdBlock:'huishouden',todayAgendaBlock:'agenda'
+    })[sectionId]||'planning');
     renderToday();
     setTimeout(()=>{
       const section=document.getElementById(sectionId);
@@ -1976,7 +2107,8 @@
       };
       if(todayTargets[target]){openTodaySection(todayTargets[target]);return;}
       if(target==='notes-list'||target==='note-new'){showView('notes');return;}
-      if(['home','today','food','projects','notes'].includes(target))showView(target);
+      if(target==='home'||target==='today'){showView('today');setMyDayMode('planning');return;}
+      if(['food','projects','notes'].includes(target))showView(target);
     }catch{}
   }
   function showToast(message){ const el=document.getElementById('toast'); el.textContent=message; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2100); }
@@ -2050,7 +2182,7 @@
     finally{button.disabled=false;button.textContent='Test melding';}
   }
 
-  function setDailyTab(tab){ dailyTab=tab; document.querySelectorAll('[data-daily-panel]').forEach(p=>p.classList.toggle('active',p.dataset.dailyPanel===tab)); document.querySelectorAll('[data-daily-tab]').forEach(b=>b.classList.toggle('active',b.dataset.dailyTab===tab)); const titles={start:'Je dag passend bij je energie.',dump:'Even uit je hoofd.',tasks:'Van inbox naar Vandaag, deze week of later.',focus:'Eén ding tegelijk.',shutdown:'Rustig de dag dicht.'}; document.getElementById('todaySubTitle').textContent=titles[tab]||''; if(tab==='focus')renderFocus(); if(tab==='shutdown')renderShutdown(); if(tab==='dump')renderDump(); if(tab==='tasks')renderAllTasks(); window.scrollTo({top:0,behavior:'instant'}); }
+  function setDailyTab(tab){ dailyTab=tab; const shell=document.querySelector('.today-shell');if(shell)shell.dataset.mydayPanel=tab; if(tab!=='start'){const tools=document.getElementById('myDayTools');if(tools)tools.hidden=true;} document.querySelectorAll('[data-daily-panel]').forEach(p=>p.classList.toggle('active',p.dataset.dailyPanel===tab)); document.querySelectorAll('[data-daily-tab]').forEach(b=>b.classList.toggle('active',b.dataset.dailyTab===tab)); const panelBack=document.getElementById('myDayPanelBack');if(panelBack){panelBack.hidden=tab==='start';panelBack.textContent=tab==='tasks'&&document.querySelector('.today-shell')?.dataset.mydayMode==='taken'?'← Terug naar onderdelen':'← Terug naar Mijn dag';} const titles={start:'Je dag passend bij je energie.',dump:'Even uit je hoofd.',tasks:'Van inbox naar Vandaag, deze week of later.',focus:'Eén ding tegelijk.',shutdown:'Rustig de dag dicht.'}; document.getElementById('todaySubTitle').textContent=titles[tab]||''; if(tab==='focus')renderFocus(); if(tab==='shutdown')renderShutdown(); if(tab==='dump')renderDump(); if(tab==='tasks')renderAllTasks(); window.scrollTo({top:0,behavior:'instant'}); }
 
   function energyLimit(){ return Number(state.energy)||1; }
   function deadlinePriority(task){
@@ -2199,8 +2331,32 @@
     const wrap=document.getElementById(completedId);
     if(wrap)wrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(h=>completedHabitHtml(h,today)).join('')}</div></details>`:'';
   }
+  function renderMyDayAllRoutines(){
+    const wrap=document.getElementById('myDayAllRoutines');
+    if(!wrap)return;
+    const today=localDateKey();
+    wrap.innerHTML=(state.habits||[]).length
+      ?state.habits.map(h=>{
+        const kind=recoveryRoutineKind(h);
+        const done=Boolean(h.history?.[today])||(Boolean(kind)&&selfCareDone(kind));
+        const status=done?'Vandaag afgerond':'Vandaag nog open';
+        const detail=[h.anchor||'',h.time||'',status].filter(Boolean).join(' · ');
+        const action=kind
+          ?'<button type="button" data-recovery-log-for="'+escapeHtml(kind)+'" aria-label="Minuten registreren voor '+escapeHtml(h.name)+'">Minuten</button>'
+          :done
+            ?'<button type="button" data-habit-undo="'+escapeHtml(h.id)+'">Ongedaan</button>'
+            :'<input class="check" type="checkbox" data-habit-check="'+escapeHtml(h.id)+'" aria-label="'+escapeHtml(h.name)+' afvinken"/>';
+        return '<div class="myday-routine-card"><div class="myday-routine-content">'
+          +'<strong>'+escapeHtml(h.name)+'</strong><small>'+escapeHtml(detail)+'</small>'
+          +'</div><div class="myday-routine-actions">'+action
+          +'<button type="button" data-item-action="habit|'+escapeHtml(h.id)+'" aria-label="Routine bewerken">•••</button>'
+          +'</div></div>';
+      }).join('')
+      :'<div class="empty-state">Nog geen routines toegevoegd.</div>';
+  }
   function renderDailyBasis(){
     renderHabitGroup('habitList','completedHabitsWrap','basisProgress',state.habits,'Alle routines zijn voor vandaag afgerond.');
+    renderMyDayAllRoutines();
   }
   function selfCareToday(){
     const date=localDateKey();
@@ -2297,7 +2453,7 @@
     return [...fixed,...doneToday,...picked,...due.slice(0,Math.max(0,openSlots-picked.length))];
   }
   function renderHousehold(){ const list=document.getElementById('householdList');if(!list)return; const shown=householdVisibleToday(),active=shown.filter(t=>!householdDoneToday(t)),completed=state.householdTasks.filter(householdDoneToday),limit=householdLimit(),regularShown=shown.filter(t=>!t.fixedReminder).length; const counter=document.getElementById('householdCounter');if(counter)counter.textContent=`${regularShown} / ${limit}`; const note=document.getElementById('householdNote');if(note)note.textContent=Number(state.energy)===1?'Lage energie: maximaal 1 licht klusje + vaste reminder(s).':Number(state.energy)===2?'Normale energie: maximaal 2 passende klusjes + vaste reminder(s).':'Hoge energie: maximaal 3 passende klusjes + vaste reminder(s).'; list.innerHTML=active.length?active.map(t=>`<div class="household-item"><input class="check" type="checkbox" data-household-check="${t.id}" aria-label="Huishoudtaak afvinken"/><div class="household-copy"><div class="household-name">${escapeHtml(t.name)}</div>${t.description?`<div class="household-detail">${escapeHtml(t.description)}</div>`:''}<div class="household-meta">${t.time?`<span class="household-badge light">⏰ ${escapeHtml(t.time)}</span>`:''}${t.alarmEnabled?'<span class="household-badge light">Alarm</span>':''}${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span></div></div><div class="focus-item-actions"><button class="focus-list-button" data-focus-household="${t.id}">Focus</button>${t.fixedReminder?'':`<button class="focus-list-button" data-household-swap="${t.id}">Andere</button>`}<button class="basis-options" data-item-action="household|${t.id}" aria-label="Bewerken en opties">•••</button></div></div>`).join(''):`<div class="empty-state">${completed.length?'Alle huishoudklusjes voor vandaag zijn afgerond.':'Voor vandaag zijn er geen passende huishoudklusjes nodig.'}</div>`; const wrap=document.getElementById('completedHouseholdWrap');if(wrap)wrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div><div class="completed-habit-meta">${escapeHtml(t.fixedReminder?'Vaste reminder':householdEffortLabel(t.effort))} · ${escapeHtml(householdFrequencyLabel(t.frequency))}</div></div><button class="habit-undo-button" data-household-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''; }
-  function renderHouseholdManage(){ const wrap=document.getElementById('householdManageList');if(!wrap)return; const today=localDateKey(),chosen=new Set(householdTodayChoiceState().taskIds||[]);wrap.innerHTML=state.householdTasks.length?state.householdTasks.map(t=>`<div class="household-manage-item ${t.paused?'paused':''}"><div class="household-manage-top"><div class="household-manage-name">${escapeHtml(t.name)}<div class="household-meta">${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span>${chosen.has(t.id)?'<span class="household-badge light">Vandaag gekozen</span>':''}${t.paused?'<span class="household-badge">Gepauzeerd</span>':''}${t.deferUntil&&t.deferUntil>today?`<span class="household-badge">Tot ${escapeHtml(formatDateShort(t.deferUntil))}</span>`:''}</div></div></div><div class="household-manage-actions">${t.fixedReminder?'':`<button class="accent" data-household-today="${t.id}">${chosen.has(t.id)?'Vandaag ✓':'Vandaag'}</button>`}<button data-household-edit="${t.id}">Bewerken</button><button data-item-reminders="household|${t.id}">🔔 ${t.reminders?.length||0}</button><button data-household-tomorrow="${t.id}">Morgen</button><button data-household-pause="${t.id}">${t.paused?'Activeren':'Pauzeren'}</button><button class="danger" data-household-delete="${t.id}">Verwijderen</button></div></div>`).join(''):`<div class="empty-state">Nog geen huishoudklusjes.</div>`; }
+  function renderHouseholdManage(){ const wrap=document.getElementById('householdManageList');if(!wrap)return; const today=localDateKey(),chosen=new Set(householdTodayChoiceState().taskIds||[]);wrap.innerHTML=state.householdTasks.length?state.householdTasks.map(t=>`<div class="household-manage-item ${t.paused?'paused':''}"><div class="household-manage-top"><div class="household-manage-name">${escapeHtml(t.name)}<div class="household-meta">${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span>${chosen.has(t.id)?'<span class="household-badge light">Vandaag gekozen</span>':''}${t.paused?'<span class="household-badge">Gepauzeerd</span>':''}${t.deferUntil&&t.deferUntil>today?`<span class="household-badge">Tot ${escapeHtml(formatDateShort(t.deferUntil))}</span>`:''}</div></div></div><div class="household-manage-actions">${t.fixedReminder?'':`<button class="accent" data-household-today="${t.id}">${chosen.has(t.id)?'Vandaag ✓':'Vandaag'}</button>`}<button data-household-edit="${t.id}">Bewerken</button><button data-item-reminders="household|${t.id}">🔔 ${t.reminders?.length||0}</button><button data-household-tomorrow="${t.id}">Morgen</button><button data-household-pause="${t.id}">${t.paused?'Activeren':'Pauzeren'}</button><button class="danger" data-household-delete="${t.id}">Verwijderen</button></div></div>`).join(''):`<div class="empty-state">Nog geen huishoudklusjes.</div>`; const target=document.getElementById('myDayHouseholdAll');if(target)target.innerHTML='<p class="small-muted">Alle huishoudelijke klusjes, ook als ze niet voor vandaag zijn ingepland.</p>'+wrap.innerHTML; }
   function openHouseholdManage(){ renderHouseholdManage();document.getElementById('householdModal').classList.add('open'); }
 
   function ensureDailyState(){ const today=localDateKey(); let changed=syncDayTimelineForToday(); state.energyHistory||={}; if(!state.energyHistory[today]){state.energyHistory[today]=Number(state.energy)||2;changed=true;} if(!state.todayPlan||state.todayPlan.date!==today){ state.todayPlan={date:today,taskIds:[]}; refillTodayPlan(true); changed=true; } if(changed)saveState(); }
@@ -2590,10 +2746,16 @@
   }
   function startDayPlanFocus(blockId){
     const plan=state.dayTimeline,block=plan?.blocks?.find(b=>b.id===blockId);
-    if(!block||!dayPlanIsCurrent(plan)||block.postponedTo||dayPlanBlockDone(block))return;
+    if(!block||block.linkType==='agenda'||!dayPlanIsCurrent(plan)||block.postponedTo||dayPlanBlockDone(block))return;
     const active=activeDayPlanFocus();
+    // Op 'Focus bezig' drukken opent de lopende sessie, zonder de timer
+    // of het ingeplande Android-eindalarm opnieuw te starten.
+    if(active&&active.block.id===block.id){setDailyTab('focus');return;}
     if(active&&active.block.id!==block.id &&
        !confirm('Er loopt nog Focus voor "'+active.block.text+'". Stoppen en dit blok starten?'))return;
+    // Een gewone Focus mag nooit stilzwijgend worden beëindigd.
+    if(state.focus.running &&
+       !confirm('Er loopt al een gewone Focus. Stoppen en deze dagactiviteit starten?'))return;
     let duration=dayPlanFocusDuration(block);
     if(!duration){
       const field=document.querySelector('[data-dayplan-duration-for="'+blockId+'"]');
@@ -2602,13 +2764,15 @@
     }
     if(duration>360)return showToast('Focus kan maximaal 360 minuten duren.');
     stopFocusGuideWhenStarting();
-    // Er is maximaal één actieve Focus-timer: voorkom dubbele alarmen.
-    state.focus.running=false;
-    try{window.AndroidWidgetBridge?.cancelFocus?.();}catch{}
+    // Werk eerst verstreken Focus-tijd bij en annuleer het oude Android-alarm.
+    // Alleen na bevestiging stopt de bestaande sessie.
+    if(state.focus.running)stopFocusCountdown();
     clearDayPlanFocus();
     const now=Date.now(),endsAt=now+duration*60000;
     state.dayTimelineFocus={date:plan.date,blockId:block.id,startedAt:now,endsAt};
-    cancelDayPlanAlarms(plan); // optionele startmeldingen van flexibele blokken niet stapelen
+    // Tijdens Focus pauzeren gewone blokmeldingen, maar niet herinneringen
+    // van andere vaste afspraken. De melding van het actieve blok vervalt wel.
+    cancelDayPlanAlarms(plan,{duringFocus:true,focusBlockId:block.id});
     saveState();
     dayPlanFocusReminder(block,endsAt);
     renderToday();
@@ -2634,6 +2798,9 @@
     const block=active.block;
     clearDayPlanFocus();saveState();
     setDayPlanLinkedDone(block,true);
+    // Bij het starten waren alle startmeldingen gepauzeerd.
+    // Zet alleen de toekomstige, nog openstaande dagblokken weer terug.
+    scheduleDayPlanAlarms();
     setDailyTab('start');
     selfCareSuggest('timeline',block);
     const care=selfCareToday();care.offer=null;saveState();renderSelfCare();
@@ -2660,17 +2827,31 @@
     }
   }
 
-  function cancelDayPlanAlarms(plan){(plan?.blocks||[]).forEach(b=>{try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}});}
+  function cancelDayPlanAlarms(plan,options={}){
+    (plan?.blocks||[]).forEach(b=>{
+      if(options.duringFocus&&dayPlanBlockMode(b)==='fixed'&&b.id!==options.focusBlockId)return;
+      try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}
+    });
+  }
   function scheduleDayPlanAlarms(){
     const plans=[state.dayTimeline,storedDayTimeline(addDaysKey(1))];
+    const focused=activeDayPlanFocus();
     for(const plan of plans){
-    if(!plan?.date)continue;
-    (plan.blocks||[]).forEach(b=>{
-      if(!b.start||!b.remind||dayPlanBlockDone(b)||b.postponedTo)return;
-      const at=dayPlanTimeAt(plan,dayPlanMinutes(b.start));if(!Number.isFinite(at)||at<=Date.now()+1000)return;
-      const range=dayPlanRangeLabel(b.start,b.end);
-      try{window.AndroidWidgetBridge?.scheduleReminder?.(dayPlanAlarmId(plan,b),b.text,'Dagplanning · '+range,at,'today');}catch{}
-    });
+      if(!plan?.date)continue;
+      const isFocusedDay=Boolean(focused&&plan.date===state.dayTimeline?.date);
+      (plan.blocks||[]).forEach(b=>{
+        // Ook na wijzigen of opnieuw openen mogen flexibele meldingen niet
+        // terugkomen tijdens Focus. Vaste afspraken blijven bereikbaar.
+        if(isFocusedDay&&(b.id===focused.block.id||dayPlanBlockMode(b)!=='fixed')){
+          try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}
+          return;
+        }
+        if(!b.start||!b.remind||dayPlanBlockDone(b)||b.postponedTo)return;
+        const at=dayPlanTimeAt(plan,dayPlanMinutes(b.start));
+        if(!Number.isFinite(at)||at<=Date.now()+1000)return;
+        const range=dayPlanRangeLabel(b.start,b.end);
+        try{window.AndroidWidgetBridge?.scheduleReminder?.(dayPlanAlarmId(plan,b),b.text,'Dagplanning · '+range,at,'today');}catch{}
+      });
     }
   }
   // Eerste versie: geplakte dagblokken blijven bestaande data; alleen dagtijden wijzigen.
@@ -2749,9 +2930,11 @@
   }
   repairDayPlanContactLinks();
   function dayPlanBlockMode(block){
+    // Afspraken blijven altijd vast, ook als oudere data fixed:false bevat.
+    // Zo kan slepen, handmatig verplaatsen of herplannen nooit een afspraak wijzigen.
+    if(block.linkType==='agenda')return 'fixed';
     if(block.fixed===true)return 'fixed';
     if(block.fixed===false)return 'flex';
-    if(block.linkType==='agenda')return 'fixed';
     return dayPlanMealWindow(block)?'window':'flex';
   }
   function dayPlanEveningStage(block){
@@ -2970,7 +3153,7 @@
           const choice=householdTodayChoiceState();
           choice.taskIds=(choice.taskIds||[]).filter(id=>id!==household.id);
         }
-      }else if(b.linkType!=='task'){
+      }else if(!['task','household'].includes(b.linkType)){
         task=state.tasks.find(t=>!t.done&&dayPlanNormalizeText(t.name)===dayPlanNormalizeText(b.text))||null;
         if(!task){
           task=normalizeTask({id:uid('task'),name:b.text,done:false,bucket:'A',
@@ -3962,7 +4145,7 @@
     }
     // Alleen openstaande tijdsblokken staan in de actieve planning.
     // Afrondingen blijven in de originele data en kunnen hieronder teruggedraaid worden.
-    const today=plan.blocks.filter(b=>!b.postponedTo);
+    const today=plan.blocks.filter(b=>!b.postponedTo).sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
     const visible=today.filter(b=>!dayPlanBlockDone(b));
     const completed=today.filter(dayPlanBlockDone);
     const moved=plan.blocks.filter(b=>b.postponedTo);
@@ -3971,23 +4154,49 @@
       +(first&&last?' · van '+escapeHtml(dayPlanClockLabel(first.start))+' tot '+escapeHtml(dayPlanClockLabel(last.end||last.start)):'')
       +(completed.length?' · '+completed.length+' afgerond':'')
       +(moved.length?' · '+moved.length+' naar morgen':'')+'</p>';
-    box.innerHTML=countHtml
-    +(visible.length>1?'<p class="day-plan-order-note">Houd ☷ vast en sleep een activiteit omhoog of omlaag. De tijden schuiven mee; vaste afspraken blijven staan.</p>':'')
-    +(visible.length?visible.map(b=>{
+    // Alleen afvinkbare activiteiten bepalen het percentage.
+    // Agenda-afspraken blijven in de tijdlijn, maar zijn geen afvinkbare taken.
+    const trackableToday=today.filter(b=>b.linkType!=='agenda');
+    const totalToday=trackableToday.length;
+    const completedToday=trackableToday.filter(dayPlanBlockDone).length;
+    const progressPercent=totalToday?Math.round(100*completedToday/totalToday):0;
+    const progressHtml=totalToday?'<div class="day-plan-progress">'
+      +'<div class="day-plan-progress-track" role="progressbar" aria-label="Voortgang dagplanning"'
+      +' aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+progressPercent+'">'
+      +'<span class="day-plan-progress-fill" style="width:'+progressPercent+'%"></span></div>'
+      +'<span class="day-plan-progress-label">'+progressPercent+'%</span></div>':'';
+    box.innerHTML=countHtml+progressHtml
+    +(visible.length>1?'<p class="day-plan-order-note">Houd ☷ vast en sleep een activiteit naar een ander tijdvak.</p>':'')
+    +(visible.length?visible.map((b,i)=>{
+      const previous=visible[i-1],previousEnd=previous?dayPlanMinutes(previous.end||previous.start):null;
+      const nextStart=dayPlanMinutes(b.start);
+      const gap=previousEnd!==null&&nextStart!==null&&nextStart-previousEnd>=15
+        ?'<div class="day-clock-gap" data-dayplan-gap-time="'+previousEnd+'" data-dayplan-gap-end="'+nextStart+'" aria-label="Vrije ruimte tussen activiteiten"><strong>'
+          +escapeHtml(dayPlanClockLabel(previousEnd))+' – '+escapeHtml(dayPlanClockLabel(nextStart))
+          +'</strong><span>Vrije ruimte · '+(nextStart-previousEnd)+' min</span></div>'
+        :'';
+
       const linked=b.linkType!=='agenda',time=escapeHtml(dayPlanRangeLabel(b.start,b.end));
       const mark=linked?'<input class="check" type="checkbox" data-day-plan-check="'+b.id+'" aria-label="Afvinken"/>':(b.linkType==='agenda'?'▣':'•');
-      return '<div class="day-plan-row" data-dayplan-reorder-id="'+escapeHtml(b.id)+'"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div>'+dayPlanTaskDetails(b)+'<div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
-       +'<div class="day-plan-settings"><button type="button" class="day-plan-focus-start '+(activeDayPlanFocus()?.block.id===b.id?'active':'')+'" data-dayplan-focus-start="'+escapeHtml(b.id)+'">▶ '+(activeDayPlanFocus()?.block.id===b.id?'Focus bezig':'Start Focus')+'</button>'
+      return gap+'<div class="day-plan-row" data-dayplan-reorder-id="'+escapeHtml(b.id)+'"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div>'+dayPlanTaskDetails(b)+'<div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
+       +(b.linkType==='agenda'?'':'<button type="button" class="day-plan-focus-start '+(activeDayPlanFocus()?.block.id===b.id?'active':'')+'" data-dayplan-focus-start="'+escapeHtml(b.id)+'">▶ '+(activeDayPlanFocus()?.block.id===b.id?'Focus bezig':'Focus')+'</button>')
+       +'<details class="day-plan-more"><summary aria-label="Meer opties">•••</summary><div class="day-plan-settings">'
        +(dayPlanFocusDuration(b)?'':'<input type="number" min="1" max="360" placeholder="min" class="day-plan-start-duration" data-dayplan-duration-for="'+escapeHtml(b.id)+'" aria-label="Focusduur in minuten"/>')
-       +'<button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>'
+       +(dayPlanBlockMode(b)!=='fixed'
+          ?'<div class="day-plan-time-edit"><label for="dayplan-time-'+escapeHtml(b.id)+'">Begintijd</label>'
+            +'<input type="time" id="dayplan-time-'+escapeHtml(b.id)+'" data-dayplan-time-input="'+escapeHtml(b.id)+'" value="'+escapeHtml(dayPlanClock((dayPlanMinutes(b.start)??0)%1440))+'"/>'
+            +'<button type="button" data-dayplan-time-save="'+escapeHtml(b.id)+'">Verplaats</button>'
+            +'<small>Alleen deze activiteit verschuift. Andere tijden blijven staan.</small></div>':'')
+       +(b.linkType==='agenda'?'':'<button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>')
        +(b.linkType!=='agenda'?'<button type="button" class="day-plan-mini '+(b.remind?'on':'')+'" data-dayplan-remind="'+escapeHtml(b.id)+'">'+(b.remind?'Herinnering aan':'Herinnering uit')+'</button>':'')
-       +'<button type="button" class="day-plan-remove-button" data-dayplan-remove="'+escapeHtml(b.id)+'">Blok verwijderen</button></div>'
+       +(dayPlanMayPostpone(b)?'<button type="button" class="day-plan-mini" data-dayplan-postpone-one="'+escapeHtml(b.id)+'">Naar morgen</button>':'')
+        +'<button type="button" class="day-plan-remove-button" data-dayplan-remove="'+escapeHtml(b.id)+'">Uit planning halen</button></div></details>'
        +'</div>'
-       +(dayPlanBlockMode(b)==='fixed'?'<span class="day-plan-drag-static" title="Vaste tijd">▣</span>'
+       +(dayPlanBlockMode(b)==='fixed'?'<span class="day-plan-drag-static" title="Vast tijdstip, niet versleepbaar">▣</span>'
        :'<button type="button" class="day-plan-grip" data-dayplan-grip="'+escapeHtml(b.id)+'" aria-label="Sleep '+escapeHtml(b.text)+' naar een andere plek" title="Vasthouden en verslepen">☷</button>')
        +'</div>';
     }).join(''):'<div class="empty-state">Alles voor vandaag is afgevinkt.</div>')
-    +(moved.length?'<details class="day-plan-deferred"><summary>Doorgeschoven naar morgen ('+moved.length+')</summary>'
+    +(moved.length?'<details class="day-plan-deferred" open><summary>Nog inplannen voor morgen ('+moved.length+')</summary>'
        +moved.map(b=>'<div class="day-plan-deferred-item"><span>'+escapeHtml(b.text)+'</span><button type="button" data-dayplan-restore="'+escapeHtml(b.id)+'">Terug naar vandaag</button></div>').join('')
        +'</details>':'')
     +(completed.length?'<details class="day-plan-deferred"><summary>Vandaag afgerond ('+completed.length+')</summary>'
@@ -3999,27 +4208,107 @@
   // instellingen of handmatig tijden invullen. Binnen een actieve Focus
   // mag niet gesleept worden, zodat het eindsignaal ongewijzigd blijft.
   let dayPlanDrag=null;
+  function moveDayPlanBlockIntoGap(blockId,startMinutes,gapEndMinutes){
+    const plan=state.dayTimeline;
+    if(!dayPlanIsCurrent(plan))return false;
+    const block=plan.blocks.find(b=>b.id===blockId);
+    if(!block||dayPlanBlockMode(block)==='fixed'||block.postponedTo||dayPlanBlockDone(block))return false;
+    if(activeDayPlanFocus()||state.focus.running)return false;
+    const oldStart=dayPlanMinutes(block.start),oldEnd=dayPlanMinutes(block.end);
+    if(oldStart===null||!Number.isInteger(startMinutes)||!Number.isInteger(gapEndMinutes))return false;
+    if(startMinutes===oldStart){showToast('De begintijd is niet veranderd.');return false;}
+    const duration=oldEnd!==null&&oldEnd>oldStart?oldEnd-oldStart:0;
+    const newEnd=startMinutes+Math.max(1,duration);
+    if(startMinutes<0||startMinutes>=2880||newEnd>gapEndMinutes||newEnd>=2880){
+      showToast('Dit blok past niet in de gekozen vrije ruimte.');return false;
+    }
+    const conflict=plan.blocks.some(b=>{
+      if(b===block||b.postponedTo||dayPlanBlockDone(b))return false;
+      const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
+      if(start===null)return false;
+      return start<newEnd&&(end===null||end<=start?start+1:end)>startMinutes;
+    });
+    if(conflict){showToast('Deze tijd is al bezet.');return false;}
+    try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,block));}catch{}
+    block.start=dayPlanClock(startMinutes);block.originalStart=block.start;
+    if(oldEnd!==null){block.end=dayPlanClock(startMinutes+duration);block.originalEnd=block.end;}
+    plan.blocks.sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
+    plan.manualOrderIds=plan.blocks.map(b=>b.id);
+    plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
+      .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+    saveState();scheduleDayPlanAlarms();renderToday();
+    showToast('Activiteit in vrije ruimte gezet; andere tijden blijven gelijk.');
+    return true;
+  }
+  function setDayPlanBlockStartTime(blockId,value){
+    if(typeof value!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)){
+      showToast('Kies een geldige begintijd.');return false;
+    }
+    // Bestaande botsingscontrole voorkomt overlappende activiteiten.
+    return moveDayPlanBlockIntoGap(blockId,dayPlanMinutes(value),2880);
+  }
   function saveDayPlanDragOrder(){
+    // Wissel flexibele activiteiten tussen bestaande klokvakken.
     const box=document.getElementById('dayPlanList'),plan=state.dayTimeline;
     if(!box||!dayPlanIsCurrent(plan))return false;
-    const ids=[...box.querySelectorAll(':scope > .day-plan-row[data-dayplan-reorder-id]')]
-      .map(row=>row.dataset.dayplanReorderId);
-    const current=plan.blocks.filter(b=>!b.postponedTo&&!dayPlanBlockDone(b)).map(b=>b.id);
-    if(ids.length!==current.length||ids.every((id,i)=>id===current[i]))return false;
-    const done=plan.blocks.filter(b=>!b.postponedTo&&dayPlanBlockDone(b)).map(b=>b.id);
-    return replanDayFromNow({orderIds:[...done,...ids],fromDrag:true,silent:true});
+    const visible=plan.blocks.filter(b=>!b.postponedTo&&!dayPlanBlockDone(b))
+      .sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
+    const flexible=visible.filter(b=>dayPlanBlockMode(b)!=='fixed');
+    const ids=[...box.querySelectorAll(':scope > .day-plan-row[data-dayplan-reorder-id]')].map(row=>row.dataset.dayplanReorderId);
+    const lookup=new Map(visible.map(b=>[b.id,b]));
+    if(ids.length!==visible.length||new Set(ids).size!==visible.length||ids.some(id=>!lookup.has(id)))return false;
+    const rearranged=ids.map(id=>lookup.get(id)).filter(b=>dayPlanBlockMode(b)!=='fixed');
+    if(rearranged.every((b,i)=>b.id===flexible[i]?.id)){renderDayTimeline();return false;}
+    const slots=flexible.map(b=>dayPlanMinutes(b.start));
+    if(slots.some(x=>x===null))return renderDayTimeline(),false;
+    const changes=rearranged.map((b,i)=>{
+      const from=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end),length=end!==null&&end>from?end-from:0;
+      return {b,start:slots[i],end:length?slots[i]+length:null};
+    });
+    const agenda=visible.filter(b=>b.linkType==='agenda').map(b=>({start:dayPlanMinutes(b.start),end:dayPlanMinutes(b.end)}));
+    if(changes.some(x=>agenda.some(a=>a.start!==null&&x.start<(a.end!==null&&a.end>a.start?a.end:a.start+1)&&(x.end??x.start+1)>a.start))){
+      renderDayTimeline();showToast('Deze activiteit past niet rond een vaste afspraak.');return false;
+    }
+    // Controleer de gehele nieuwe volgorde: verschillende bloklengtes mogen
+    // geen onbedoelde overlap maken met een activiteit of vrije-ruimteblok.
+    const proposed=new Map(changes.map(x=>[x.b.id,x]));
+    const occupied=plan.blocks.filter(b=>!b.postponedTo&&!dayPlanBlockDone(b)).map(b=>{
+      const alt=proposed.get(b.id),start=alt?alt.start:dayPlanMinutes(b.start);
+      const end=alt?alt.end:dayPlanMinutes(b.end);
+      return {id:b.id,start,end:end!==null&&end>start?end:start===null?null:start+1};
+    }).filter(b=>b.start!==null);
+    const collision=occupied.some((x,i)=>occupied.slice(i+1).some(y=>
+      x.start<y.end&&y.start<x.end&&(proposed.has(x.id)||proposed.has(y.id))));
+    if(collision){
+      renderDayTimeline();
+      showToast('Deze volgorde geeft overlappende tijden. Kies een andere plek.');
+      return false;
+    }
+    cancelDayPlanAlarms(plan);
+    for(const {b,start,end} of changes){
+      b.start=dayPlanClock(start);b.originalStart=b.start;
+      if(end!==null){b.end=dayPlanClock(end);b.originalEnd=b.end;}
+    }
+    plan.blocks.sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
+    plan.manualOrderIds=plan.blocks.map(b=>b.id);
+    plan.sourceText=plan.blocks.filter(b=>!b.postponedTo).map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+    saveState();scheduleDayPlanAlarms();renderToday();renderFocus();
+    showToast('Activiteiten verschoven; afspraken blijven staan.');
+    return true;
   }
   document.addEventListener('pointerdown',e=>{
     const grip=e.target.closest?.('[data-dayplan-grip]');
     if(!grip)return;
-    if(activeDayPlanFocus()){
+    if(activeDayPlanFocus()||state.focus.running){
       showToast('Stop eerst de lopende Focus voordat je de volgorde wijzigt.');
       return;
     }
     const row=grip.closest('.day-plan-row[data-dayplan-reorder-id]');
     if(!row||!dayPlanIsCurrent())return;
+    const locked=state.dayTimeline?.blocks?.find(b=>b.id===row.dataset.dayplanReorderId);
+    if(!locked||dayPlanBlockMode(locked)==='fixed')return;
     e.preventDefault();
-    dayPlanDrag={row,pointerId:e.pointerId,grip,moved:false};
+    dayPlanDrag={row,pointerId:e.pointerId,grip,moved:false,gapTime:null,gapEnd:null};
     row.classList.add('day-plan-dragging');
     try{grip.setPointerCapture(e.pointerId);}catch{}
   });
@@ -4029,6 +4318,15 @@
     if(e.cancelable)e.preventDefault();
     const box=drag.row.parentElement;
     if(!box)return;
+    const hover=document.elementFromPoint(e.clientX,e.clientY);
+    const freeSlot=hover?.closest?.('[data-dayplan-gap-time]')||null;
+    box.querySelectorAll('.day-clock-gap-target').forEach(el=>el.classList.remove('day-clock-gap-target'));
+    drag.gapTime=null;drag.gapEnd=null;
+    if(freeSlot){
+      freeSlot.classList.add('day-clock-gap-target');
+      drag.gapTime=Number(freeSlot.dataset.dayplanGapTime);
+      drag.gapEnd=Number(freeSlot.dataset.dayplanGapEnd);
+    }
     const rows=[...box.querySelectorAll(':scope > .day-plan-row[data-dayplan-reorder-id]')]
       .filter(row=>row!==drag.row);
     const target=rows.find(row=>e.clientY<row.getBoundingClientRect().top+row.getBoundingClientRect().height/2);
@@ -4049,7 +4347,10 @@
     if(!drag||drag.pointerId!==e.pointerId)return;
     dayPlanDrag=null;
     drag.row.classList.remove('day-plan-dragging');
-    if(drag.moved)saveDayPlanDragOrder();
+    if(drag.gapTime!==null&&drag.gapEnd!==null){
+      const id=drag.row.dataset.dayplanReorderId;
+      if(!moveDayPlanBlockIntoGap(id,drag.gapTime,drag.gapEnd))renderDayTimeline();
+    }else if(drag.moved)saveDayPlanDragOrder();
     else renderDayTimeline();
   }
   document.addEventListener('pointerup',finishDayPlanDrag);
@@ -4059,7 +4360,8 @@
   });
 
   function setDayPlanLinkedDone(block,checked){
-    if(checked&&state.dayTimelineFocus?.blockId===block.id){clearDayPlanFocus();saveState();}
+    const focusStoppedByCheck=Boolean(checked&&state.dayTimelineFocus?.blockId===block.id);
+    if(focusStoppedByCheck){clearDayPlanFocus();saveState();}
     const today=state.dayTimeline?.date||localDateKey();
     if(block.linkType==='task'){
       const t=state.tasks.find(x=>x.id===block.linkId);
@@ -4074,6 +4376,7 @@
         if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
         else scheduleDayPlanAlarms();
         markTask(t,allDone,true);
+        if(focusStoppedByCheck)scheduleDayPlanAlarms();
         return;
       }
     }
@@ -4101,6 +4404,7 @@
           if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
           else scheduleDayPlanAlarms();
           saveState();renderToday();renderFocus();
+          if(focusStoppedByCheck)scheduleDayPlanAlarms();
           return;
         }
         h.history||={};h.versionHistory||={};
@@ -4114,6 +4418,7 @@
     if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
     else scheduleDayPlanAlarms();
     renderToday();renderAllTasks();renderFocus();
+    if(focusStoppedByCheck)scheduleDayPlanAlarms();
   }
 
   // Gemengde Vandaag-widget zonder kloktijden: native afvinken synchroniseren.
@@ -4179,7 +4484,7 @@
     if(confirmed.length){
       try{window.AndroidWidgetBridge?.ackDayTimelineUpdates?.(JSON.stringify(confirmed));}catch{}
       if(operations.some(op=>confirmed.includes(op.id)&&op.done))offerRecovery();
-      else replanDayFromNow({silent:true});
+      // Afvinken via de widget mag de overige geplande tijden niet verschuiven.
     }
   };
 
@@ -4192,7 +4497,8 @@
         if(Array.isArray(nativeEvents))events=nativeEvents;
       }
     }catch{}
-    events=(Array.isArray(events)?events:[]).filter(e=>e&&e.status!=='cancelled').slice(0,3);
+    events=(Array.isArray(events)?events:[]).filter(e=>e&&e.status!=='cancelled');
+    if(document.querySelector('.today-shell')?.dataset.mydayMode!=='agenda')events=events.slice(0,3);
     list.innerHTML=events.length?events.map(e=>`<div class="today-agenda-item"><div class="today-agenda-time">${escapeHtml(todayAgendaMeta(e))}</div><div class="today-agenda-name">${escapeHtml(e.summary||'Afspraak')}</div></div>`).join(''):`<div class="empty-state">Geen afspraken geladen.</div>`;
   }
 
@@ -4241,7 +4547,7 @@
     D:{title:'D · Later / ooit',sub:'Bewaren zonder druk'}
   };
   function taskBucketOptions(selected){return ['A','B','C','D'].map(k=>`<option value="${k}" ${selected===k?'selected':''}>${TASK_BUCKETS[k].title}</option>`).join('');}
-  function taskBoardMini(t){const meta=[t.deadline?`deadline ${formatDateShort(t.deadline)}`:'',t.reminders?.length?`🔔 ${t.reminders.length}`:'',t.subtasks?.length?`${t.subtasks.filter(x=>x.done).length}/${t.subtasks.length} stappen`:''].filter(Boolean).join(' · ');return `<button class="task-board-item" draggable="true" data-drag-task="${t.id}" data-open-task-action="${t.id}"><div class="task-board-line"><div style="min-width:0;flex:1;"><div class="task-board-name">${escapeHtml(t.name)}</div>${meta?`<div class="task-board-meta">${escapeHtml(meta)}</div>`:''}</div><span class="task-board-chevron">›</span></div></button>`;}
+  function taskBoardMini(t){const meta=[t.deadline?`deadline ${formatDateShort(t.deadline)}`:'',t.reminders?.length?`🔔 ${t.reminders.length}`:'',t.subtasks?.length?`${t.subtasks.filter(x=>x.done).length}/${t.subtasks.length} stappen`:''].filter(Boolean).join(' · ');return `<button class="task-board-item" draggable="true" data-drag-task="${t.id}" data-open-task-action="${t.id}"><div class="task-board-line"><div style="min-width:0;flex:1;"><div class="task-board-name">${escapeHtml(t.name)}</div>${meta?`<div class="task-board-meta">${escapeHtml(meta)}</div>`:''}</div><span class="task-drag-grip" aria-hidden="true" title="Vasthouden en verplaatsen">☷</span></div></button>`;}
   function renderAllTasks(){
     const inbox=state.tasks.filter(t=>!t.done&&t.bucket==='inbox').sort(compareTaskPriority);
     const inboxBox=document.getElementById('taskInbox');
@@ -4727,8 +5033,9 @@
     if(!bar)return;
     const enabled=focusGuideRemindersEnabled();
     bar.innerHTML='<div class="focus-reminder-control">'
-      +'<div><strong>Herinneringen: '+(enabled?'aan':'uit')+'</strong>'
-      +'<small>'+(enabled?'Seintje na Focus of pauze.':'Geen vervolg- of pauzeherinneringen.')+'</small></div>'
+      +'<div><strong>Vervolgseintjes: '+(enabled?'aan':'uit')+'</strong>'
+      +'<small>'+(enabled?'Een seintje na Focus of pauze.':'Geen seintjes na Focus of pauze.')
+      +' Afspraken en het eindalarm van Focus blijven apart werken.</small></div>'
       +'<button type="button" class="secondary-button" data-focus-reminder-toggle>'
       +(enabled?'Uitzetten':'Aanzetten')+'</button></div>';
   }
@@ -5301,7 +5608,34 @@
   function renderProjects(){const wrap=document.getElementById('projectList');wrap.innerHTML=state.projects.length?state.projects.map(p=>`<div class="project-item"><div class="project-row" style="width:100%;"><div class="project-dot"></div><div class="project-name">${escapeHtml(p.name)}</div></div></div>`).join(''):`<div class="empty-state">Nog geen projecten. Voeg alleen een naam toe; verdere projectfuncties komen later.</div>`;}
 
   document.addEventListener('click',e=>{
-    const open=e.target.closest('[data-open]');if(open)return showView(open.dataset.open); if(e.target.closest('[data-back]'))return showView('home');
+    if(e.target.closest('[data-myday-return]'))return setMyDayMode(document.querySelector('.today-shell')?.dataset.mydayMode==='taken'?'onderdelen':'planning');
+    const myDayTab=e.target.closest('[data-myday-tab]');if(myDayTab)return setMyDayMode(myDayTab.dataset.mydayTab);
+    const myDayPart=e.target.closest('[data-myday-part]');if(myDayPart)return setMyDayMode(myDayPart.dataset.mydayPart);
+    if(e.target.closest('[data-myday-backup]')){
+      // Back-up is alleen een kopie. Nooit bestaande taken of instellingen wijzigen.
+      const entries={};
+      for(const key of [STORAGE_KEY,REMINDER_SETTINGS_KEY,'mijnPersoonlijkeAppCalendarEventsV1']){
+        const value=localStorage.getItem(key);
+        if(value!==null)entries[key]=value;
+      }
+      if(!entries[STORAGE_KEY])return showToast('Geen appgegevens gevonden voor back-up.');
+      const backup=JSON.stringify({version:2,exportedAt:Date.now(),entries});
+      if(window.AndroidWidgetBridge?.saveBackup){
+        window.AndroidWidgetBridge.saveBackup(backup);
+      }else{
+        const blob=new Blob([backup],{type:'application/json'}),url=URL.createObjectURL(blob);
+        const a=document.createElement('a');a.href=url;a.download='mijn-dag-backup.json';
+        document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+      }
+      return;
+    }
+    if(e.target.closest('[data-myday-focus]')){showView('today');return setDailyTab('focus');}
+    if(e.target.closest('[data-myday-energy]')){document.getElementById('myDayTools').hidden=true;return setMyDayMode('energie');}
+    if(e.target.closest('[data-myday-tools-toggle]')){
+      const tools=document.getElementById('myDayTools');if(tools)tools.hidden=!tools.hidden;return;
+    }
+    const open=e.target.closest('[data-open]');if(open)return showView(open.dataset.open);
+    if(e.target.closest('[data-back]')){showView('today');return setMyDayMode('planning');}
     const tab=e.target.closest('[data-daily-tab]');if(tab)return setDailyTab(tab.dataset.dailyTab); const foodNav=e.target.closest('[data-food-tab]');if(foodNav)return setFoodTab(foodNav.dataset.foodTab); const foodJump=e.target.closest('[data-food-tab-jump]');if(foodJump)return setFoodTab(foodJump.dataset.foodTabJump);
     const energy=e.target.closest('[data-energy]');if(energy){state.energy=Number(energy.dataset.energy);state.energyHistory||={};state.energyHistory[localDateKey()]=state.energy;refillTodayPlan(false);syncRecoveryGoals();saveState();queueReminderStateSync();return renderToday();}
     if(e.target.closest('#openQuickPlanButton'))return openQuickPlanModal();
@@ -5353,7 +5687,7 @@
     const focus=e.target.closest('[data-focus-task]');if(focus)return selectFocusTask(focus.dataset.focusTask);
     const dur=e.target.closest('[data-focus-duration]');if(dur){stopFocusCountdown();state.focus.durationSec=Number(dur.dataset.focusDuration)*60;state.focus.remainingSec=state.focus.durationSec;saveState();return renderFocus();}
     if(e.target.closest('#customFocusButton')){const m=Math.max(1,Math.min(180,Number(document.getElementById('customFocusMinutes').value)||0));if(!m)return showToast('Vul een aantal minuten in.');stopFocusCountdown();state.focus.durationSec=m*60;state.focus.remainingSec=m*60;saveState();return renderFocus();}
-    if(e.target.closest('#focusStartButton')){if(state.focus.running){stopFocusCountdown(true);}else{if(state.focus.remainingSec<=0)state.focus.remainingSec=state.focus.durationSec||300;ensureFocusAudio();state.focus.endsAt=Date.now()+state.focus.remainingSec*1000;state.focus.running=true;stopFocusGuideWhenStarting();}saveState();return renderFocus();}
+    if(e.target.closest('#focusStartButton')){if(state.focus.running){stopFocusCountdown(true);}else{if(state.focus.remainingSec<=0)state.focus.remainingSec=state.focus.durationSec||300;ensureFocusAudio();state.focus.endsAt=Date.now()+state.focus.remainingSec*1000;state.focus.running=true;stopFocusGuideWhenStarting();}saveState();if(state.focus.running)restoreNativeFocusNotification();return renderFocus();}
     if(e.target.closest('[data-focus-finish-done]'))return finishStandardFocus();
     const standardMore=e.target.closest('[data-focus-finish-extra]');
     if(standardMore)return extendStandardFocus(Number(standardMore.dataset.focusFinishExtra));
@@ -5573,6 +5907,15 @@
       if(!ids.length)return showToast('Vink één of meer taken aan die naar morgen mogen.');
       return replanDayFromNow({...dayPlanPendingChoice,postponeIds:ids});
     }
+    const postponeOne=e.target.closest('[data-dayplan-postpone-one]');
+    if(postponeOne){
+      const b=state.dayTimeline?.blocks?.find(x=>x.id===postponeOne.dataset.dayplanPostponeOne);
+      if(!b||!dayPlanMayPostpone(b))return showToast('Dit onderdeel kun je niet doorschuiven.');
+      postponeDayPlanBlocks([b.id]);
+      saveState();scheduleDayPlanAlarms();renderToday();renderAllTasks();
+      showToast('Bij nog inplannen voor morgen gezet.');
+      return;
+    }
     const restore=e.target.closest('[data-dayplan-restore]');
     if(restore)return restorePostponedDayPlanBlock(restore.dataset.dayplanRestore);
     const removeBlock=e.target.closest('[data-dayplan-remove]');
@@ -5591,10 +5934,16 @@
     if(e.target.closest('[data-dayplan-allow-meals]'))return replanDayFromNow({...dayPlanPendingChoice,allowLateMeals:true});
     if(e.target.closest('[data-dayplan-allow-overnight]'))return replanDayFromNow({...dayPlanPendingChoice,allowLateDay:true,allowOvernight:true});
     if(e.target.closest('[data-dayplan-allow-longer]'))return replanDayFromNow({...dayPlanPendingChoice,allowLateDay:true});
+    const saveTime=e.target.closest('[data-dayplan-time-save]');
+    if(saveTime){
+      const input=document.querySelector('[data-dayplan-time-input="'+saveTime.dataset.dayplanTimeSave+'"]');
+      if(input)setDayPlanBlockStartTime(saveTime.dataset.dayplanTimeSave,input.value);
+      return;
+    }
     const lock=e.target.closest('[data-dayplan-fixed]');
     if(lock){
       const b=state.dayTimeline?.blocks?.find(x=>x.id===lock.dataset.dayplanFixed);
-      if(b){b.fixed=dayPlanBlockMode(b)==='fixed'?false:true;saveState();renderDayTimeline();}
+      if(b&&b.linkType!=='agenda'){b.fixed=dayPlanBlockMode(b)==='fixed'?false:true;saveState();renderDayTimeline();}
       return;
     }
     const bell=e.target.closest('[data-dayplan-remind]');
@@ -5630,7 +5979,7 @@
         setDayPlanLinkedDone(b,e.target.checked);
         if(e.target.checked&&dayPlanBlockDone(b)){
           if(!selfCareSuggest('timeline',b))showDayPlanNextPicker();
-        }else replanDayFromNow({silent:true});
+        }
       }
     }
   });
@@ -5663,10 +6012,73 @@
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible'){focusCountdownSync();tickDayPlanFocus();tickRecovery();tickFocusGuide();renderFocus();refreshDayPlanFocusPanels();renderRecoveryPanel();restoreNativeFocusNotification();}
   });
-  document.addEventListener('dragstart',e=>{const item=e.target.closest?.('[data-drag-task]');if(item&&e.dataTransfer){e.dataTransfer.setData('text/task-id',item.dataset.dragTask);e.dataTransfer.effectAllowed='move';}});
-  document.addEventListener('dragover',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone){e.preventDefault();zone.classList.add('drag-over');}});
-  document.addEventListener('dragleave',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(zone)zone.classList.remove('drag-over');});
-  document.addEventListener('drop',e=>{const zone=e.target.closest?.('[data-drop-bucket]');if(!zone)return;e.preventDefault();document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));const id=e.dataTransfer?.getData('text/task-id'),t=state.tasks.find(x=>x.id===id),bucket=zone.dataset.dropBucket;if(t&&['A','B','C','D'].includes(bucket)){t.bucket=bucket;t.paused=false;t.deferUntil='';if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(x=>x!==t.id);refillTodayPlan(false);saveState();renderAllTasks();renderToday();showToast('Taak verplaatst.');}});
+  function moveBoardTaskToBucket(id,bucket){
+    const t=state.tasks.find(x=>x.id===id);
+    if(!t||!['A','B','C','D'].includes(bucket)||t.bucket===bucket)return false;
+    t.bucket=bucket;t.paused=false;t.deferUntil='';
+    if(bucket!=='A')state.todayPlan.taskIds=(state.todayPlan.taskIds||[]).filter(x=>x!==t.id);
+    refillTodayPlan(false);saveState();renderAllTasks();renderToday();
+    showToast('Taak verplaatst.');return true;
+  }
+  // Aanraken via sleepgreep werkt ook op Samsung, waar HTML5 drag vaak niet werkt.
+  let taskTouchDrag=null,taskBoardSuppressClickUntil=0;
+  document.addEventListener('pointerdown',e=>{
+    const grip=e.target.closest?.('.task-drag-grip');
+    if(!grip||e.button!==0)return;
+    const item=grip.closest('[data-drag-task]');
+    if(!item)return;
+    e.preventDefault();
+    taskTouchDrag={id:item.dataset.dragTask,pointerId:e.pointerId,grip,item,zone:null};
+    item.classList.add('task-touch-dragging');
+    try{grip.setPointerCapture(e.pointerId)}catch{}
+  });
+  document.addEventListener('pointermove',e=>{
+    const drag=taskTouchDrag;
+    if(!drag||drag.pointerId!==e.pointerId)return;
+    if(e.cancelable)e.preventDefault();
+    const beneath=document.elementFromPoint(e.clientX,e.clientY);
+    const zone=beneath?.closest?.('[data-drop-bucket]')||null;
+    document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));
+    if(zone)zone.classList.add('drag-over');
+    drag.zone=zone;
+  });
+  function endTaskTouchDrag(e,cancelled=false){
+    const drag=taskTouchDrag;
+    if(!drag||drag.pointerId!==e.pointerId)return;
+    taskTouchDrag=null;
+    drag.item.classList.remove('task-touch-dragging');
+    document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));
+    if(!cancelled&&drag.zone){
+      taskBoardSuppressClickUntil=Date.now()+450;
+      moveBoardTaskToBucket(drag.id,drag.zone.dataset.dropBucket);
+    }
+  }
+  document.addEventListener('pointerup',e=>endTaskTouchDrag(e));
+  document.addEventListener('pointercancel',e=>endTaskTouchDrag(e,true));
+  document.addEventListener('click',e=>{
+    if(Date.now()<taskBoardSuppressClickUntil&&e.target.closest?.('[data-drag-task]')){
+      taskBoardSuppressClickUntil=0;e.preventDefault();e.stopImmediatePropagation();
+    }
+  },true);
+  document.addEventListener('dragstart',e=>{
+    const item=e.target.closest?.('[data-drag-task]');
+    if(item&&e.dataTransfer){e.dataTransfer.setData('text/task-id',item.dataset.dragTask);e.dataTransfer.effectAllowed='move';}
+  });
+  document.addEventListener('dragover',e=>{
+    const zone=e.target.closest?.('[data-drop-bucket]');
+    if(zone){e.preventDefault();zone.classList.add('drag-over');}
+  });
+  document.addEventListener('dragleave',e=>{
+    const zone=e.target.closest?.('[data-drop-bucket]');
+    if(zone)zone.classList.remove('drag-over');
+  });
+  document.addEventListener('drop',e=>{
+    const zone=e.target.closest?.('[data-drop-bucket]');
+    if(!zone)return;
+    e.preventDefault();
+    document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));
+    moveBoardTaskToBucket(e.dataTransfer?.getData('text/task-id'),zone.dataset.dropBucket);
+  });
   document.addEventListener('toggle',e=>{
     if(e.target.matches?.('.task-step-details[data-task-step-details]')){
       const id=e.target.dataset.taskStepDetails;
