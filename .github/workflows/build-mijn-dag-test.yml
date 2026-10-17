@@ -1,15 +1,9 @@
 name: Bouw Mijn Dag TEST APK
 
 on:
+  # Bouw alleen handmatig als er daadwerkelijk iets nieuws te controleren is.
+  # Bewaar de aparte testapp; wijzig de bestaande app niet automatisch.
   workflow_dispatch:
-  push:
-    branches:
-      - mijn-dag-nieuw-beginscherm-20261017
-    paths:
-      - index.html
-      - .github/workflows/build-mijn-dag-test.yml
-      - android-widget-stable/**
-      - test-preview/**
 
 permissions:
   contents: read
