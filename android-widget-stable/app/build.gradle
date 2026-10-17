@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgettest'
         minSdk 26
         targetSdk 35
-        versionCode 81
-        versionName 'mijn-dag-6.23-widget-sync'
+        versionCode 82
+        versionName 'mijn-dag-6.24-backup'
     }
 
     buildTypes {
