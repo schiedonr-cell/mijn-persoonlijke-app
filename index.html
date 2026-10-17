@@ -933,7 +933,7 @@
     .day-calendar-event.is-dragged{opacity:.35}
     /* De grijprand valt samen met de rand van de activiteit; de aanraakzone blijft bruikbaar. */
     .day-calendar-resize{position:absolute;z-index:5;left:7px;right:7px;transform:none;
-      width:auto;height:9px;min-height:9px;padding:0;border:0;background:transparent;touch-action:none;
+      width:auto;height:6px;min-height:6px;padding:0;border:0;background:transparent;touch-action:none;
       cursor:ns-resize;-webkit-touch-callout:none;user-select:none}
     .day-calendar-resize[data-daycal-resize="start"]{top:0}
     .day-calendar-resize[data-daycal-resize="end"]{bottom:0}
@@ -4600,7 +4600,8 @@
     else if(e.clientY<bounds.top+36)d.sc.scrollTop-=12;
     const delta=e.clientY-d.y+(d.sc.scrollTop-d.scrollY);
     const snapped=Math.round(delta/5)*5;
-    d.moved=d.moved||Math.abs(delta)>4;
+    // Kleine vingerbeweging tijdens aantikken is geen sleepactie.
+    d.moved=d.moved||Math.abs(delta)>9;
     if(d.mode==='start'){
       d.newStart=Math.max(0,Math.min(d.oldEnd-5,d.oldStart+snapped));
       d.newEnd=d.oldEnd;
@@ -4622,7 +4623,13 @@
     const d=dayCalendarDrag;if(!d||d.pointerId!==e.pointerId)return;
     dayCalendarDrag=null;
     d.preview?.remove();d.card.classList.remove('is-dragged');
-    if(d.moved&&(d.newStart!==d.oldStart||d.newEnd!==d.oldEnd)){
+    if(!d.moved){
+      // Een korte tik op een sleepgreep of rand opent gewoon Bewerken.
+      // Eerder werd de tik opgeslokt door de sleepbediening.
+      openDayCalendarEditor(d.id);
+      return;
+    }
+    if(d.newStart!==d.oldStart||d.newEnd!==d.oldEnd){
       const plan=calendarPlan();
       if(d.mode==='move')calendarMoveBlock(plan,d.id,d.newStart);
       else calendarResizeBlock(plan,d.id,d.newStart,d.newEnd);
