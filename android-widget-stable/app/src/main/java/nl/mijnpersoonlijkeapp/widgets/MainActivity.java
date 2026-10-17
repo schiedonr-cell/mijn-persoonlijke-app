@@ -48,11 +48,13 @@ public class MainActivity extends Activity {
     private static final String IMPORT_FILE = "pending-import.json";
     private static final int PICK_FILE = 77;
     private static final int CALENDAR_PERMISSION = 78;
+    private static final int SAVE_BACKUP_FILE = 81;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WebView webView;
     private String target = "today";
     private boolean importing = false;
+    private String pendingBackup = null;
 
     private final Runnable syncLoop = new Runnable() {
         @Override public void run() {
@@ -154,6 +156,19 @@ public class MainActivity extends Activity {
         if (requestCode == PICK_FILE && resultCode == RESULT_OK && data != null && data.getData() != null) {
             if (saveTransfer(readUri(data.getData()))) openApp();
             else Toast.makeText(this, "Dit bestand bevat geen geldige appgegevens.", Toast.LENGTH_LONG).show();
+        }
+        if (requestCode == SAVE_BACKUP_FILE) {
+            String backup = pendingBackup;
+            pendingBackup = null;
+            if (resultCode != RESULT_OK || data == null || data.getData() == null || backup == null) return;
+            try (java.io.OutputStream out = getContentResolver().openOutputStream(data.getData())) {
+                if (out == null) throw new java.io.IOException("Bestand kan niet worden geopend.");
+                out.write(backup.getBytes(StandardCharsets.UTF_8));
+                out.flush();
+                Toast.makeText(this, "Back-up opgeslagen.", Toast.LENGTH_SHORT).show();
+            } catch (Exception ex) {
+                Toast.makeText(this, "Back-up opslaan mislukt. Je gegevens zijn niet veranderd.", Toast.LENGTH_LONG).show();
+            }
         }
     }
 
@@ -405,6 +420,29 @@ public class MainActivity extends Activity {
         @JavascriptInterface public String getTodayGoogleCalendarEvents() {
             try {return CalendarData.todayEvents(MainActivity.this).toString();}
             catch(Exception e){return "[]";}
+        }
+        @JavascriptInterface public void saveBackup(String json) {
+            // Alleen opslaan via de Android-bestandskiezer. Nooit appgegevens wissen.
+            try {
+                JSONObject payload=new JSONObject(json);
+                JSONObject entries=payload.optJSONObject("entries");
+                if (entries==null || !entries.has("mijnPersoonlijkeAppV1")) return;
+                new JSONObject(entries.getString("mijnPersoonlijkeAppV1"));
+                handler.post(() -> {
+                    pendingBackup=json;
+                    Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    i.addCategory(Intent.CATEGORY_OPENABLE);
+                    i.setType("application/json");
+                    String date=new java.text.SimpleDateFormat("yyyy-MM-dd",java.util.Locale.getDefault())
+                        .format(new java.util.Date());
+                    i.putExtra(Intent.EXTRA_TITLE,"mijn-dag-backup-"+date+".json");
+                    try{startActivityForResult(i,SAVE_BACKUP_FILE);}
+                    catch(Exception e){
+                        pendingBackup=null;
+                        Toast.makeText(MainActivity.this,"Bestandskiezer niet beschikbaar.",Toast.LENGTH_LONG).show();
+                    }
+                });
+            } catch(Exception ignored){}
         }
     }
 }
