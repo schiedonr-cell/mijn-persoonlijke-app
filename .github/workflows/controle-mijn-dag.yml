@@ -1,0 +1,27 @@
+name: Controle Mijn Dag
+
+on:
+  push:
+    branches:
+      - mijn-dag-nieuw-beginscherm-20261017
+    paths:
+      - index.html
+      - tests/mijn-dag-smoke.test.cjs
+      - .github/workflows/controle-mijn-dag.yml
+  pull_request:
+    paths:
+      - index.html
+      - tests/mijn-dag-smoke.test.cjs
+      - .github/workflows/controle-mijn-dag.yml
+  workflow_dispatch:
+
+jobs:
+  controle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Controleer de dagplanning en bestaande functies
+        run: node --test tests/mijn-dag-smoke.test.cjs
