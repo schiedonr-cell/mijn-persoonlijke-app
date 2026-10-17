@@ -258,3 +258,26 @@ test('afvinken actieve Focus herstelt resterende herinneringen in alle afhandelr
   assert.match(code,/const focusStoppedByCheck=/);
   assert.equal((code.match(/if\(focusStoppedByCheck\)scheduleDayPlanAlarms\(\)/g)||[]).length,3);
 });
+
+test('lopende Focus bewaart meldingen van andere vaste afspraken', () => {
+  const start=main.indexOf('  function cancelDayPlanAlarms(plan,options={}){');
+  const end=main.indexOf('  function scheduleDayPlanAlarms(){',start);
+  assert.ok(start>0&&end>start);
+  const cancelled=[];
+  const ctx={
+    dayPlanBlockMode:b=>b.linkType==='agenda'||b.fixed?'fixed':'flex',
+    dayPlanAlarmId:(_plan,b)=>'alarm-'+b.id,
+    window:{AndroidWidgetBridge:{cancelReminder:id=>cancelled.push(id)}}
+  };
+  vm.runInNewContext(main.slice(start,end)+'\nthis.cancel=cancelDayPlanAlarms;',ctx);
+  const plan={blocks:[
+    {id:'focus',linkType:'task'},
+    {id:'fixed',linkType:'agenda'},
+    {id:'other',linkType:'task'}
+  ]};
+  ctx.cancel(plan,{duringFocus:true,focusBlockId:'focus'});
+  assert.deepEqual(cancelled,['alarm-focus','alarm-other']);
+  cancelled.length=0;
+  ctx.cancel(plan);
+  assert.deepEqual(cancelled,['alarm-focus','alarm-fixed','alarm-other']);
+});
