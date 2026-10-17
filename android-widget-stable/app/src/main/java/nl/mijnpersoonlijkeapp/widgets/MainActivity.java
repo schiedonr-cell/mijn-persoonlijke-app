@@ -288,7 +288,10 @@ public class MainActivity extends Activity {
             }
         });
         setContentView(webView);
-        webView.loadUrl(BASE + "?nativev=1&open=" + Uri.encode(target));
+        // Eerst gegevens overzetten op dezelfde beveiligde WebView-origin,
+        // voordat index.html lege standaardgegevens kan aanmaken.
+        if (importFile().exists()) webView.loadUrl(BASE + "import.html?nativev=1");
+        else webView.loadUrl(BASE + "?nativev=1&open=" + Uri.encode(target));
     }
 
     private void importIntoWebView() {
@@ -327,7 +330,7 @@ public class MainActivity extends Activity {
                         Toast.makeText(this,
                             "Bestaande gegevens behouden. Nieuwe overdracht niet toegepast.",
                             Toast.LENGTH_LONG).show();
-                        webView.reload();
+                        webView.loadUrl(BASE + "?nativev=1&open=" + Uri.encode(target));
                     } else injectNext(pairs,0);
                 });
         } catch (Exception e) {
@@ -354,7 +357,7 @@ public class MainActivity extends Activity {
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(IMPORT_DONE, true).apply();
                     importing = false;
                     Toast.makeText(this, "Je gegevens staan erin.", Toast.LENGTH_SHORT).show();
-                    webView.reload();
+                    webView.loadUrl(BASE + "?nativev=1&open=" + Uri.encode(target));
                 });
             return;
         }
