@@ -65,6 +65,13 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
     static void cancelDayFocus(Context context) {
         cancel(context,DAY_FOCUS);
     }
+    static boolean focusScheduled(Context ctx){
+        SharedPreferences prefs=ctx.getSharedPreferences(PREF,Context.MODE_PRIVATE);
+        return prefs.contains(FOCUS)||prefs.contains(DAY_FOCUS);
+    }
+    static void testNotification(Context ctx){
+        show(ctx,"preview-direct","Testmelding Mijn Dag","Android-meldingen werken vanuit deze app.");
+    }
 
     private static PendingIntent pending(Context ctx,String id,int flags) {
         Intent intent=new Intent(ctx,PreviewAlarmReceiver.class);
@@ -114,6 +121,8 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
         if(Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())){restore(context);return;}
         String id=intent.getStringExtra("alarm_id");
         if(id==null)return;
+        context.getSharedPreferences("preview_debug",Context.MODE_PRIVATE).edit()
+          .putString("last_alarm",id+" ontvangen om "+new java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.getDefault()).format(new java.util.Date())).apply();
         if(FOCUS.equals(id)||DAY_FOCUS.equals(id))cancelOngoing(context,id);
         SharedPreferences prefs=context.getSharedPreferences(PREF,Context.MODE_PRIVATE);
         try {
