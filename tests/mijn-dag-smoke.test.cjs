@@ -137,3 +137,38 @@ test('aflopende dagplanning-Focus markeert de activiteit niet vanzelf als klaar'
   assert.equal(block.done,false);
   assert.equal(rendered,2);
 });
+
+
+test('begintijd handmatig wijzigen: alleen flexibel blok en behoud van duur', () => {
+  const a=main.indexOf('  function moveDayPlanBlockIntoGap(');
+  const b=main.indexOf('  function saveDayPlanDragOrder()',a);
+  assert.ok(a>0&&b>a);
+  const blocks=[
+    {id:'a',start:'08:00',end:'08:30',fixed:false,text:'A'},
+    {id:'b',start:'10:00',end:'11:00',fixed:true,text:'Afspraak'},
+    {id:'c',start:'12:00',end:'12:30',fixed:false,text:'C'}
+  ];
+  const plan={date:'2026-10-17',blocks,manualOrderIds:[]};
+  const errors=[];
+  const env={
+    state:{dayTimeline:plan,focus:{running:false}},
+    dayPlanIsCurrent:()=>true,dayPlanBlockDone:()=>false,activeDayPlanFocus:()=>false,
+    dayPlanBlockMode:x=>x.fixed?'fixed':'flex',
+    dayPlanMinutes:time=>{const [h,m]=time.split(':').map(Number);return h*60+m;},
+    dayPlanClock:n=>String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0'),
+    dayPlanAlarmId:()=> 'reminder',
+    window:{AndroidWidgetBridge:{cancelReminder:()=>{}}},
+    scheduleDayPlanAlarms:()=>{},saveState:()=>{},renderToday:()=>{},
+    showToast:m=>errors.push(m),
+    Math,Number
+  };
+  vm.runInNewContext(main.slice(a,b)+'\nthis.setStart=setDayPlanBlockStartTime;',env);
+  assert.equal(env.setStart('a','09:00'),true);
+  assert.equal(blocks.find(x=>x.id==='a').start,'09:00');
+  assert.equal(blocks.find(x=>x.id==='a').end,'09:30');
+  assert.equal(blocks.find(x=>x.id==='b').start,'10:00');
+  assert.equal(env.setStart('b','09:00'),false,'Vast blok blijft staan');
+  assert.equal(env.setStart('a','10:30'),false,'Geen overlap met vaste afspraak');
+  assert.equal(env.setStart('a','ongeldig'),false);
+  assert.equal(blocks.find(x=>x.id==='a').start,'09:00');
+});
