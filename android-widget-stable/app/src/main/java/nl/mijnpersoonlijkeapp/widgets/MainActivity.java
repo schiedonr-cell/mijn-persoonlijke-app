@@ -248,6 +248,16 @@ public class MainActivity extends Activity {
                 return true;
             }
             @Override public void onPageFinished(WebView view, String url) {
+                // Een oudere webversie kan nog door een Service Worker worden
+                // getoond. Verwijder alleen die cache, nooit de gebruikersdata.
+                if (url.startsWith(BASE)) {
+                    view.evaluateJavascript(
+                        "(async()=>{try{if(!navigator.serviceWorker?.controller||sessionStorage.getItem('mijndag-native-cache-updated'))return;"
+                        +"sessionStorage.setItem('mijndag-native-cache-updated','1');"
+                        +"const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister()));"
+                        +"if('caches'in window){const keys=await caches.keys();await Promise.all(keys.map(k=>caches.delete(k)));}"
+                        +"location.reload();}catch(e){}})()", null);
+                }
                 if (importFile().exists() && !importing) importIntoWebView();
                 else if (imported()) {
                     injectCalendarCache();
