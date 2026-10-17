@@ -1163,6 +1163,7 @@
           <button type="button" data-daily-tab="dump">Snelle invoer</button>
           <button type="button" data-daily-tab="tasks">Volledig takenbord</button>
           <button type="button" data-daily-tab="shutdown">Dag afsluiten</button>
+          <button type="button" id="myDayBackupButton" data-myday-backup>Back-up opslaan</button>
           <button type="button" data-open="food">Eten & boodschappen</button>
           <button type="button" data-open="notes">Notities</button>
           <button type="button" data-myday-energy>Dagstart / energie</button>
@@ -5610,6 +5611,24 @@
     if(e.target.closest('[data-myday-return]'))return setMyDayMode(document.querySelector('.today-shell')?.dataset.mydayMode==='taken'?'onderdelen':'planning');
     const myDayTab=e.target.closest('[data-myday-tab]');if(myDayTab)return setMyDayMode(myDayTab.dataset.mydayTab);
     const myDayPart=e.target.closest('[data-myday-part]');if(myDayPart)return setMyDayMode(myDayPart.dataset.mydayPart);
+    if(e.target.closest('[data-myday-backup]')){
+      // Back-up is alleen een kopie. Nooit bestaande taken of instellingen wijzigen.
+      const entries={};
+      for(const key of [STORAGE_KEY,REMINDER_SETTINGS_KEY,'mijnPersoonlijkeAppCalendarEventsV1']){
+        const value=localStorage.getItem(key);
+        if(value!==null)entries[key]=value;
+      }
+      if(!entries[STORAGE_KEY])return showToast('Geen appgegevens gevonden voor back-up.');
+      const backup=JSON.stringify({version:2,exportedAt:Date.now(),entries});
+      if(window.AndroidWidgetBridge?.saveBackup){
+        window.AndroidWidgetBridge.saveBackup(backup);
+      }else{
+        const blob=new Blob([backup],{type:'application/json'}),url=URL.createObjectURL(blob);
+        const a=document.createElement('a');a.href=url;a.download='mijn-dag-backup.json';
+        document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+      }
+      return;
+    }
     if(e.target.closest('[data-myday-focus]')){showView('today');return setDailyTab('focus');}
     if(e.target.closest('[data-myday-energy]')){document.getElementById('myDayTools').hidden=true;return setMyDayMode('energie');}
     if(e.target.closest('[data-myday-tools-toggle]')){
