@@ -2747,6 +2747,9 @@
     const plan=state.dayTimeline,block=plan?.blocks?.find(b=>b.id===blockId);
     if(!block||!dayPlanIsCurrent(plan)||block.postponedTo||dayPlanBlockDone(block))return;
     const active=activeDayPlanFocus();
+    // Op 'Focus bezig' drukken opent de lopende sessie, zonder de timer
+    // of het ingeplande Android-eindalarm opnieuw te starten.
+    if(active&&active.block.id===block.id){setDailyTab('focus');return;}
     if(active&&active.block.id!==block.id &&
        !confirm('Er loopt nog Focus voor "'+active.block.text+'". Stoppen en dit blok starten?'))return;
     // Een gewone Focus mag nooit stilzwijgend worden beëindigd.
