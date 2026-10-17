@@ -4422,17 +4422,28 @@
       const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
       return calendarDone(b)?32:Math.max(36,end!==null&&end>start?end-start:30);
     };
-    // Overlappende blokken krijgen naast elkaar ruimte; niets wordt verplaatst.
+    // Legacy-overlap in aparte stabiele kolommen; geen bestaande tijd wijzigen.
     const layout=new Map();
+    let cluster=[],clusterEnd=-1,columns=[];
+    const flushCluster=()=>{
+      const count=Math.max(1,columns.length);
+      cluster.forEach(x=>layout.set(x.b.id,{column:x.column,count}));
+      cluster=[];columns=[];clusterEnd=-1;
+    };
     for(const b of available){
       const start=dayPlanMinutes(b.start),end=start+visualMinutes(b);
-      const overlap=available.filter(o=>{
-        const os=dayPlanMinutes(o.start),oe=os+visualMinutes(o);
-        return os<end&&oe>start;
-      });
-      const column=overlap.findIndex(x=>x.id===b.id);
-      layout.set(b.id,{column:Math.max(0,column),count:overlap.length});
+      if(cluster.length&&start>=clusterEnd)flushCluster();
+      let column=columns.findIndex(x=>x<=start);
+      if(column<0){column=columns.length;columns.push(end);}
+      else columns[column]=end;
+      cluster.push({b,column});clusterEnd=Math.max(clusterEnd,end);
     }
+    if(cluster.length)flushCluster();
+    const existingOverlaps=available.some((b,i)=>available.slice(i+1).some(o=>{
+      const bs=dayPlanMinutes(b.start),be=dayPlanMinutes(b.end);
+      const os=dayPlanMinutes(o.start),oe=dayPlanMinutes(o.end);
+      return bs<(oe===null?os+30:oe)&&os<(be===null?bs+30:be);
+    }));
     const hours=[];
     for(let m=first;m<=last;m+=60)hours.push('<span class="day-calendar-hour" style="top:'+(m-first)+'px">'+escapeHtml(dayPlanClockLabel(m))+'</span>');
     const halves=[];
@@ -4447,11 +4458,15 @@
          ?'<span class="daycal-done-indicator" aria-hidden="true">✓</span>'
          :'<button type="button" class="daycal-checkbox" data-daycal-check="'+escapeHtml(b.id)+'" aria-label="'+escapeHtml('Afvinken: '+b.text)+'"></button>')
        +'<div class="day-calendar-event-body"><strong>'+escapeHtml(b.text)+'</strong><small>'+escapeHtml(dayPlanRangeLabel(b.start,b.end))+'</small></div>'
-       +(!fixed?'<button type="button" class="day-calendar-grip" data-daycal-grip="'+escapeHtml(b.id)+'" aria-label="Versleep '+escapeHtml(b.text)+' naar een andere tijd">☷</button>':'')+'</div>';
+       +(!fixed?'<button type="button" class="day-calendar-grip" data-daycal-grip="'+escapeHtml(b.id)+'" aria-label="Versleep '+escapeHtml(b.text)+' naar een andere tijd">☷</button>':'')
+       +(!fixed&&!done?'<button type="button" class="day-calendar-resize" data-daycal-resize="start" data-daycal-resize-id="'+escapeHtml(b.id)+'" aria-label="Sleep bovenrand voor begintijd: '+escapeHtml(b.text)+'"></button>'
+         +'<button type="button" class="day-calendar-resize" data-daycal-resize="end" data-daycal-resize-id="'+escapeHtml(b.id)+'" aria-label="Sleep onderrand voor eindtijd: '+escapeHtml(b.text)+'"></button>':'')
+       +'</div>';
     }).join('');
     root.innerHTML='<div class="day-calendar-chooser"><button type="button" data-daycal-day="today" class="'+(dayCalendarSelected==='today'?'active':'')+'">Vandaag</button>'
       +'<button type="button" data-daycal-day="tomorrow" class="'+(dayCalendarSelected==='tomorrow'?'active':'')+'">Morgen'+(tomorrow?.blocks?.length?' ✓':'')+'</button></div>'
-      +'<p class="day-calendar-hint">Sleep een activiteit via ☷. Afgeronde taken blijven als korte grijze regels zichtbaar. De rode lijn is de huidige tijd.</p>'
+      +'<p class="day-calendar-hint">Verplaats via ☷. Sleep het streepje boven- of onderaan een blok om begin- of eindtijd te veranderen, per 5 minuten.</p>'
+      +(existingOverlaps?'<p class="day-calendar-overlap-note">Er staan nog activiteiten op hetzelfde tijdstip. Pas een van die blokken aan; andere tijden blijven staan.</p>':'')
       +(blocks.length?'<div class="day-calendar-scroll" data-daycal-first="'+first+'" data-daycal-last="'+last+'"><div class="day-calendar-inner" style="height:'+height+'px">'
         +'<div class="day-calendar-grid">'+hours.join('')+halves.join('')+cards
         +(dayCalendarSelected==='today'?'<div class="day-calendar-now" data-daycal-now data-daycal-first="'+first+'" data-daycal-last="'+last+'"><span class="day-calendar-now-label">NU</span></div>':'')
