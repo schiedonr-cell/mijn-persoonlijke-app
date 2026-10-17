@@ -679,6 +679,16 @@
     .task-quick-items button{text-align:left;width:100%;padding:10px;border-radius:11px;border:1px solid #ceddeb;
       background:#fff;color:var(--text);font:inherit;font-weight:700;min-height:44px}
     .task-quick-items small{display:block;font-size:11px;font-weight:400;color:var(--muted);margin-top:3px}
+    /* Korte regels zoals in Dagplanning: details staan achter een tik. */
+    .task-board-item{padding:4px 5px;margin-top:5px;border-radius:9px;min-height:36px}
+    .task-board-line{align-items:center;gap:4px}
+    .task-board-name{font-size:11px;font-weight:750;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .task-board-meta{display:none}
+    .task-board-five-label{margin:0 0 0 3px;padding:1px 4px;font-size:9px}
+    .task-drag-grip{min-width:28px;flex-basis:28px;min-height:30px;font-size:18px;border-radius:7px}
+    .task-board-item.task-touch-dragging{opacity:.75;outline:2px solid var(--accent-strong);box-shadow:0 4px 14px #0002}
+    .task-bucket.drag-over{outline:3px solid var(--bucket-accent,var(--accent-strong));outline-offset:1px}
+    .task-board-item{touch-action:pan-y}
     @media (max-width:430px){ .task-board { gap:8px; } .task-bucket { padding:8px; } }
     .task-actions { display:flex; gap:7px; flex-wrap:wrap; margin:10px 0 0 36px; }
     .task-action { min-height:36px; border:0; border-radius:11px; padding:7px 10px; background:var(--surface-soft); color:var(--muted); font-size:12px; font-weight:800; cursor:pointer; }
@@ -4985,15 +4995,14 @@
   let taskQuickOverviewOpen=false;
   function taskBucketOptions(selected){return ['A','B','C','D'].map(k=>`<option value="${k}" ${selected===k?'selected':''}>${TASK_BUCKETS[k].title}</option>`).join('');}
   function taskBoardMini(t){
-    const meta=[t.paused?'Gepauzeerd':'',t.deadline?'deadline '+formatDateShort(t.deadline):'',
-      t.reminders?.length?t.reminders.length+' herinnering(en)':'',
-      t.subtasks?.length?t.subtasks.filter(x=>x.done).length+'/'+t.subtasks.length+' stappen':''].filter(Boolean).join(' · ');
-    return '<button class="task-board-item'+(t.paused?' is-paused':'')+(t.quickFive?' is-five':'')
-      +'" draggable="true" data-drag-task="'+escapeHtml(t.id)+'" data-open-task-action="'+escapeHtml(t.id)+'">'
-      +'<div class="task-board-line"><div style="min-width:0;flex:1;"><div class="task-board-name">'+escapeHtml(t.name)+'</div>'
+    // De complete naam blijft beschikbaar als je tikt om de taak te openen.
+    return '<button type="button" class="task-board-item'+(t.paused?' is-paused':'')+(t.quickFive?' is-five':'')
+      +'" draggable="true" data-drag-task="'+escapeHtml(t.id)+'" data-open-task-action="'+escapeHtml(t.id)+'"'
+      +' title="'+escapeHtml(t.name)+'" aria-label="'+escapeHtml(t.name)+(t.paused?' (gepauzeerd)':'')+'">'
+      +'<div class="task-board-line"><div style="min-width:0;flex:1">'
+      +'<div class="task-board-name">'+escapeHtml(t.name)+'</div></div>'
       +(t.quickFive?'<span class="task-board-five-label">5 min</span>':'')
-      +(meta?'<div class="task-board-meta">'+escapeHtml(meta)+'</div>':'')
-      +'</div><span class="task-drag-grip" aria-hidden="true" title="Vasthouden en verplaatsen">☷</span></div></button>';
+      +'<span class="task-drag-grip" aria-hidden="true" title="Sleep naar een ander vak">☷</span></div></button>';
   }
   function renderAllTasks(){
     const quickToggle=document.getElementById('taskQuickToggle'),quickBox=document.getElementById('taskQuickOverview');
@@ -6512,37 +6521,47 @@
     refillTodayPlan(false);saveState();renderAllTasks();renderToday();
     showToast('Taak verplaatst.');return true;
   }
-  // Aanraken via sleepgreep werkt ook op Samsung, waar HTML5 drag vaak niet werkt.
+  // Versleep een taak via de greep. Op Samsung gebruiken we pointer-events.
+  // Hit-test op de vakken met coordinaten: betrouwbaar bij pointer capture.
   let taskTouchDrag=null,taskBoardSuppressClickUntil=0;
+  function boardTargetAt(x,y){
+    const buckets=[...document.querySelectorAll('.task-board [data-drop-bucket]')];
+    return buckets.find(zone=>{
+      const r=zone.getBoundingClientRect();
+      return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
+    })||null;
+  }
   document.addEventListener('pointerdown',e=>{
     const grip=e.target.closest?.('.task-drag-grip');
-    if(!grip||e.button!==0)return;
+    if(!grip||e.button>0)return;
     const item=grip.closest('[data-drag-task]');
     if(!item)return;
     e.preventDefault();
-    taskTouchDrag={id:item.dataset.dragTask,pointerId:e.pointerId,grip,item,zone:null};
+    taskTouchDrag={id:item.dataset.dragTask,pointerId:e.pointerId,grip,item,
+      startX:e.clientX,startY:e.clientY,zone:null,moved:false};
     item.classList.add('task-touch-dragging');
-    try{grip.setPointerCapture(e.pointerId)}catch{}
+    try{grip.setPointerCapture(e.pointerId);}catch{}
   });
   document.addEventListener('pointermove',e=>{
-    const drag=taskTouchDrag;
-    if(!drag||drag.pointerId!==e.pointerId)return;
+    const d=taskTouchDrag;if(!d||d.pointerId!==e.pointerId)return;
     if(e.cancelable)e.preventDefault();
-    const beneath=document.elementFromPoint(e.clientX,e.clientY);
-    const zone=beneath?.closest?.('[data-drop-bucket]')||null;
+    if(Math.abs(e.clientX-d.startX)+Math.abs(e.clientY-d.startY)>8)d.moved=true;
+    const zone=boardTargetAt(e.clientX,e.clientY);
     document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));
-    if(zone)zone.classList.add('drag-over');
-    drag.zone=zone;
+    if(zone&&zone!==d.item.closest('.task-bucket'))zone.classList.add('drag-over');
+    d.zone=zone;
   });
   function endTaskTouchDrag(e,cancelled=false){
-    const drag=taskTouchDrag;
-    if(!drag||drag.pointerId!==e.pointerId)return;
+    const d=taskTouchDrag;if(!d||d.pointerId!==e.pointerId)return;
     taskTouchDrag=null;
-    drag.item.classList.remove('task-touch-dragging');
+    d.item.classList.remove('task-touch-dragging');
     document.querySelectorAll('.task-bucket.drag-over').forEach(x=>x.classList.remove('drag-over'));
-    if(!cancelled&&drag.zone){
-      taskBoardSuppressClickUntil=Date.now()+450;
-      moveBoardTaskToBucket(drag.id,drag.zone.dataset.dropBucket);
+    const target=!cancelled&&d.moved?(boardTargetAt(e.clientX,e.clientY)||d.zone):null;
+    if(target&&target.dataset.dropBucket!==d.item.closest('.task-bucket')?.dataset.dropBucket){
+      taskBoardSuppressClickUntil=Date.now()+700;
+      moveBoardTaskToBucket(d.id,target.dataset.dropBucket);
+    }else if(d.moved){
+      taskBoardSuppressClickUntil=Date.now()+700;
     }
   }
   document.addEventListener('pointerup',e=>endTaskTouchDrag(e));
