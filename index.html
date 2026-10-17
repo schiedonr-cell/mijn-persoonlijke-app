@@ -834,6 +834,10 @@
     .day-plan-time{font-size:12px;font-weight:850;color:var(--accent-strong);font-variant-numeric:tabular-nums;white-space:nowrap}
     .day-plan-name{font-weight:760;min-width:0}.day-plan-meta{font-size:11px;color:var(--muted);margin-top:2px}
     .day-plan-count{font-size:12px;color:var(--muted);margin:5px 0 3px}
+    .day-plan-progress{display:flex;align-items:center;gap:10px;margin:8px 0 13px}
+    .day-plan-progress-track{flex:1;height:9px;border-radius:999px;background:var(--accent-soft);overflow:hidden}
+    .day-plan-progress-fill{display:block;height:100%;border-radius:999px;background:var(--accent-strong);transition:width .15s ease}
+    .day-plan-progress-label{font-size:12px;font-weight:800;white-space:nowrap;color:var(--text);font-variant-numeric:tabular-nums}
     .day-plan-paste-status{font-size:13px;line-height:1.55;margin:8px 0 0;color:var(--muted);white-space:pre-line}
     #dayPlanInput{min-height:230px}
     .day-plan-focus-start{border:1px solid var(--accent-strong);color:var(--accent-strong);background:var(--card,#fff);border-radius:9px;padding:5px 9px;font-weight:750;font-size:12px;min-height:32px}
@@ -4124,7 +4128,15 @@
       +(first&&last?' · van '+escapeHtml(dayPlanClockLabel(first.start))+' tot '+escapeHtml(dayPlanClockLabel(last.end||last.start)):'')
       +(completed.length?' · '+completed.length+' afgerond':'')
       +(moved.length?' · '+moved.length+' naar morgen':'')+'</p>';
-    box.innerHTML=countHtml
+    // Alleen de activiteiten van vandaag tellen mee; verplaatste blokken niet.
+    const totalToday=visible.length+completed.length;
+    const progressPercent=totalToday?Math.round(100*completed.length/totalToday):0;
+    const progressHtml=totalToday?'<div class="day-plan-progress">'
+      +'<div class="day-plan-progress-track" role="progressbar" aria-label="Voortgang dagplanning"'
+      +' aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+progressPercent+'">'
+      +'<span class="day-plan-progress-fill" style="width:'+progressPercent+'%"></span></div>'
+      +'<span class="day-plan-progress-label">'+progressPercent+'%</span></div>':'';
+    box.innerHTML=countHtml+progressHtml
     +(visible.length>1?'<p class="day-plan-order-note">Houd ☷ vast en sleep een activiteit naar een ander tijdvak.</p>':'')
     +(visible.length?visible.map((b,i)=>{
       const previous=visible[i-1],previousEnd=previous?dayPlanMinutes(previous.end||previous.start):null;
