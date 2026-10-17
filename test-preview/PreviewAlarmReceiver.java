@@ -10,6 +10,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.media.AudioAttributes;
+import android.media.RingtoneManager;
+import android.net.Uri;
+import android.os.SystemClock;
 import org.json.JSONObject;
 import java.util.Calendar;
 
@@ -17,6 +21,11 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
     static final String CHANNEL = "mijndag_test_reminders";
     private static final String PREF = "preview_alarm_store";
     private static final String FOCUS = "test-focus-end";
+    private static final String DAY_FOCUS = "test-day-focus-end";
+    private static final String FOCUS_CHANNEL = "mijndag_test_focus_v2";
+    private static final String END_CHANNEL = "mijndag_test_focus_end_v2";
+    private static final int ACTIVE_FOCUS_ID = 711426;
+    private static final int ACTIVE_DAY_FOCUS_ID = 711427;
 
     static void schedule(Context context, String id, String title, String description, long at, int repeatDays) {
         if (id == null || id.isEmpty() || at < System.currentTimeMillis()+400) return;
@@ -33,15 +42,29 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
     static void cancel(Context context,String id) {
         if (id == null || id.isEmpty()) return;
         context.getSharedPreferences(PREF,Context.MODE_PRIVATE).edit().remove(id).apply();
+        if(FOCUS.equals(id)||DAY_FOCUS.equals(id))cancelOngoing(context,id);
         AlarmManager manager=(AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
         if(manager!=null) manager.cancel(pending(context,id,PendingIntent.FLAG_UPDATE_CURRENT));
     }
 
     static void focus(Context context,int seconds,String name) {
-        schedule(context,FOCUS,"Focus afgerond",name==null||name.isEmpty()?"Je Focus is klaar.":name,
-            System.currentTimeMillis()+Math.max(1,seconds)*1000L,0);
+        focusWithId(context,FOCUS,seconds,name);
     }
-    static void cancelFocus(Context context) {cancel(context,FOCUS);}
+    static void dayFocus(Context context,int seconds,String name) {
+        focusWithId(context,DAY_FOCUS,seconds,name);
+    }
+    private static void focusWithId(Context context,String id,int seconds,String name) {
+        long until=System.currentTimeMillis()+Math.max(1,seconds)*1000L;
+        schedule(context,id,"Focus klaar — kies zelf of je afvinkt",
+            name==null||name.isEmpty()?"Je Focus-tijd is voorbij.":name,until,0);
+        showActiveFocus(context,id,name,until);
+    }
+    static void cancelFocus(Context context) {
+        cancel(context,FOCUS);
+    }
+    static void cancelDayFocus(Context context) {
+        cancel(context,DAY_FOCUS);
+    }
 
     private static PendingIntent pending(Context ctx,String id,int flags) {
         Intent intent=new Intent(ctx,PreviewAlarmReceiver.class);
@@ -56,7 +79,13 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
         if(manager==null)return;
         PendingIntent pi=pending(ctx,spec.optString("id"),PendingIntent.FLAG_UPDATE_CURRENT);
         // Bij toestemming exact; anders veilige Android fallback (kan vertraagd zijn).
-        if(Build.VERSION.SDK_INT>=31 && !manager.canScheduleExactAlarms())
+        if(FOCUS.equals(spec.optString("id"))||DAY_FOCUS.equals(spec.optString("id"))){
+            // Android's alarmklok is exact, ook in Doze, zonder extra exacte-alarmtoestemming.
+            Intent showIntent=new Intent(ctx,MainActivity.class);
+            PendingIntent info=PendingIntent.getActivity(ctx,39172,showIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+            manager.setAlarmClock(new AlarmManager.AlarmClockInfo(at,info),pi);
+        }else if(Build.VERSION.SDK_INT>=31 && !manager.canScheduleExactAlarms())
             manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,at,pi);
         else
             manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,at,pi);
@@ -73,8 +102,11 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
                     at=c.getTimeInMillis();spec.put("at",at);
                     prefs.edit().putString(key,spec.toString()).apply();
                 }
-                if(at>System.currentTimeMillis())postAlarm(ctx,spec);
-                else prefs.edit().remove(key).apply();
+                if(at>System.currentTimeMillis()){
+                    postAlarm(ctx,spec);
+                    if(FOCUS.equals(key)||DAY_FOCUS.equals(key))
+                        showActiveFocus(ctx,key,spec.optString("body"),at);
+                }else prefs.edit().remove(key).apply();
             }catch(Exception ex){android.util.Log.w("MijnDagTest","Herstel melding mislukt",ex);}
         }
     }
@@ -82,6 +114,7 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
         if(Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())){restore(context);return;}
         String id=intent.getStringExtra("alarm_id");
         if(id==null)return;
+        if(FOCUS.equals(id)||DAY_FOCUS.equals(id))cancelOngoing(context,id);
         SharedPreferences prefs=context.getSharedPreferences(PREF,Context.MODE_PRIVATE);
         try {
             JSONObject spec=new JSONObject(prefs.getString(id,"{}"));
@@ -96,21 +129,76 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
             }else prefs.edit().remove(id).apply();
         }catch(Exception ex){android.util.Log.w("MijnDagTest","Melding mislukt",ex);}
     }
+
+    private static void ensureChannels(Context ctx,NotificationManager nm){
+        if(Build.VERSION.SDK_INT<26)return;
+        NotificationChannel reminders=new NotificationChannel(CHANNEL,
+            "Mijn Dag TEST herinneringen",NotificationManager.IMPORTANCE_HIGH);
+        nm.createNotificationChannel(reminders);
+        NotificationChannel countdown=new NotificationChannel(FOCUS_CHANNEL,
+            "Lopende Focus",NotificationManager.IMPORTANCE_DEFAULT);
+        countdown.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        countdown.setSound(null,null);
+        nm.createNotificationChannel(countdown);
+        NotificationChannel ends=new NotificationChannel(END_CHANNEL,
+            "Focus klaar",NotificationManager.IMPORTANCE_HIGH);
+        Uri tone=RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+        ends.setSound(tone,new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+        ends.enableVibration(true);
+        ends.setVibrationPattern(new long[]{0,600,200,600,200,900});
+        ends.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        nm.createNotificationChannel(ends);
+    }
+    private static int focusNotificationId(String id) {
+        return DAY_FOCUS.equals(id)?ACTIVE_DAY_FOCUS_ID:ACTIVE_FOCUS_ID;
+    }
+    private static void cancelOngoing(Context ctx,String id){
+        NotificationManager nm=(NotificationManager)ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+        if(nm!=null)nm.cancel(focusNotificationId(id));
+    }
+    private static void showActiveFocus(Context ctx,String id,String name,long until){
+        NotificationManager nm=(NotificationManager)ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+        if(nm==null)return;
+        ensureChannels(ctx,nm);
+        if(Build.VERSION.SDK_INT>=33 &&
+            ctx.checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=
+            android.content.pm.PackageManager.PERMISSION_GRANTED)return;
+        Intent open=new Intent(ctx,MainActivity.class);
+        PendingIntent tap=PendingIntent.getActivity(ctx,98124,open,
+            PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder notification=Build.VERSION.SDK_INT>=26
+            ?new Notification.Builder(ctx,FOCUS_CHANNEL):new Notification.Builder(ctx);
+        notification.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("Focus loopt")
+            .setContentText((name==null||name.isEmpty()?"Je activiteit":name)+" · nog")
+            .setContentIntent(tap)
+            .setOngoing(true)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setPriority(Notification.PRIORITY_DEFAULT)
+            .setWhen(until)
+            .setUsesChronometer(true);
+        if(Build.VERSION.SDK_INT>=24)notification.setChronometerCountDown(true);
+        nm.notify(focusNotificationId(id),notification.build());
+    }
     private static void show(Context ctx,String id,String title,String body){
         NotificationManager nm=(NotificationManager)ctx.getSystemService(Context.NOTIFICATION_SERVICE);
         if(nm==null)return;
-        if(Build.VERSION.SDK_INT>=26)nm.createNotificationChannel(
-            new NotificationChannel(CHANNEL,"Mijn Dag TEST meldingen",NotificationManager.IMPORTANCE_HIGH));
+        ensureChannels(ctx,nm);
         if(Build.VERSION.SDK_INT>=33 &&
             ctx.checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED)return;
         Intent open=new Intent(ctx,MainActivity.class);
         PendingIntent content=PendingIntent.getActivity(ctx,id.hashCode(),open,
             PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        String channel=FOCUS.equals(id)||DAY_FOCUS.equals(id)?END_CHANNEL:CHANNEL;
         Notification.Builder builder=Build.VERSION.SDK_INT>=26
-            ?new Notification.Builder(ctx,CHANNEL):new Notification.Builder(ctx);
+            ?new Notification.Builder(ctx,channel):new Notification.Builder(ctx);
         builder.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
           .setContentTitle(title).setContentText(body).setContentIntent(content)
-          .setAutoCancel(true).setCategory(Notification.CATEGORY_REMINDER)
+          .setAutoCancel(true).setCategory(Notification.CATEGORY_ALARM)
+          .setVisibility(Notification.VISIBILITY_PUBLIC)
+          .setPriority(Notification.PRIORITY_HIGH)
           .setDefaults(Notification.DEFAULT_ALL);
         nm.notify(id.hashCode(),builder.build());
     }
