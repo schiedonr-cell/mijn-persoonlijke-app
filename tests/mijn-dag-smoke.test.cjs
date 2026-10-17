@@ -281,3 +281,39 @@ test('lopende Focus bewaart meldingen van andere vaste afspraken', () => {
   ctx.cancel(plan);
   assert.deepEqual(cancelled,['alarm-focus','alarm-fixed','alarm-other']);
 });
+
+test('opnieuw plannen tijdens Focus houdt flexibele meldingen stil', () => {
+  const start=main.indexOf('  function scheduleDayPlanAlarms(){');
+  const end=main.indexOf('  // Eerste versie: geplakte dagblokken',start);
+  assert.ok(start>0&&end>start);
+  const scheduled=[],cancelled=[];
+  const plan={date:'2026-10-17',blocks:[
+    {id:'focus',start:'12:00',end:'12:20',remind:true,linkType:'task'},
+    {id:'flex',start:'13:00',end:'13:30',remind:true,linkType:'task'},
+    {id:'fixed',start:'14:00',end:'15:00',remind:true,linkType:'agenda'}
+  ]};
+  let inFocus=true;
+  const context={
+    state:{dayTimeline:plan},
+    storedDayTimeline:()=>null,addDaysKey:()=> '2026-10-18',
+    activeDayPlanFocus:()=>inFocus?{block:plan.blocks[0]}:null,
+    dayPlanBlockMode:b=>b.linkType==='agenda'?'fixed':'flex',
+    dayPlanBlockDone:()=>false,
+    dayPlanTimeAt:()=>Date.now()+60000,
+    dayPlanMinutes:()=>900,dayPlanRangeLabel:()=> '14:00–15:00',
+    dayPlanAlarmId:(_p,b)=> 'alarm-'+b.id,
+    window:{AndroidWidgetBridge:{
+      scheduleReminder:id=>scheduled.push(id),
+      cancelReminder:id=>cancelled.push(id)
+    }},
+    Date
+  };
+  vm.runInNewContext(main.slice(start,end)+'\nthis.schedule=scheduleDayPlanAlarms;',context);
+  context.schedule();
+  assert.deepEqual(scheduled,['alarm-fixed']);
+  assert.deepEqual(cancelled,['alarm-focus','alarm-flex']);
+  inFocus=false;scheduled.length=0;cancelled.length=0;
+  context.schedule();
+  assert.deepEqual(scheduled,['alarm-focus','alarm-flex','alarm-fixed']);
+  assert.deepEqual(cancelled,[]);
+});
