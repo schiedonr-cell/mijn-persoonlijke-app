@@ -231,3 +231,30 @@ test('voortgang dagplanning telt alleen huidige en afgeronde blokken', () => {
   assert.match(html, /\.day-plan-progress-track/);
   assert.match(main, /aria-valuenow/);
 });
+
+test('dagherinneringen keren terug na afronden Focus', () => {
+  const start=main.indexOf('  function finishDayPlanFocus(){');
+  const end=main.indexOf('  function stopDayPlanFocus(){',start);
+  assert.ok(start>0&&end>start);
+  const calls=[],block={id:'focus',done:false};
+  const ctx={
+    activeDayPlanFocus:()=>({block}),
+    clearDayPlanFocus:()=>calls.push('clear'),
+    saveState:()=>{},setDayPlanLinkedDone:()=>calls.push('done'),
+    scheduleDayPlanAlarms:()=>calls.push('schedule'),
+    setDailyTab:()=>{},selfCareSuggest:()=>{},
+    selfCareToday:()=>({offer:null}),renderSelfCare:()=>{},
+    openFocusNextGuide:()=>{}
+  };
+  vm.runInNewContext(main.slice(start,end)+'\nthis.finish=finishDayPlanFocus;',ctx);
+  ctx.finish();
+  assert.deepEqual(calls,['clear','done','schedule']);
+});
+test('afvinken actieve Focus herstelt resterende herinneringen in alle afhandelroutes', () => {
+  const start=main.indexOf('  function setDayPlanLinkedDone(block,checked){');
+  const end=main.indexOf('  // Gemengde Vandaag-widget',start);
+  assert.ok(start>0&&end>start);
+  const code=main.slice(start,end);
+  assert.match(code,/const focusStoppedByCheck=/);
+  assert.equal((code.match(/if\(focusStoppedByCheck\)scheduleDayPlanAlarms\(\)/g)||[]).length,3);
+});
