@@ -603,7 +603,7 @@
     .mini-button.accent { background:var(--accent-soft); color:var(--accent-strong); }
     .mini-button.danger { color:var(--danger); }
 
-    .tasks-toolbar { display:grid; grid-template-columns:1fr auto; gap:8px; margin-bottom:12px; }
+    .tasks-toolbar { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; margin-bottom:8px; }
     .task-board { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .task-bucket { border:1px solid var(--line); border-radius:20px; background:var(--surface-soft); padding:10px; min-height:150px; }
     .task-bucket.drag-over { outline:2px solid var(--accent); outline-offset:1px; }
@@ -650,6 +650,35 @@
     .note-text { white-space:pre-wrap; font-weight:700; line-height:1.45; }
     .note-meta { color:var(--muted); font-size:11px; margin-top:7px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
     .note-meta button { border:0; background:var(--surface-soft); color:var(--danger); border-radius:10px; min-height:34px; padding:6px 9px; font-weight:800; }
+    /* Vier vakken blijven altijd open; rustige kleurcodering. */
+    .task-bucket[data-drop-bucket="A"]{--board-bg:#faecea;--board-line:#b76761;--board-edge:#e8c7c3}
+    .task-bucket[data-drop-bucket="B"]{--board-bg:#fbf0df;--board-line:#ae823c;--board-edge:#ebd8ba}
+    .task-bucket[data-drop-bucket="C"]{--board-bg:#ebf2f9;--board-line:#6188ad;--board-edge:#cadce9}
+    .task-bucket[data-drop-bucket="D"]{--board-bg:#eaf3ec;--board-line:#608871;--board-edge:#cee1d3}
+    .task-bucket{background:var(--board-bg,var(--surface-soft));border-color:var(--board-edge,var(--line));
+      border-top:5px solid var(--board-line,var(--accent));padding:9px;min-width:0;min-height:145px}
+    .task-bucket-title{font-size:13px;color:var(--board-line,var(--text))}
+    .task-bucket-count{flex-shrink:0}
+    .task-board-item{min-width:0;padding:9px 8px;border-radius:13px;margin-top:7px}
+    .task-board-item.is-paused{opacity:.7;border-style:dashed}
+    .task-board-item.is-five{border-left:3px solid #759cc0}
+    .task-board-meta{line-height:1.35}
+    .task-drag-grip{flex-basis:30px;min-width:30px;min-height:34px}
+    .task-board-five-label{display:inline-block;margin-top:5px;padding:2px 5px;border-radius:6px;
+      background:#e4effa;color:#355e83;font-size:10px;font-weight:850}
+    .tasks-toolbar button{min-height:48px;font-size:13px;padding:8px 6px}
+    #taskQuickToggle[aria-pressed="true"]{background:#e7f0fb;border-color:#789cbd;color:#355e83}
+    .task-board-subtools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px}
+    .task-board-subtools button{border:0;background:transparent;color:var(--accent-strong);font-size:12px;font-weight:800;min-height:34px}
+    .task-board-subtools button[hidden]{display:none}
+    .task-quick-overview{margin-bottom:12px;padding:12px;border:1px solid #c5d7e8;background:#eef4fb;border-radius:16px}
+    .task-quick-overview[hidden]{display:none}
+    .task-quick-overview h4{margin:0 0 6px;font-size:14px;color:#36597c}
+    .task-quick-overview p{margin:0;font-size:12px;color:#53677a;line-height:1.45}
+    .task-quick-items{display:grid;gap:7px;margin-top:9px}
+    .task-quick-items button{text-align:left;width:100%;padding:10px;border-radius:11px;border:1px solid #ceddeb;
+      background:#fff;color:var(--text);font:inherit;font-weight:700;min-height:44px}
+    .task-quick-items small{display:block;font-size:11px;font-weight:400;color:var(--muted);margin-top:3px}
     @media (max-width:430px){ .task-board { gap:8px; } .task-bucket { padding:8px; } }
     .task-actions { display:flex; gap:7px; flex-wrap:wrap; margin:10px 0 0 36px; }
     .task-action { min-height:36px; border:0; border-radius:11px; padding:7px 10px; background:var(--surface-soft); color:var(--muted); font-size:12px; font-weight:800; cursor:pointer; }
@@ -1373,8 +1402,12 @@
 
         <div class="daily-panel" data-daily-panel="tasks">
           <div class="section-card">
-            <div class="section-heading"><div><h3 style="margin-bottom:3px;">Takenbord</h3><span class="small-muted">Eerst verzamelen, daarna pas kiezen wat wanneer hoort.</span></div></div>
-            <div class="tasks-toolbar"><button class="primary-button" id="addTaskFromListButton">+ Taak</button><button class="secondary-button" id="wakeAllButton" style="width:auto;min-width:96px;">Alles actief</button></div>
+            <div class="section-heading"><div><h3 style="margin-bottom:3px;">Takenbord</h3><span class="small-muted">Al je open taken direct zichtbaar. Sleep ze naar een ander vak.</span></div></div>
+            <div class="tasks-toolbar"><button class="primary-button" id="addTaskFromListButton" type="button">+ Taak</button>
+              <button class="secondary-button" id="taskQuickToggle" type="button" aria-pressed="false">5 minuten over?</button></div>
+            <div class="task-board-subtools"><span class="small-muted">Tik op een taak voor opties.</span>
+              <button id="wakeAllButton" type="button" hidden>Alles actief</button></div>
+            <div id="taskQuickOverview" class="task-quick-overview" hidden></div>
             <div id="taskInbox"></div>
             <div id="allTasksList"></div>
           </div>
@@ -1697,6 +1730,7 @@
         <button class="primary" id="taskActionFocus">Focus</button>
         <button class="accent" id="taskActionReminder">🔔 Herinneringen</button>
         <button id="taskActionSteps">Kleine stappen</button>
+        <button id="taskActionQuickFive" type="button">Markeer als 5 min</button>
         <button id="taskActionDone">✓ Klaar</button>
         <button id="taskActionPause">Laat rusten</button>
         <button id="taskActionTomorrow">Morgen</button>
@@ -1941,6 +1975,7 @@
   function normalizeTask(task) {
     return {
       id: task.id || uid('task'), name: task.name || 'Taak', done: Boolean(task.done), elapsed: Number(task.elapsed || 0), running: false,
+      quickFive: task.quickFive===true,
       deadline: task.deadline || '', time: typeof task.time==='string'?task.time:'', alarmEnabled:Boolean(task.alarmEnabled), createdAt: task.createdAt || Date.now(), completedAt: task.completedAt || null,
       paused: Boolean(task.paused), deferUntil: task.deferUntil || '',
       bucket: ['A','B','C','D','inbox'].includes(task.bucket) ? task.bucket : 'inbox',
@@ -4942,20 +4977,56 @@
   function setupSpeech(){ const Ctor=window.SpeechRecognition||window.webkitSpeechRecognition; const hint=document.getElementById('speechHint'); if(!Ctor){ hint.textContent='Inspreken wordt door deze browser niet ondersteund. Typen werkt wel.'; return; } speechRecognition=new Ctor(); speechRecognition.lang='nl-NL'; speechRecognition.interimResults=false; speechRecognition.maxAlternatives=1; speechRecognition.onstart=()=>{document.getElementById('dumpMicButton').classList.add('listening');hint.textContent='Ik luister...';}; speechRecognition.onend=()=>{document.getElementById('dumpMicButton').classList.remove('listening');hint.textContent='Tik om te spreken, of typ hieronder.';}; speechRecognition.onerror=()=>showToast('Inspreken lukte niet. Typen kan altijd.'); speechRecognition.onresult=e=>{ const text=e.results?.[0]?.[0]?.transcript||''; if(text){addDump(text);showToast('Gedachte bewaard.');} }; }
 
   const TASK_BUCKETS={
-    A:{title:'A · Vandaag',sub:'Wat echt vandaag telt'},
-    B:{title:'B · Deze week',sub:'Belangrijk, maar niet vandaag'},
-    C:{title:'C · Volgende week',sub:'Later bewust oppakken'},
-    D:{title:'D · Later / ooit',sub:'Bewaren zonder druk'}
+    A:{title:'Vandaag',sub:'Wat ik vandaag wil doen'},
+    B:{title:'Komende dagen',sub:'Binnenkort oppakken'},
+    C:{title:'Volgende week',sub:'Mag nog even wachten'},
+    D:{title:'Later / ooit',sub:'Bewaren zonder haast'}
   };
+  let taskQuickOverviewOpen=false;
   function taskBucketOptions(selected){return ['A','B','C','D'].map(k=>`<option value="${k}" ${selected===k?'selected':''}>${TASK_BUCKETS[k].title}</option>`).join('');}
-  function taskBoardMini(t){const meta=[t.deadline?`deadline ${formatDateShort(t.deadline)}`:'',t.reminders?.length?`🔔 ${t.reminders.length}`:'',t.subtasks?.length?`${t.subtasks.filter(x=>x.done).length}/${t.subtasks.length} stappen`:''].filter(Boolean).join(' · ');return `<button class="task-board-item" draggable="true" data-drag-task="${t.id}" data-open-task-action="${t.id}"><div class="task-board-line"><div style="min-width:0;flex:1;"><div class="task-board-name">${escapeHtml(t.name)}</div>${meta?`<div class="task-board-meta">${escapeHtml(meta)}</div>`:''}</div><span class="task-drag-grip" aria-hidden="true" title="Vasthouden en verplaatsen">☷</span></div></button>`;}
+  function taskBoardMini(t){
+    const meta=[t.paused?'Gepauzeerd':'',t.deadline?'deadline '+formatDateShort(t.deadline):'',
+      t.reminders?.length?t.reminders.length+' herinnering(en)':'',
+      t.subtasks?.length?t.subtasks.filter(x=>x.done).length+'/'+t.subtasks.length+' stappen':''].filter(Boolean).join(' · ');
+    return '<button class="task-board-item'+(t.paused?' is-paused':'')+(t.quickFive?' is-five':'')
+      +'" draggable="true" data-drag-task="'+escapeHtml(t.id)+'" data-open-task-action="'+escapeHtml(t.id)+'">'
+      +'<div class="task-board-line"><div style="min-width:0;flex:1;"><div class="task-board-name">'+escapeHtml(t.name)+'</div>'
+      +(t.quickFive?'<span class="task-board-five-label">5 min</span>':'')
+      +(meta?'<div class="task-board-meta">'+escapeHtml(meta)+'</div>':'')
+      +'</div><span class="task-drag-grip" aria-hidden="true" title="Vasthouden en verplaatsen">☷</span></div></button>';
+  }
   function renderAllTasks(){
+    const quickToggle=document.getElementById('taskQuickToggle'),quickBox=document.getElementById('taskQuickOverview');
+    const quickItems=state.tasks.filter(t=>!t.done&&t.quickFive);
+    if(quickToggle){
+      quickToggle.textContent='5 minuten over?'+(quickItems.length?' ('+quickItems.length+')':'');
+      quickToggle.setAttribute('aria-pressed',String(taskQuickOverviewOpen));
+    }
+    if(quickBox){
+      quickBox.hidden=!taskQuickOverviewOpen;
+      quickBox.innerHTML=taskQuickOverviewOpen?'<h4>Kleine klusjes · maximaal 5 minuten</h4>'
+        +(quickItems.length?'<div class="task-quick-items">'+quickItems.map(t=>
+          '<button type="button" data-open-task-action="'+escapeHtml(t.id)+'">'+escapeHtml(t.name)
+          +'<small>'+(TASK_BUCKETS[t.bucket]?.title||'Nog indelen')+(t.paused?' · gepauzeerd':'')+'</small></button>'
+        ).join('')+'</div>':'<p>Nog geen 5-minutenklusjes. Tik op een taak en kies “Markeer als 5 min”.</p>'):'';
+    }
+    const wake=document.getElementById('wakeAllButton');
+    if(wake)wake.hidden=!state.tasks.some(t=>!t.done&&t.paused);
     const inbox=state.tasks.filter(t=>!t.done&&t.bucket==='inbox').sort(compareTaskPriority);
     const inboxBox=document.getElementById('taskInbox');
     if(inboxBox)inboxBox.innerHTML=inbox.length?`<div class="task-inbox-card"><strong>Nog indelen · ${inbox.length}</strong><div class="small-muted" style="margin-top:3px;">Hier staan bestaande of nieuwe taken die nog geen plek hebben.</div><div class="task-inbox-list">${inbox.map(t=>`<div class="task-inbox-item"><div class="task-inbox-name">${escapeHtml(t.name)}</div><select data-move-task="${t.id}"><option value="">Kies…</option>${taskBucketOptions('')}</select></div>`).join('')}</div></div>`:'';
-    const board=['A','B','C','D'].map(k=>{const list=state.tasks.filter(t=>!t.done&&t.bucket===k&&!t.paused).sort(compareTaskPriority);return `<section class="task-bucket" data-drop-bucket="${k}"><div class="task-bucket-head"><div><div class="task-bucket-title">${TASK_BUCKETS[k].title}</div><div class="task-bucket-sub">${TASK_BUCKETS[k].sub}</div></div><div class="task-bucket-count">${list.length}</div></div>${list.length?list.map(taskBoardMini).join(''):`<div class="empty-state" style="padding:12px 4px;">Leeg</div>`}</section>`;}).join('');
+    const board=['A','B','C','D'].map(k=>{
+      const list=state.tasks.filter(t=>!t.done&&t.bucket===k)
+        .sort((a,b)=>Number(a.paused)-Number(b.paused)||compareTaskPriority(a,b));
+      return '<section class="task-bucket" data-drop-bucket="'+k+'">'
+        +'<div class="task-bucket-head"><div><div class="task-bucket-title">'+TASK_BUCKETS[k].title+'</div>'
+        +'<div class="task-bucket-sub">'+TASK_BUCKETS[k].sub+'</div></div>'
+        +'<div class="task-bucket-count">'+list.length+'</div></div>'
+        +(list.length?list.map(taskBoardMini).join(''):'<div class="empty-state" style="padding:12px 4px;">Leeg</div>')
+        +'</section>';
+    }).join('');
     const paused=state.tasks.filter(t=>!t.done&&t.paused).sort(compareTaskPriority),today=localDateKey(),doneToday=state.tasks.filter(t=>t.done&&t.completedAt&&localDateKey(new Date(t.completedAt))===today).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
-    const extras=`${paused.length?`<details class="completed-habits" style="margin-top:12px;"><summary>Rust even (${paused.length})<span>Bekijken</span></summary><div class="completed-habits-list">${paused.map(t=>`<div class="completed-habit-row"><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div></div><button class="habit-undo-button" data-toggle-pause="${t.id}">Activeren</button></div>`).join('')}</div></details>`:''}${doneToday.length?`<details class="completed-habits" style="margin-top:12px;"><summary>Vandaag afgerond (${doneToday.length})<span>Bekijken</span></summary><div class="completed-habits-list">${doneToday.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div></div><button class="habit-undo-button" data-task-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''}`;
+    const extras=`${doneToday.length?`<details class="completed-habits" style="margin-top:12px;"><summary>Vandaag afgerond (${doneToday.length})<span>Bekijken</span></summary><div class="completed-habits-list">${doneToday.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div></div><button class="habit-undo-button" data-task-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''}`;
     document.getElementById('allTasksList').innerHTML=`<div class="task-board">${board}</div>${extras}`;
   }
 
@@ -4994,7 +5065,7 @@
     saveState();closeItemAction();renderDailyBasis();renderHousehold();renderHouseholdManage();renderToday();showToast(`${label.charAt(0).toUpperCase()+label.slice(1)} verwijderd.`);
   }
 
-  function openTaskAction(id){const t=state.tasks.find(x=>x.id===id);if(!t)return;activeTaskActionId=id;document.getElementById('taskActionTitle').textContent=t.name;const meta=[t.deadline?`Deadline ${formatDateShort(t.deadline)}`:'',t.reminders?.length?`${t.reminders.length} herinnering${t.reminders.length===1?'':'en'}`:''].filter(Boolean).join(' · ');document.getElementById('taskActionMeta').textContent=meta||'Kies wat je met deze taak wilt doen.';const sel=document.getElementById('taskActionBucket');sel.innerHTML=taskBucketOptions(t.bucket);sel.value=t.bucket;document.getElementById('taskActionReminder').textContent=`🔔 Herinneringen (${t.reminders?.length||0})`;document.getElementById('taskActionPause').textContent=t.paused?'Weer actief':'Laat rusten';document.getElementById('taskActionModal').classList.add('open');}
+  function openTaskAction(id){const t=state.tasks.find(x=>x.id===id);if(!t)return;activeTaskActionId=id;document.getElementById('taskActionTitle').textContent=t.name;const meta=[t.deadline?`Deadline ${formatDateShort(t.deadline)}`:'',t.reminders?.length?`${t.reminders.length} herinnering${t.reminders.length===1?'':'en'}`:''].filter(Boolean).join(' · ');document.getElementById('taskActionMeta').textContent=meta||'Kies wat je met deze taak wilt doen.';const sel=document.getElementById('taskActionBucket');sel.innerHTML=taskBucketOptions(t.bucket);sel.value=t.bucket;document.getElementById('taskActionReminder').textContent=`🔔 Herinneringen (${t.reminders?.length||0})`;document.getElementById('taskActionPause').textContent=t.paused?'Weer actief':'Laat rusten';document.getElementById('taskActionQuickFive').textContent=t.quickFive?'✓ Gemarkeerd als 5 min':'Markeer als 5 min';document.getElementById('taskActionModal').classList.add('open');}
   function closeTaskAction(){activeTaskActionId=null;document.getElementById('taskActionModal').classList.remove('open');}
   function renderNotes(){const list=(state.notes||[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));const counter=document.getElementById('noteCounter'),wrap=document.getElementById('noteList');if(counter)counter.textContent=String(list.length);if(wrap)wrap.innerHTML=list.length?list.map(n=>`<div class="note-item"><div class="note-text">${escapeHtml(n.text)}</div><div class="note-meta"><span>${formatClock(n.createdAt||Date.now())}</span><button data-note-delete="${n.id}">Verwijder</button></div></div>`).join(''):`<div class="empty-state">Nog geen notities.</div>`;}
   function addNote(text){text=String(text||'').trim();if(!text)return false;state.notes||=[];state.notes.push({id:uid('note'),text,createdAt:Date.now()});saveState();renderNotes();return true;}
@@ -6149,12 +6220,22 @@
     const pause=e.target.closest('[data-toggle-pause]');if(pause){const t=state.tasks.find(x=>x.id===pause.dataset.togglePause);if(t){t.paused=!t.paused;if(t.paused)t.deferUntil='';refillTodayPlan(true);saveState();renderAllTasks();renderToday();renderShutdown();}return;}
     const tomorrow=e.target.closest('[data-tomorrow]');if(tomorrow){const t=state.tasks.find(x=>x.id===tomorrow.dataset.tomorrow);if(t){t.deferUntil=addDaysKey(1);t.paused=false;state.todayPlan.taskIds=state.todayPlan.taskIds.filter(id=>id!==t.id);refillTodayPlan(false);saveState();renderToday();renderAllTasks();renderShutdown();showToast('Taak staat voor morgen.');}return;}
     if(e.target.closest('[data-keep-list]')){showToast('Taak blijft actief op je lijst.');return;}
+    if(e.target.closest('#taskQuickToggle')){taskQuickOverviewOpen=!taskQuickOverviewOpen;renderAllTasks();return;}
     if(e.target.closest('#wakeAllButton')){state.tasks.forEach(t=>t.paused=false);saveState();renderAllTasks();showToast('Alle taken zijn weer actief.');return;}
     const openTaskActionBtn=e.target.closest('[data-open-task-action]');if(openTaskActionBtn)return openTaskAction(openTaskActionBtn.dataset.openTaskAction);
     if(e.target.closest('[data-close-task-action]'))return closeTaskAction();
     if(e.target.closest('#taskActionFocus')){const id=activeTaskActionId;closeTaskAction();if(id)return selectFocusItem('task',id);}
     if(e.target.closest('#taskActionReminder')){const id=activeTaskActionId;closeTaskAction();if(id)return openTaskReminders(id);}
     if(e.target.closest('#taskActionSteps')){const id=activeTaskActionId;closeTaskAction();if(id)return openTaskStepsManage(id);}
+    if(e.target.closest('#taskActionQuickFive')){
+      const t=state.tasks.find(x=>x.id===activeTaskActionId);
+      if(t){
+        t.quickFive=!t.quickFive;saveState();
+        document.getElementById('taskActionQuickFive').textContent=t.quickFive?'✓ Gemarkeerd als 5 min':'Markeer als 5 min';
+        renderAllTasks();showToast(t.quickFive?'Bij 5-minutenklusjes gezet.':'5-minutenmarkering verwijderd.');
+      }
+      return;
+    }
     if(e.target.closest('#taskActionDone')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(t){closeTaskAction();return markTask(t,true);}}
     if(e.target.closest('#taskActionPause')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(t){t.paused=!t.paused;if(t.paused)t.deferUntil='';refillTodayPlan(true);saveState();closeTaskAction();renderAllTasks();renderToday();return;}}
     if(e.target.closest('#taskActionTomorrow')){const t=state.tasks.find(x=>x.id===activeTaskActionId);if(t){t.deferUntil=addDaysKey(1);t.paused=false;state.todayPlan.taskIds=state.todayPlan.taskIds.filter(id=>id!==t.id);refillTodayPlan(false);saveState();closeTaskAction();renderToday();renderAllTasks();showToast('Taak staat voor morgen.');return;}}
