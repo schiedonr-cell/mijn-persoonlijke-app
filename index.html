@@ -4352,8 +4352,17 @@
     if(check){
       const plan=calendarPlan(),b=plan?.blocks.find(x=>x.id===check.dataset.daycalCheck);
       if(!b)return;
-      if(plan.date===state.dayTimeline?.date)setDayPlanLinkedDone(b,check.checked);
-      else {b.done=check.checked;state.dayTimelines[plan.date]=structuredClone(plan);saveState();}
+      if(plan.date===state.dayTimeline?.date){
+        // De kalender kan een bewaarde kopie tonen. Vink altijd af op de
+        // actieve tijdlijn, zodat taken, routines en opslag gelijk blijven.
+        const activeBlock=state.dayTimeline.blocks.find(x=>x.id===b.id);
+        if(!activeBlock)return;
+        setDayPlanLinkedDone(activeBlock,check.checked);
+      }else{
+        b.done=check.checked;
+        state.dayTimelines[plan.date]=structuredClone(plan);
+        saveState();
+      }
       renderDayTimeline();
     }
   });
