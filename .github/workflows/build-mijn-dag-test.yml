@@ -1,0 +1,140 @@
+name: Bouw Mijn Dag TEST APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - mijn-dag-nieuw-beginscherm-20261017
+    paths:
+      - index.html
+      - .github/workflows/build-mijn-dag-test.yml
+      - android-widget-stable/**
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Maak veilige losse testapp
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil, re
+          base = Path('android-widget-stable/app/src/main')
+          assets = base/'assets'/'preview'
+          assets.mkdir(parents=True,exist_ok=True)
+          html = Path('index.html').read_text(encoding='utf-8')
+          html = html.replace(
+            "'serviceWorker'in navigator&&location.protocol.startsWith('http')&&!new URLSearchParams(location.search).has('nativev')",
+            "false")
+          banner = ('<div role="status" style="position:sticky;top:0;z-index:99999;padding:10px;'
+            'background:#fff1ca;color:#352805;text-align:center;font:700 14px sans-serif;">'
+            'Mijn Dag TEST · Eigen gegevens · Zonder alarmen en widgets</div>')
+          html = html.replace('<body>', '<body>'+banner, 1)
+          (assets/'index.html').write_text(html,encoding='utf-8')
+          for path in Path('.').glob('*.js'):
+            shutil.copyfile(path,assets/path.name)
+          manifest = base/'AndroidManifest.xml'
+          xml = manifest.read_text(encoding='utf-8')
+          xml = xml.replace('android:label="Mijn dag"','android:label="Mijn Dag TEST"')
+          xml = re.sub(r'\s*<receiver\b[\s\S]*?</receiver>', '', xml)
+          manifest.write_text(xml,encoding='utf-8')
+          gradle = Path('android-widget-stable/app/build.gradle')
+          conf = gradle.read_text(encoding='utf-8')
+          conf = conf.replace("applicationId 'nl.mijnpersoonlijkeapp'",
+                              "applicationId 'nl.mijnpersoonlijkeapp.test'")
+          gradle.write_text(conf,encoding='utf-8')
+          source = base/'java/nl/mijnpersoonlijkeapp/widgets/MainActivity.java'
+          source.write_text(r'''package nl.mijnpersoonlijkeapp.widgets;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.annotation.SuppressLint;
+          import android.graphics.Color;
+          import android.net.Uri;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebResourceResponse;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import java.io.InputStream;
+          import java.io.ByteArrayInputStream;
+
+          public class MainActivity extends Activity {
+              private static final String HOST = "mijndag-test.android";
+              private WebView web;
+              @Override
+              @SuppressLint("SetJavaScriptEnabled")
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  web = new WebView(this);
+                  WebSettings settings = web.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  settings.setDatabaseEnabled(true);
+                  settings.setAllowFileAccess(false);
+                  settings.setAllowContentAccess(false);
+                  web.setBackgroundColor(Color.WHITE);
+                  web.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                          return !HOST.equals(request.getUrl().getHost());
+                      }
+                      @Override
+                      public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                          Uri uri = request.getUrl();
+                          if (!HOST.equals(uri.getHost())) return null;
+                          String path = Uri.decode(uri.getPath());
+                          if (path == null || path.equals("/")) path="/index.html";
+                          if (path.contains("..")) return null;
+                          String mime="text/plain";
+                          if (path.endsWith(".html")) mime="text/html";
+                          else if (path.endsWith(".js")) mime="application/javascript";
+                          else if (path.endsWith(".css")) mime="text/css";
+                          else if (path.endsWith(".png")) mime="image/png";
+                          else if (path.endsWith(".json")) mime="application/json";
+                          try {
+                              InputStream data=getAssets().open("preview"+path);
+                              return new WebResourceResponse(mime, "UTF-8", data);
+                          } catch (Exception ex) {
+                              return new WebResourceResponse("text/plain","UTF-8",new ByteArrayInputStream(new byte[0]));
+                          }
+                      }
+                  });
+                  setContentView(web);
+                  web.loadUrl("https://"+HOST+"/index.html?nativev=1");
+              }
+              @Override
+              public void onBackPressed() {
+                  if (web!=null && web.canGoBack()) web.goBack();
+                  else super.onBackPressed();
+              }
+          }
+          ''',encoding='utf-8')
+          PY
+      - name: Compileer losse test-APK
+        working-directory: android-widget-stable
+        run: gradle :app:assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mijn-Dag-TEST-apk
+          path: android-widget-stable/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
