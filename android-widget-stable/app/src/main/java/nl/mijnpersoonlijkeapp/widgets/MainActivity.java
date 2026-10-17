@@ -301,9 +301,35 @@ public class MainActivity extends Activity {
             }
             JSONObject entries = new JSONObject(text.toString()).getJSONObject("entries");
             List<String[]> pairs = new ArrayList<>();
-            Iterator<String> keys = entries.keys();
-            while (keys.hasNext()) { String k = keys.next(); pairs.add(new String[]{k, entries.optString(k,"")}); }
-            injectNext(pairs, 0);
+            // Importeer alleen de drie bekende gegevenssleutels. Zo kan een
+            // overdrachtsbestand nooit andere instellingen in de WebView aanpassen.
+            for (String key : new String[]{
+                    "mijnPersoonlijkeAppV1",
+                    "mijnPersoonlijkeAppRemindersV1",
+                    "mijnPersoonlijkeAppCalendarEventsV1"}) {
+                if (entries.has(key)) pairs.add(new String[]{key, entries.optString(key,"")});
+            }
+            // Eerst vaststellen of de app al gegevens heeft: bij een herhaalde
+            // overdracht mogen die nooit stilzwijgend worden overschreven.
+            webView.evaluateJavascript(
+                "(function(){try{const s=localStorage.getItem('mijnPersoonlijkeAppV1');"
+                  +"if(!s)return false;const data=JSON.parse(s);"
+                  +"return !!(data&&typeof data==='object'&&Object.keys(data).length>0);"
+                  +"}catch(e){return false;}})()",
+                result -> {
+                    if ("true".equals(result)) {
+                        File held = new File(getFilesDir(),"onverwerkte-overdracht.json");
+                        // Het originele bestand blijft behouden als hernoemen niet lukt.
+                        importFile().renameTo(held);
+                        getSharedPreferences(PREFS,MODE_PRIVATE).edit()
+                            .putBoolean(IMPORT_DONE,true).apply();
+                        importing = false;
+                        Toast.makeText(this,
+                            "Bestaande gegevens behouden. Nieuwe overdracht niet toegepast.",
+                            Toast.LENGTH_LONG).show();
+                        webView.reload();
+                    } else injectNext(pairs,0);
+                });
         } catch (Exception e) {
             importing = false;
             showTransferChoice(false);
