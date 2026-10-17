@@ -2749,6 +2749,9 @@
     const active=activeDayPlanFocus();
     if(active&&active.block.id!==block.id &&
        !confirm('Er loopt nog Focus voor "'+active.block.text+'". Stoppen en dit blok starten?'))return;
+    // Een gewone Focus mag nooit stilzwijgend worden beëindigd.
+    if(state.focus.running &&
+       !confirm('Er loopt al een gewone Focus. Stoppen en deze dagactiviteit starten?'))return;
     let duration=dayPlanFocusDuration(block);
     if(!duration){
       const field=document.querySelector('[data-dayplan-duration-for="'+blockId+'"]');
@@ -2757,9 +2760,9 @@
     }
     if(duration>360)return showToast('Focus kan maximaal 360 minuten duren.');
     stopFocusGuideWhenStarting();
-    // Er is maximaal één actieve Focus-timer: voorkom dubbele alarmen.
-    state.focus.running=false;
-    try{window.AndroidWidgetBridge?.cancelFocus?.();}catch{}
+    // Werk eerst verstreken Focus-tijd bij en annuleer het oude Android-alarm.
+    // Alleen na bevestiging stopt de bestaande sessie.
+    if(state.focus.running)stopFocusCountdown();
     clearDayPlanFocus();
     const now=Date.now(),endsAt=now+duration*60000;
     state.dayTimelineFocus={date:plan.date,blockId:block.id,startedAt:now,endsAt};
@@ -5023,8 +5026,9 @@
     if(!bar)return;
     const enabled=focusGuideRemindersEnabled();
     bar.innerHTML='<div class="focus-reminder-control">'
-      +'<div><strong>Herinneringen: '+(enabled?'aan':'uit')+'</strong>'
-      +'<small>'+(enabled?'Seintje na Focus of pauze.':'Geen vervolg- of pauzeherinneringen.')+'</small></div>'
+      +'<div><strong>Vervolgseintjes: '+(enabled?'aan':'uit')+'</strong>'
+      +'<small>'+(enabled?'Een seintje na Focus of pauze.':'Geen seintjes na Focus of pauze.')
+      +' Afspraken en het eindalarm van Focus blijven apart werken.</small></div>'
       +'<button type="button" class="secondary-button" data-focus-reminder-toggle>'
       +(enabled?'Uitzetten':'Aanzetten')+'</button></div>';
   }
