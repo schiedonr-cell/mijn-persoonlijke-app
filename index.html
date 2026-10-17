@@ -4215,8 +4215,10 @@
   function closeDayCalendarEditor(){document.getElementById('daycalEditOverlay').hidden=true;editingDayCalendarId=null;}
   document.addEventListener('click',e=>{
     if(e.target.id==='daycalEditCancel'||e.target.id==='daycalEditOverlay'){closeDayCalendarEditor();return;}
-    const body=e.target.closest?.('.day-calendar-event-body');
-    if(body){openDayCalendarEditor(body.closest('[data-daycal-id]')?.dataset.daycalId);}
+    const card=e.target.closest?.('.day-calendar-event[data-daycal-id]');
+    if(card&&!e.target.closest?.('[data-daycal-grip],[data-daycal-check]')){
+      openDayCalendarEditor(card.dataset.daycalId);
+    }
   });
   document.getElementById('daycalEditForm').addEventListener('submit',e=>{
     e.preventDefault();
