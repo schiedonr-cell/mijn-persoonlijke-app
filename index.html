@@ -4166,6 +4166,21 @@
     if(changes.some(x=>agenda.some(a=>a.start!==null&&x.start<(a.end!==null&&a.end>a.start?a.end:a.start+1)&&(x.end??x.start+1)>a.start))){
       renderDayTimeline();showToast('Deze activiteit past niet rond een vaste afspraak.');return false;
     }
+    // Controleer de gehele nieuwe volgorde: verschillende bloklengtes mogen
+    // geen onbedoelde overlap maken met een activiteit of vrije-ruimteblok.
+    const proposed=new Map(changes.map(x=>[x.b.id,x]));
+    const occupied=plan.blocks.filter(b=>!b.postponedTo&&!dayPlanBlockDone(b)).map(b=>{
+      const alt=proposed.get(b.id),start=alt?alt.start:dayPlanMinutes(b.start);
+      const end=alt?alt.end:dayPlanMinutes(b.end);
+      return {id:b.id,start,end:end!==null&&end>start?end:start===null?null:start+1};
+    }).filter(b=>b.start!==null);
+    const collision=occupied.some((x,i)=>occupied.slice(i+1).some(y=>
+      x.start<y.end&&y.start<x.end&&(proposed.has(x.id)||proposed.has(y.id))));
+    if(collision){
+      renderDayTimeline();
+      showToast('Deze volgorde geeft overlappende tijden. Kies een andere plek.');
+      return false;
+    }
     cancelDayPlanAlarms(plan);
     for(const {b,start,end} of changes){
       b.start=dayPlanClock(start);
@@ -4360,7 +4375,7 @@
     if(confirmed.length){
       try{window.AndroidWidgetBridge?.ackDayTimelineUpdates?.(JSON.stringify(confirmed));}catch{}
       if(operations.some(op=>confirmed.includes(op.id)&&op.done))offerRecovery();
-      else replanDayFromNow({silent:true});
+      // Afvinken via de widget mag de overige geplande tijden niet verschuiven.
     }
   };
 
