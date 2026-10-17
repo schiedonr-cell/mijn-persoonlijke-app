@@ -191,7 +191,12 @@ public class MainActivity extends Activity {
         try {
             JSONObject root = new JSONObject(text);
             JSONObject entries = root.optJSONObject("entries");
-            if (entries == null || !entries.has("mijnPersoonlijkeAppV1")) return false;
+            if (entries == null) return false;
+            // Accepteer alleen een echt appbestand; een fout bestand mag nooit
+            // de bestaande opgeslagen planning overschrijven.
+            String appData = entries.optString("mijnPersoonlijkeAppV1", "");
+            if (appData.isEmpty() || !appData.trim().startsWith("{")) return false;
+            new JSONObject(appData);
             try (FileOutputStream out = new FileOutputStream(importFile())) {
                 out.write(text.getBytes(StandardCharsets.UTF_8));
             }
@@ -292,11 +297,24 @@ public class MainActivity extends Activity {
 
     private void injectNext(List<String[]> pairs, int i) {
         if (i >= pairs.size()) {
-            importFile().delete();
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(IMPORT_DONE, true).apply();
-            importing = false;
-            Toast.makeText(this, "Je gegevens staan erin.", Toast.LENGTH_SHORT).show();
-            webView.reload();
+            // Controleer eerst of appdata daadwerkelijk gelezen kan worden.
+            // Verwijder het overdrachtsbestand pas na succesvolle controle.
+            webView.evaluateJavascript(
+                "(function(){try{const value=localStorage.getItem('mijnPersoonlijkeAppV1');"
+                    +"return !!(value&&JSON.parse(value)&&value.length>10);}catch(e){return false;}})()",
+                result -> {
+                    if (!"true".equals(result)) {
+                        importing = false;
+                        Toast.makeText(this, "Overzetten niet bevestigd. Het overdrachtsbestand is bewaard.", Toast.LENGTH_LONG).show();
+                        showTransferChoice(false);
+                        return;
+                    }
+                    importFile().delete();
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(IMPORT_DONE, true).apply();
+                    importing = false;
+                    Toast.makeText(this, "Je gegevens staan erin.", Toast.LENGTH_SHORT).show();
+                    webView.reload();
+                });
             return;
         }
         String[] p = pairs.get(i);
