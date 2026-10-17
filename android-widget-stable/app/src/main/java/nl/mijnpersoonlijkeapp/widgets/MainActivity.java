@@ -59,6 +59,9 @@ public class MainActivity extends Activity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         readTarget(getIntent());
+        MijnDagAlarmReceiver.restore(this);
+        if (android.os.Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},79);
         if (acceptSharedTransfer(getIntent()) || imported() || importFile().exists()) openApp();
         else showTransferChoice(true);
     }
@@ -295,6 +298,47 @@ public class MainActivity extends Activity {
     private final class Bridge {
         @JavascriptInterface public void update(String stateJson, String calendarJson) {
             SnapshotStore.updateFromWebState(getApplicationContext(), stateJson, calendarJson);
+        }
+        @JavascriptInterface public void scheduleReminder(String id,String title,String body,double at,String target) {
+            MijnDagAlarmReceiver.schedule(getApplicationContext(),id,title,body,(long)at,0);
+        }
+        @JavascriptInterface public void cancelReminder(String id) {
+            MijnDagAlarmReceiver.cancel(getApplicationContext(),id);
+        }
+        @JavascriptInterface public void scheduleDailyItemReminder(String id,String title,String body,String time,String target,boolean done) {
+            if(done){MijnDagAlarmReceiver.cancel(getApplicationContext(),id);return;}
+            try {
+                String[] parts=time.split(":");
+                java.util.Calendar c=java.util.Calendar.getInstance();
+                c.set(java.util.Calendar.HOUR_OF_DAY,Integer.parseInt(parts[0]));
+                c.set(java.util.Calendar.MINUTE,Integer.parseInt(parts[1]));
+                c.set(java.util.Calendar.SECOND,0);
+                c.set(java.util.Calendar.MILLISECOND,0);
+                if(c.getTimeInMillis()<=System.currentTimeMillis())c.add(java.util.Calendar.DATE,1);
+                MijnDagAlarmReceiver.schedule(getApplicationContext(),id,title,body,c.getTimeInMillis(),1);
+            }catch(Exception ignored){}
+        }
+        @JavascriptInterface public void scheduleEveryDaysReminder(String id,String title,String body,double first,int days,String target) {
+            MijnDagAlarmReceiver.schedule(getApplicationContext(),id,title,body,(long)first,Math.max(1,days));
+        }
+        @JavascriptInterface public void scheduleFocusNamed(int seconds,String name) {
+            MijnDagAlarmReceiver.focus(getApplicationContext(),seconds,name);
+        }
+        @JavascriptInterface public void scheduleDayPlanFocus(int seconds,String name,double endsAt) {
+            MijnDagAlarmReceiver.dayFocus(getApplicationContext(),Math.max(1,(int)Math.ceil((endsAt-System.currentTimeMillis())/1000.0)),name);
+        }
+        @JavascriptInterface public void cancelFocus() {
+            MijnDagAlarmReceiver.cancelFocus(getApplicationContext());
+        }
+        @JavascriptInterface public void cancelDayPlanFocus() {
+            MijnDagAlarmReceiver.cancelDayFocus(getApplicationContext());
+        }
+        @JavascriptInterface public void pauseFocus(int remaining,String name) {
+            MijnDagAlarmReceiver.cancelFocus(getApplicationContext());
+        }
+        @JavascriptInterface public String getTodayGoogleCalendarEvents() {
+            try {return CalendarData.todayEvents(MainActivity.this).toString();}
+            catch(Exception e){return "[]";}
         }
     }
 }
