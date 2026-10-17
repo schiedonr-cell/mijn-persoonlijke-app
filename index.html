@@ -3890,7 +3890,7 @@
     document.getElementById('quickPlanTimeOptions').hidden=!timed;
     document.getElementById('quickPlanUntimedNote').hidden=timed;
     document.getElementById('quickPlanModalHint').textContent=timed
-      ?'Vaste afspraken en eetmomenten blijven staan. Vrije tijd wordt zo nodig korter.'
+      ?'Kies een starttijd en duur. Andere activiteiten behouden hun tijden; overlap blijft zichtbaar.'
       :'Je taak verschijnt in de volgorde voor vandaag.';
     const position=document.getElementById('quickPlanPosition');
     if(timed){
@@ -4085,30 +4085,21 @@
     const block={id:uid('plan'),originalOrder:plan.blocks.length,start:dayPlanClock(start),
       end:dayPlanClock(start+duration),originalStart:dayPlanClock(start),originalEnd:dayPlanClock(start+duration),
       text:name,linkType:'task',linkId:task.id,kind:'Taak',matchedName:name,done:false,fixed:false,remind:false};
-    const currentOrder=dayPlanLogicalOrder(plan.blocks.filter(b=>!b.postponedTo));
-    const choice=document.getElementById('quickPlanPosition').value;
-    let at=currentOrder.length;
-    if(choice==='next')at=currentOrder.findIndex(b=>!dayPlanBlockDone(b)
-      &&(dayPlanMinutes(b.end||b.start)??0)>start);
-    else if(choice.startsWith('before:'))
-      at=currentOrder.findIndex(b=>b.id===choice.slice(7)&&!dayPlanBlockDone(b));
-    if(at<0)at=currentOrder.length;
-    const order=currentOrder.map(b=>b.id);order.splice(at,0,block.id);
-    const proposed=currentOrder.slice();proposed.splice(at,0,block);
-    const selectedId=choice.startsWith('before:')?choice.slice(7):'';
-    const nextActivity=selectedId?currentOrder.find(b=>b.id===selectedId):null;
-    const result=calculateQuickPlanInsertion(proposed,block,start,duration,
-      {allowOvernight:plan.overnightAllowed===true,
-        moveAfterId:nextActivity&&!quickPlanIsAnchor(nextActivity)&&!quickPlanIsFreeTime(nextActivity)?nextActivity.id:''});
-    if(!result.ok)return quickPlanError(result.reason);
+    // Kalenderafspraak: een taak invoegen verandert nooit de tijden van
+    // bestaande taken, routines, vrije ruimte of afspraken.
+    // Bij overlap toont de kalender de twee blokken naast elkaar.
     plan.blocks.push(block);
-    cancelDayPlanAlarms(plan);
     if(!existing)state.tasks.push(task);
     else{task.bucket='A';task.paused=false;task.deferUntil='';}
-    applyQuickPlanChanges(plan,result);
+    plan.blocks.sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
+    plan.manualOrderIds=plan.blocks.map(b=>b.id);
+    plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
+      .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+    state.dayTimelines||={};
+    state.dayTimelines[plan.date]=structuredClone(plan);
     refillTodayPlan(false);saveState();scheduleDayPlanAlarms();
     closeQuickPlanModal();renderToday();renderAllTasks();
-    showToast('Taak ingevoegd om '+dayPlanClockLabel(start)+'. Vrije tijd is zo nodig ingekort.');
+    showToast('Taak ingevoegd om '+dayPlanClockLabel(start)+'. Andere tijden zijn niet veranderd.');
   }
 
   function loadDayPlanEditor(date){
