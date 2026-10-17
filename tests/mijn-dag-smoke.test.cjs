@@ -54,6 +54,7 @@ function makeRunner() {
     activeDayPlanFocus:()=>false,
     dayPlanIsCurrent:()=>true,
     dayPlanBlockDone:b=>Boolean(b.done),
+    dayPlanBlockMode:b=>b.fixed===true||b.linkType==='agenda'?'fixed':'flex',
     dayPlanMinutes:value=>{const m=/^(\d+):(\d{2})$/.exec(value||'');return m?Number(m[1])*60+Number(m[2]):null;},
     dayPlanClock:n=>String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0'),
     dayPlanAlarmId:(_p,b)=>'alarm-'+b.id,
