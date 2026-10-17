@@ -2900,9 +2900,11 @@
   }
   repairDayPlanContactLinks();
   function dayPlanBlockMode(block){
+    // Afspraken blijven altijd vast, ook als oudere data fixed:false bevat.
+    // Zo kan slepen, handmatig verplaatsen of herplannen nooit een afspraak wijzigen.
+    if(block.linkType==='agenda')return 'fixed';
     if(block.fixed===true)return 'fixed';
     if(block.fixed===false)return 'flex';
-    if(block.linkType==='agenda')return 'fixed';
     return dayPlanMealWindow(block)?'window':'flex';
   }
   function dayPlanEveningStage(block){
