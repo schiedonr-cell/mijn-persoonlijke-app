@@ -955,6 +955,22 @@
     .day-calendar-preview{position:absolute;z-index:6;pointer-events:none;border:2px dashed var(--accent-strong);background:rgba(170,206,177,.62);
       border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--accent-strong);font-size:13px;font-weight:900}
     .day-calendar-empty{padding:18px 10px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
+    /* Dezelfde dagelijkse onderdelen als in de Vandaag-widget, zonder tijden te verzinnen. */
+    .day-auto-items{margin:10px 0 4px;padding:12px;border:1px solid var(--line);border-radius:16px;background:var(--surface-soft)}
+    .day-auto-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+    .day-auto-title strong{font-size:16px;color:var(--text)}
+    .day-auto-title span{font-size:11px;font-weight:750;color:var(--accent-strong)}
+    .day-auto-hint{font-size:12px;color:var(--muted);line-height:1.4;margin:0 0 8px}
+    .day-auto-row{display:flex;gap:9px;align-items:center;min-height:48px;padding:8px 2px;border-top:1px solid var(--line)}
+    .day-auto-row .check{margin:0 0 0 3px;flex-shrink:0}
+    .day-auto-copy{min-width:0;flex:1;line-height:1.32}
+    .day-auto-copy strong{display:block;font-size:14px;overflow-wrap:anywhere}
+    .day-auto-copy small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+    .day-auto-row button{min-height:40px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--accent-strong);font:inherit;font-size:12px;font-weight:800;padding:7px 10px;cursor:pointer}
+    .day-auto-row button.day-auto-focus{min-width:55px}
+    .day-auto-row button.day-auto-lunch{min-width:72px}
+    .day-auto-row button.day-auto-minutes{min-width:78px}
+    .day-auto-empty{font-size:13px;margin:8px 0 2px;color:var(--muted)}
     .day-calendar-options{border-top:1px solid var(--line);margin:12px 0 0}
     .day-calendar-options > summary{padding:12px 2px;cursor:pointer;min-height:44px;font-size:13px;font-weight:750;color:var(--accent-strong)}
     .today-shell[data-myday-mode="planning"] #dayPlanTomorrowPreview{display:none}
@@ -4523,6 +4539,37 @@
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible')updateDayCalendarNow();
   });
+  function renderDayPlanAutoItems(plan){
+    // Hergebruik exact dezelfde ongetimede selectie en volgorde als de widget.
+    // Maak geen nieuwe routines/taken; toon alleen verwijzingen naar bestaande items.
+    const scheduled=new Set((plan?.blocks||[])
+      .filter(b=>!b.postponedTo&&b.linkType&&b.linkId)
+      .map(b=>b.linkType+':'+b.linkId));
+    const items=untimedEffectiveOrder().filter(item=>!scheduled.has(item.type+':'+item.itemId));
+    const rows=items.map(item=>{
+      const name=escapeHtml(item.name),id=escapeHtml(item.itemId);
+      const habit=item.type==='habit'?state.habits.find(h=>h.id===item.itemId):null;
+      const kind=habit?recoveryRoutineKind(habit):'';
+      let action='';
+      if(item.type==='lunch'){
+        action='<button type="button" class="day-auto-lunch" data-self-care-lunch>Afvinken</button>';
+      }else if(kind){
+        action='<button type="button" class="day-auto-minutes" data-recovery-log-for="'+escapeHtml(kind)+'">Minuten</button>';
+      }else{
+        const key=item.type==='habit'?'data-habit-check':item.type==='household'?'data-household-check':'data-task-check';
+        action='<input type="checkbox" class="check" '+key+'="'+id+'" aria-label="'+name+' afvinken"/>';
+      }
+      const focus=item.type==='lunch'?''
+        :'<button type="button" class="day-auto-focus" data-focus-'+(item.type==='habit'?'habit':item.type==='household'?'household':'task')+'="'+id+'">Focus</button>';
+      const info=kind?recoveryProgressText(kind):item.kind;
+      return '<div class="day-auto-row">'+action+'<span class="day-auto-copy"><strong>'+name
+        +'</strong><small>'+escapeHtml(info)+'</small></span>'+focus+'</div>';
+    }).join('');
+    return '<section class="day-auto-items" aria-label="Automatisch vandaag">'
+      +'<div class="day-auto-title"><strong>Ook vandaag</strong><span>Zonder vaste tijden</span></div>'
+      +'<p class="day-auto-hint">Automatisch uit je routines, taken en huishouden. Afvinken werkt ook door in je widgets.</p>'
+      +(rows||'<p class="day-auto-empty">Geen extra onderdelen meer open.</p>')+'</section>';
+  }
   function renderDayCalendar(){
     const root=document.getElementById('dayCalendarView');
     if(!root)return;
@@ -4531,6 +4578,7 @@
     root.dataset.daycalDay=dayCalendarSelected;
     const tomorrow=storedDayTimeline(addDaysKey(1));
     const plan=calendarPlan(),blocks=(plan?.blocks||[]).filter(b=>!b.postponedTo&&dayPlanMinutes(b.start)!==null);
+    const autoItems=dayCalendarSelected==='today'?renderDayPlanAutoItems(plan):'';
     const currentMinutes=new Date().getHours()*60+new Date().getMinutes();
     const minStart=Math.min(360,...blocks.map(b=>dayPlanMinutes(b.start)),...(dayCalendarSelected==='today'?[currentMinutes]:[]));
     const maxEnd=Math.max(1320,...blocks.map(b=>dayPlanMinutes(b.end)??dayPlanMinutes(b.start)+30),...(dayCalendarSelected==='today'?[currentMinutes+30]:[]));
@@ -4593,8 +4641,9 @@
         +'<div class="day-calendar-grid">'+hours.join('')+halves.join('')+cards
         +(dayCalendarSelected==='today'?'<div class="day-calendar-now" data-daycal-now data-daycal-first="'+first+'" data-daycal-last="'+last+'"><span class="day-calendar-now-label">NU</span></div>':'')
         +'</div></div></div>'
-        :'<div class="day-calendar-empty">Voor '+(dayCalendarSelected==='today'?'vandaag':'morgen')+' staat nog geen planning met tijden klaar.'
-        +(dayCalendarSelected==='tomorrow'?'<div><button class="secondary-button" type="button" data-dayplan-edit-tomorrow>Planning voor morgen maken</button></div>':'')+'</div>');
+        :(autoItems?'':'<div class="day-calendar-empty">Voor morgen staat nog geen planning met tijden klaar.'
+        +'<div><button class="secondary-button" type="button" data-dayplan-edit-tomorrow>Planning voor morgen maken</button></div></div>'))
+      +autoItems;
     const sc=root.querySelector('.day-calendar-scroll');
     if(sc)sc.scrollTop=dayCalendarScroll[dayCalendarSelected]
       ??Math.max(0,((dayCalendarSelected==='today'?currentMinutes:540)-first)-sc.clientHeight*.33);
@@ -6590,7 +6639,11 @@
     if(e.target.closest('[data-dayplan-focus-open]'))return setDailyTab('focus');
     const logFor=e.target.closest('[data-recovery-log-for]');
     if(logFor)return openRoutineMinutesModal(logFor.dataset.recoveryLogFor);
-    if(e.target.closest('[data-self-care-lunch]'))return selfCareLunchToggle();
+    if(e.target.closest('[data-self-care-lunch]')){
+      selfCareLunchToggle();
+      renderDayCalendar();
+      return;
+    }
     if(e.target.closest('[data-self-care-now]'))return selfCareNow();
     if(e.target.closest('[data-self-care-later]'))return selfCareLater();
     if(e.target.closest('[data-recovery-open]')){recoveryManualMode=false;return offerRecovery();}
