@@ -1077,6 +1077,16 @@
   .today-shell[data-myday-mode="huishouden"] #dayClosedArea,
   .today-shell[data-myday-mode="agenda"] #dayClosedArea,
   .today-shell[data-myday-mode="energie"] #dayClosedArea{display:none!important}
+  #myDayAllRoutines{display:none}
+  .today-shell[data-myday-mode="routines"] #myDayAllRoutines{display:grid;gap:10px}
+  .today-shell[data-myday-mode="routines"] #habitList,
+  .today-shell[data-myday-mode="routines"] #completedHabitsWrap{display:none}
+  .myday-routine-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+  .myday-routine-content{flex:1;min-width:0}
+  .myday-routine-content strong{display:block;overflow-wrap:anywhere}
+  .myday-routine-content small{display:block;margin-top:5px;color:var(--muted);line-height:1.35}
+  .myday-routine-actions{display:flex;align-items:center;gap:6px}
+  .myday-routine-actions button{min-height:43px;border:1px solid var(--line);background:var(--surface-soft);border-radius:11px;padding:7px 10px;color:var(--text);font-weight:750}
   #myDayHouseholdAll{display:none}
   .today-shell[data-myday-mode="huishouden"] #myDayHouseholdAll{display:block}
   .today-shell[data-myday-mode="huishouden"] #householdList,
@@ -1215,6 +1225,7 @@
               </div>
               <div class="basis-list" id="habitList"></div>
               <div id="completedHabitsWrap"></div>
+              <div id="myDayAllRoutines" class="myday-all-routines" aria-label="Al je routines"></div>
             </div>
 
             <div class="section-card household-card today-section-card" id="todayHouseholdBlock">
@@ -2306,8 +2317,32 @@
     const wrap=document.getElementById(completedId);
     if(wrap)wrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(h=>completedHabitHtml(h,today)).join('')}</div></details>`:'';
   }
+  function renderMyDayAllRoutines(){
+    const wrap=document.getElementById('myDayAllRoutines');
+    if(!wrap)return;
+    const today=localDateKey();
+    wrap.innerHTML=(state.habits||[]).length
+      ?state.habits.map(h=>{
+        const kind=recoveryRoutineKind(h);
+        const done=Boolean(h.history?.[today])||(Boolean(kind)&&selfCareDone(kind));
+        const status=done?'Vandaag afgerond':'Vandaag nog open';
+        const detail=[h.anchor||'',h.time||'',status].filter(Boolean).join(' · ');
+        const action=kind
+          ?'<button type="button" data-recovery-log-for="'+escapeHtml(kind)+'" aria-label="Minuten registreren voor '+escapeHtml(h.name)+'">Minuten</button>'
+          :done
+            ?'<button type="button" data-habit-undo="'+escapeHtml(h.id)+'">Ongedaan</button>'
+            :'<input class="check" type="checkbox" data-habit-check="'+escapeHtml(h.id)+'" aria-label="'+escapeHtml(h.name)+' afvinken"/>';
+        return '<div class="myday-routine-card"><div class="myday-routine-content">'
+          +'<strong>'+escapeHtml(h.name)+'</strong><small>'+escapeHtml(detail)+'</small>'
+          +'</div><div class="myday-routine-actions">'+action
+          +'<button type="button" data-item-action="habit|'+escapeHtml(h.id)+'" aria-label="Routine bewerken">•••</button>'
+          +'</div></div>';
+      }).join('')
+      :'<div class="empty-state">Nog geen routines toegevoegd.</div>';
+  }
   function renderDailyBasis(){
     renderHabitGroup('habitList','completedHabitsWrap','basisProgress',state.habits,'Alle routines zijn voor vandaag afgerond.');
+    renderMyDayAllRoutines();
   }
   function selfCareToday(){
     const date=localDateKey();
