@@ -31,6 +31,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Voeg nieuwe Mijn Dag-interface toe aan Android
+        run: |
+          mkdir -p android-widget-stable/app/src/main/assets/app
+          cp index.html android-widget-stable/app/src/main/assets/app/index.html
+          cp ./*.js android-widget-stable/app/src/main/assets/app/
+          cp ./*.png android-widget-stable/app/src/main/assets/app/
+          cp manifest.webmanifest android-widget-stable/app/src/main/assets/app/
       - name: Build APK
         working-directory: android-widget-stable
         run: gradle :app:assembleDebug --no-daemon
