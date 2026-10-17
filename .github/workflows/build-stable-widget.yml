@@ -35,6 +35,7 @@ jobs:
         run: |
           mkdir -p android-widget-stable/app/src/main/assets/app
           cp index.html android-widget-stable/app/src/main/assets/app/index.html
+          cp import.html android-widget-stable/app/src/main/assets/app/import.html
           cp ./*.js android-widget-stable/app/src/main/assets/app/
           cp ./*.png android-widget-stable/app/src/main/assets/app/
           cp manifest.webmanifest android-widget-stable/app/src/main/assets/app/
@@ -83,6 +84,7 @@ jobs:
         run: |
           mkdir -p android-widget-stable/app/src/main/assets/app
           cp index.html android-widget-stable/app/src/main/assets/app/index.html
+          cp import.html android-widget-stable/app/src/main/assets/app/import.html
           cp ./*.js android-widget-stable/app/src/main/assets/app/
           cp ./*.png android-widget-stable/app/src/main/assets/app/
           cp manifest.webmanifest android-widget-stable/app/src/main/assets/app/
