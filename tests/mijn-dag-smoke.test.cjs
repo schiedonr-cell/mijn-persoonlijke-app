@@ -354,3 +354,27 @@ test('vervolgseintjes benoemen hun beperkte werking', () => {
   assert.match(section,/Vervolgseintjes:/);
   assert.match(section,/Afspraken en het eindalarm van Focus blijven apart werken/);
 });
+
+test('opnieuw openen van dezelfde dag-Focus reset de timer niet', () => {
+  const start=main.indexOf('  function startDayPlanFocus(blockId){');
+  const end=main.indexOf('  function extendDayPlanFocus(',start);
+  assert.ok(start>0&&end>start);
+  const block={id:'a',text:'Oefenen',start:'13:00',end:'13:20'};
+  const focus={date:'2026-10-17',blockId:'a',startedAt:1000,endsAt:999999};
+  const state={focus:{running:false},dayTimeline:{date:'2026-10-17',blocks:[block]},dayTimelineFocus:focus};
+  let saved=0,cancelled=0,opened=0;
+  const ctx={
+    state,activeDayPlanFocus:()=>({block,focus}),
+    dayPlanIsCurrent:()=>true,dayPlanBlockDone:()=>false,
+    setDailyTab:tab=>{assert.equal(tab,'focus');opened++;},
+    saveState:()=>saved++,clearDayPlanFocus:()=>cancelled++,
+    confirm:()=>{throw Error('Geen bevestiging voor dezelfde Focus');},
+    showToast:()=>{throw Error('Geen nieuwe Focus-melding');}
+  };
+  vm.runInNewContext(main.slice(start,end)+'\nthis.start=startDayPlanFocus;',ctx);
+  ctx.start('a');
+  assert.equal(opened,1);
+  assert.equal(saved,0);
+  assert.equal(cancelled,0);
+  assert.strictEqual(state.dayTimelineFocus,focus);
+});
