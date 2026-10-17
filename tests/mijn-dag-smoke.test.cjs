@@ -223,3 +223,11 @@ test('agenda blijft vast, ook met oude fixed:false gegevens', () => {
   assert.equal(ctx.mode({linkType:'task',fixed:false}),'flex');
   assert.equal(ctx.mode({linkType:'task',fixed:true}),'fixed');
 });
+
+test('voortgang dagplanning telt alleen huidige en afgeronde blokken', () => {
+  assert.match(main, /const totalToday=visible\.length\+completed\.length/);
+  assert.match(main, /Math\.round\(100\*completed\.length\/totalToday\)/);
+  assert.match(main, /const progressHtml=totalToday\?/);
+  assert.match(html, /\.day-plan-progress-track/);
+  assert.match(main, /aria-valuenow/);
+});
