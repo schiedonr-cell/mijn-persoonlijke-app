@@ -255,6 +255,4 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: |
-            cd android-widget-stable
-            gradle :app:connectedDebugAndroidTest --no-daemon
+          script: gradle -p android-widget-stable :app:connectedDebugAndroidTest --no-daemon
