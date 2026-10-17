@@ -89,3 +89,51 @@ test('geen slepen als Focus loopt of activiteit niet past', () => {
   assert.equal(x.move('task',580,600),false);
   assert.equal(x.blocks[0].start,'08:00');
 });
+
+
+test('aflopende gewone Focus zet alleen de afrondkeuze klaar, zonder taak af te vinken', () => {
+  const from=main.indexOf('  function focusCountdownSync(){');
+  const to=main.indexOf('  function restoreNativeFocusNotification(){',from);
+  assert.ok(from>0&&to>from,'Bestaande Focus-aftelling gevonden');
+  const task={id:'task1',done:false,elapsed:0};
+  const focus={running:true,endsAt:10_000,remainingSec:1,taskId:'task1',finishPending:false};
+  const state={focus,tasks:[task]};
+  let saves=0;
+  const context={
+    state,Date:{now:()=>11_000},Math,Number,
+    document:{getElementById:()=>null,visibilityState:'hidden'},
+    window:{AndroidWidgetBridge:{}},
+    saveState:()=>saves++,formatTime:sec=>sec,showToast:()=>{throw Error('Geen toast bij scherm uit')},
+    playFocusFinishedSignal:()=>{throw Error('Native Focus moet het geluid regelen')}
+  };
+  vm.runInNewContext(main.slice(from,to)+'\nthis.run=focusCountdownSync;',context);
+  context.run();
+  assert.equal(focus.running,false);
+  assert.equal(focus.finishPending,true);
+  assert.equal(task.done,false);
+  assert.equal(task.elapsed,1);
+  assert.ok(saves>0);
+});
+test('aflopende dagplanning-Focus markeert de activiteit niet vanzelf als klaar', () => {
+  const from=main.indexOf('  function tickDayPlanFocus(){');
+  const to=main.indexOf('\n  function ',from+12);
+  assert.ok(from>0&&to>from,'Bestaande dagplanning-timer gevonden');
+  const block={id:'plan1',done:false};
+  const focus={expiryShown:false};
+  let rendered=0;
+  const context={
+    activeDayPlanFocus:()=>({block,focus}),
+    dayPlanFocusRemaining:()=>0,
+    dayPlanFocusClock:()=> '00:00',
+    document:{querySelectorAll:()=>[]},
+    renderFocus:()=>rendered++,
+    refreshDayPlanFocusPanels:()=>rendered++,
+    window:{AndroidWidgetBridge:{}},
+    playFocusFinishedSignal:()=>{throw Error('Geen HTML-audiosignaal op Android')}
+  };
+  vm.runInNewContext(main.slice(from,to)+'\nthis.run=tickDayPlanFocus;',context);
+  context.run();
+  assert.equal(focus.expiryShown,true);
+  assert.equal(block.done,false);
+  assert.equal(rendered,2);
+});
