@@ -211,3 +211,15 @@ test('agenda heeft geen wijzigbare Vast/Flexibel-knop', () => {
   assert.match(main, /b\.linkType==='agenda'\?'':'<button type="button" class="day-plan-mini/);
   assert.match(main, /if\(b&&b\.linkType!=='agenda'\)\{b\.fixed=/);
 });
+
+test('agenda blijft vast, ook met oude fixed:false gegevens', () => {
+  const start=main.indexOf('  function dayPlanBlockMode(block){');
+  const end=main.indexOf('  function dayPlanEveningStage(',start);
+  assert.ok(start>0&&end>start);
+  const ctx={dayPlanMealWindow:()=>null};
+  vm.runInNewContext(main.slice(start,end)+'\nthis.mode=dayPlanBlockMode;',ctx);
+  assert.equal(ctx.mode({linkType:'agenda',fixed:false}),'fixed');
+  assert.equal(ctx.mode({linkType:'agenda'}),'fixed');
+  assert.equal(ctx.mode({linkType:'task',fixed:false}),'flex');
+  assert.equal(ctx.mode({linkType:'task',fixed:true}),'fixed');
+});
