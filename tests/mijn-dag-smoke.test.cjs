@@ -317,3 +317,40 @@ test('opnieuw plannen tijdens Focus houdt flexibele meldingen stil', () => {
   assert.deepEqual(scheduled,['alarm-focus','alarm-flex','alarm-fixed']);
   assert.deepEqual(cancelled,[]);
 });
+
+test('gewone lopende Focus wordt niet stilzwijgend vervangen door dag-Focus', () => {
+  const start=main.indexOf('  function startDayPlanFocus(blockId){');
+  const end=main.indexOf('  function extendDayPlanFocus(',start);
+  assert.ok(start>0&&end>start);
+  const block={id:'a',text:'Oefenen',start:'13:00',end:'13:20'};
+  const state={focus:{running:true},dayTimeline:{date:'2026-10-17',blocks:[block]}};
+  let cancelled=0,saved=0;
+  const ctx={
+    state,activeDayPlanFocus:()=>null,dayPlanIsCurrent:()=>true,
+    dayPlanBlockDone:()=>false,dayPlanFocusDuration:()=>20,
+    confirm:()=>false,stopFocusCountdown:()=>{cancelled++;state.focus.running=false;},
+    clearDayPlanFocus:()=>{},stopFocusGuideWhenStarting:()=>{},
+    window:{AndroidWidgetBridge:{}},Date,
+    saveState:()=>saved++,cancelDayPlanAlarms:()=>{},
+    dayPlanFocusReminder:()=>{},renderToday:()=>{},setDailyTab:()=>{},
+    showToast:()=>{}
+  };
+  vm.runInNewContext(main.slice(start,end)+'\nthis.start=startDayPlanFocus;',ctx);
+  ctx.start('a');
+  assert.equal(state.focus.running,true);
+  assert.equal(cancelled,0);
+  assert.equal(saved,0);
+  assert.equal(state.dayTimelineFocus,undefined);
+  ctx.confirm=()=>true;
+  ctx.start('a');
+  assert.equal(cancelled,1);
+  assert.equal(state.focus.running,false);
+  assert.equal(state.dayTimelineFocus.blockId,'a');
+});
+test('vervolgseintjes benoemen hun beperkte werking', () => {
+  const start=main.indexOf('  function renderFocusReminderControl(){');
+  const end=main.indexOf('  function toggleFocusGuideReminders(){',start);
+  const section=main.slice(start,end);
+  assert.match(section,/Vervolgseintjes:/);
+  assert.match(section,/Afspraken en het eindalarm van Focus blijven apart werken/);
+});
