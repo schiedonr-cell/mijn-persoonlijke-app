@@ -397,3 +397,9 @@ test('agenda bevat geen Focus-knop en beïnvloedt voltooiing niet', () => {
   ctx.start('afspraak');
   assert.equal(state.dayTimelineFocus,undefined);
 });
+
+test('back-up knop bewaart bestaande opslag zonder andere gegevens te veranderen', () => {
+  assert.match(html, /data-myday-backup/);
+  assert.match(main, /window\.AndroidWidgetBridge\?\.saveBackup/);
+  assert.match(main, /const backup=JSON\.stringify\(\{version:2,exportedAt:Date\.now\(\),entries\}\)/);
+});
