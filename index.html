@@ -4259,8 +4259,48 @@
     // Bestaande botsingscontrole voorkomt overlappende activiteiten.
     return moveDayPlanBlockIntoGap(blockId,dayPlanMinutes(value),2880);
   }
+  function calculateDayPlanReorderSlots(plan,visible,rearranged){
+    // Activiteiten hebben niet allemaal dezelfde duur. Een oude begintijd
+    // letterlijk wisselen veroorzaakt daardoor overlap. Bereken de flexibele
+    // tijdvakken opnieuw, maar laat alle vaste en afgeronde blokken ongemoeid.
+    const flexible=visible.filter(b=>dayPlanBlockMode(b)!=='fixed');
+    const slotStarts=flexible.map(b=>dayPlanMinutes(b.start));
+    if(!slotStarts.length||slotStarts.some(x=>x===null))return null;
+    const duration=b=>{
+      const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
+      return start===null?null:Math.max(1,end!==null&&end>start?end-start:1);
+    };
+    const lastEnd=Math.max(...flexible.map(b=>{
+      const start=dayPlanMinutes(b.start);
+      return start===null?0:start+duration(b);
+    }));
+    const moveIds=new Set(rearranged.map(b=>b.id));
+    const reserved=(plan.blocks||[]).filter(b=>!b.postponedTo&&!moveIds.has(b.id))
+      .map(b=>{
+        const start=dayPlanMinutes(b.start),length=duration(b);
+        return start===null||length===null?null:{start,end:start+length};
+      }).filter(Boolean).sort((a,b)=>a.start-b.start);
+    function place(preserveGaps){
+      let cursor=slotStarts[0];
+      const proposed=[];
+      for(let i=0;i<rearranged.length;i++){
+        const b=rearranged[i],length=duration(b);
+        if(length===null)return null;
+        let at=Math.max(cursor,preserveGaps?slotStarts[i]:slotStarts[0]);
+        for(const fixed of reserved){
+          if(at<fixed.end&&at+length>fixed.start)at=fixed.end;
+        }
+        const end=at+length;
+        if(at>=2880||end>2880)return null;
+        proposed.push({b,start:at,end,hadEnd:dayPlanMinutes(b.end)>dayPlanMinutes(b.start)});
+        cursor=end;
+      }
+      // Slepen mag de hele planning niet stilzwijgend later laten eindigen.
+      return cursor<=lastEnd?proposed:null;
+    }
+    return place(true)||place(false);
+  }
   function saveDayPlanDragOrder(){
-    // Wissel flexibele activiteiten tussen bestaande klokvakken.
     const box=document.getElementById('dayPlanList'),plan=state.dayTimeline;
     if(!box||!dayPlanIsCurrent(plan))return false;
     const visible=plan.blocks.filter(b=>!b.postponedTo&&!dayPlanBlockDone(b))
@@ -4271,41 +4311,22 @@
     if(ids.length!==visible.length||new Set(ids).size!==visible.length||ids.some(id=>!lookup.has(id)))return false;
     const rearranged=ids.map(id=>lookup.get(id)).filter(b=>dayPlanBlockMode(b)!=='fixed');
     if(rearranged.every((b,i)=>b.id===flexible[i]?.id)){renderDayTimeline();return false;}
-    const slots=flexible.map(b=>dayPlanMinutes(b.start));
-    if(slots.some(x=>x===null))return renderDayTimeline(),false;
-    const changes=rearranged.map((b,i)=>{
-      const from=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end),length=end!==null&&end>from?end-from:0;
-      return {b,start:slots[i],end:length?slots[i]+length:null};
-    });
-    const agenda=visible.filter(b=>b.linkType==='agenda').map(b=>({start:dayPlanMinutes(b.start),end:dayPlanMinutes(b.end)}));
-    if(changes.some(x=>agenda.some(a=>a.start!==null&&x.start<(a.end!==null&&a.end>a.start?a.end:a.start+1)&&(x.end??x.start+1)>a.start))){
-      renderDayTimeline();showToast('Deze activiteit past niet rond een vaste afspraak.');return false;
-    }
-    // Controleer de gehele nieuwe volgorde: verschillende bloklengtes mogen
-    // geen onbedoelde overlap maken met een activiteit of vrije-ruimteblok.
-    const proposed=new Map(changes.map(x=>[x.b.id,x]));
-    const occupied=plan.blocks.filter(b=>!b.postponedTo&&!dayPlanBlockDone(b)).map(b=>{
-      const alt=proposed.get(b.id),start=alt?alt.start:dayPlanMinutes(b.start);
-      const end=alt?alt.end:dayPlanMinutes(b.end);
-      return {id:b.id,start,end:end!==null&&end>start?end:start===null?null:start+1};
-    }).filter(b=>b.start!==null);
-    const collision=occupied.some((x,i)=>occupied.slice(i+1).some(y=>
-      x.start<y.end&&y.start<x.end&&(proposed.has(x.id)||proposed.has(y.id))));
-    if(collision){
+    const changes=calculateDayPlanReorderSlots(plan,visible,rearranged);
+    if(!changes){
       renderDayTimeline();
-      showToast('Deze volgorde geeft overlappende tijden. Kies een andere plek.');
+      showToast('Er is niet genoeg ruimte rond vaste afspraken. Kies een andere plek.');
       return false;
     }
     cancelDayPlanAlarms(plan);
-    for(const {b,start,end} of changes){
+    for(const {b,start,end,hadEnd} of changes){
       b.start=dayPlanClock(start);b.originalStart=b.start;
-      if(end!==null){b.end=dayPlanClock(end);b.originalEnd=b.end;}
+      if(hadEnd){b.end=dayPlanClock(end);b.originalEnd=b.end;}
     }
     plan.blocks.sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
     plan.manualOrderIds=plan.blocks.map(b=>b.id);
     plan.sourceText=plan.blocks.filter(b=>!b.postponedTo).map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
     saveState();scheduleDayPlanAlarms();renderToday();renderFocus();
-    showToast('Activiteiten verschoven; afspraken blijven staan.');
+    showToast('Volgorde aangepast; tijden passen nu en vaste afspraken staan gelijk.');
     return true;
   }
   function shiftDayPlanBlock(blockId,direction){
