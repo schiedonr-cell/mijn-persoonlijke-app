@@ -141,9 +141,14 @@ jobs:
                       boolean allowed=android.os.Build.VERSION.SDK_INT<33 ||
                           checkSelfPermission("android.permission.POST_NOTIFICATIONS")==android.content.pm.PackageManager.PERMISSION_GRANTED;
                       String last=getSharedPreferences("preview_debug",MODE_PRIVATE).getString("last_alarm","");
-                      return "{\\"version\\":\\"CONTROLE 3\\",\\"notificationsAllowed\\":"+allowed+
-                          ",\\"lastAlarm\\":"+org.json.JSONObject.quote(last)+
-                          ",\\"focusScheduled\\":"+PreviewAlarmReceiver.focusScheduled(MainActivity.this)+"}";
+                      org.json.JSONObject status=new org.json.JSONObject();
+                      try {
+                          status.put("version","CONTROLE 3");
+                          status.put("notificationsAllowed",allowed);
+                          status.put("lastAlarm",last);
+                          status.put("focusScheduled",PreviewAlarmReceiver.focusScheduled(MainActivity.this));
+                      }catch(Exception ignored){}
+                      return status.toString();
                   }
                   @JavascriptInterface public void testDirectNotification(){
                       PreviewAlarmReceiver.testNotification(MainActivity.this);
