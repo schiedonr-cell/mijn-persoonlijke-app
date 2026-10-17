@@ -137,13 +137,18 @@ final class SnapshotStore {
         JSONArray tasks = state.optJSONArray("tasks");
         if (tasks == null) return;
         Map<String, JSONObject> byId = new HashMap<>();
-        List<JSONObject> open = new ArrayList<>();
+        List<JSONObject> availableToday = new ArrayList<>();
         for (int i = 0; i < tasks.length(); i++) {
             JSONObject t = tasks.optJSONObject(i);
             if (t == null) continue;
             String id = t.optString("id", "");
             if (!id.isEmpty()) byId.put(id, t);
-            if (taskOpen(t, today)) open.add(t);
+            // Alleen taken uit Vandaag komen automatisch in de takenwidget.
+            // Taken uit Komende dagen/Volgende week/Later niet, tenzij ze
+            // expliciet als taak in de dagplanning van vandaag staan.
+            if (taskOpen(t, today) && "A".equals(t.optString("bucket", ""))) {
+                availableToday.add(t);
+            }
         }
 
         List<JSONObject> chosen = new ArrayList<>();
@@ -153,37 +158,55 @@ final class SnapshotStore {
             JSONArray ids = plan.optJSONArray("taskIds");
             if (ids != null) {
                 for (int i = 0; i < ids.length() && chosen.size() < energy; i++) {
-                    String id = ids.optString(i, "");
-                    JSONObject t = byId.get(id);
-                    if (t != null && taskOpen(t, today)) {
-                        chosen.add(t);
-                        used.add(id);
-                    }
+                    addChosenTask(chosen, used, byId.get(ids.optString(i, "")), today);
                 }
             }
         }
 
-        if (chosen.size() < energy) {
-            Collections.sort(open, new Comparator<JSONObject>() {
-                @Override public int compare(JSONObject a, JSONObject b) {
-                    String da = a.optString("deadline", "");
-                    String db = b.optString("deadline", "");
-                    if (da.isEmpty() && !db.isEmpty()) return 1;
-                    if (!da.isEmpty() && db.isEmpty()) return -1;
-                    if (!da.equals(db)) return da.compareTo(db);
-                    return Long.compare(a.optLong("createdAt", 0), b.optLong("createdAt", 0));
+        // Echte, ingeplande GVB-oefeningen zijn gewone taken. Gebruik hier
+        // uitsluitend gekoppelde taakblokken, niet de zes oude GVB Focus-vakken.
+        JSONObject day = state.optJSONObject("dayTimeline");
+        if (day == null || !today.equals(day.optString("date", ""))) {
+            JSONObject days = state.optJSONObject("dayTimelines");
+            day = days == null ? null : days.optJSONObject(today);
+        }
+        if (day != null && today.equals(day.optString("date", ""))) {
+            JSONArray blocks = day.optJSONArray("blocks");
+            if (blocks != null) {
+                for (int i = 0; i < blocks.length(); i++) {
+                    JSONObject block = blocks.optJSONObject(i);
+                    if (block == null || !"task".equals(block.optString("linkType", ""))
+                            || block.optBoolean("done", false)
+                            || !block.optString("postponedTo", "").isEmpty()) continue;
+                    addChosenTask(chosen, used, byId.get(block.optString("linkId", "")), today);
                 }
-            });
-            for (JSONObject t : open) {
-                if (chosen.size() >= energy) break;
-                String id = t.optString("id", "");
-                if (used.contains(id)) continue;
-                chosen.add(t);
-                used.add(id);
             }
+        }
+
+        // Vul eventueel open plaatsen uitsluitend aan vanuit het vak Vandaag.
+        Collections.sort(availableToday, new Comparator<JSONObject>() {
+            @Override public int compare(JSONObject a, JSONObject b) {
+                String da = a.optString("deadline", "");
+                String db = b.optString("deadline", "");
+                if (da.isEmpty() && !db.isEmpty()) return 1;
+                if (!da.isEmpty() && db.isEmpty()) return -1;
+                if (!da.equals(db)) return da.compareTo(db);
+                return Long.compare(a.optLong("createdAt", 0), b.optLong("createdAt", 0));
+            }
+        });
+        for (JSONObject t : availableToday) {
+            if (chosen.size() >= energy) break;
+            addChosenTask(chosen, used, t, today);
         }
 
         for (JSONObject t : chosen) addRow(rows, "Taak", t.optString("name", "Taak"));
+    }
+
+    private static void addChosenTask(List<JSONObject> chosen, Set<String> used, JSONObject task, String today) {
+        if (task == null || !taskOpen(task, today)) return;
+        String id = task.optString("id", "");
+        if (id.isEmpty() || !used.add(id)) return;
+        chosen.add(task);
     }
 
     private static void addAgenda(JSONArray rows, Context context, String calendarJson, String today) {
