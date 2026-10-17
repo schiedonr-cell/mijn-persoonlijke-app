@@ -826,6 +826,13 @@
     .day-plan-row{grid-template-columns:24px 76px minmax(0,1fr) 44px}
     .day-plan-grip{display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft);color:var(--muted);font-size:22px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
     .day-plan-grip:active{cursor:grabbing}
+    .day-plan-row.day-plan-drop-target{outline:2px dashed var(--accent-strong);outline-offset:2px;border-radius:12px}
+    .day-plan-position{display:flex;align-items:center;flex-direction:column;gap:3px}
+    .day-plan-position .day-plan-grip{width:44px;min-height:44px}
+    .day-plan-shift-buttons{display:flex;gap:3px}
+    .day-plan-shift-buttons button{width:21px;min-height:31px;padding:0;border:1px solid var(--line);border-radius:7px;background:var(--surface-soft);color:var(--accent-strong);font-size:16px;font-weight:900}
+    .day-plan-shift-buttons button:disabled{opacity:.25}
+    .day-plan-grip{touch-action:none;-webkit-touch-callout:none}
     .day-plan-row.day-plan-dragging{background:var(--accent-soft);border-radius:12px;box-shadow:0 0 0 2px var(--accent-strong);position:relative;z-index:3}
     .day-plan-order-note{font-size:12px;line-height:1.4;color:var(--muted);margin:6px 0}
     .day-plan-drag-static{display:flex;justify-content:center;align-items:center;width:44px;color:var(--muted);font-size:18px}
@@ -4147,6 +4154,7 @@
     // Afrondingen blijven in de originele data en kunnen hieronder teruggedraaid worden.
     const today=plan.blocks.filter(b=>!b.postponedTo).sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
     const visible=today.filter(b=>!dayPlanBlockDone(b));
+    const movableVisible=visible.filter(b=>dayPlanBlockMode(b)!=='fixed');
     const completed=today.filter(dayPlanBlockDone);
     const moved=plan.blocks.filter(b=>b.postponedTo);
     const first=visible[0],last=visible[visible.length-1];
@@ -4166,7 +4174,7 @@
       +'<span class="day-plan-progress-fill" style="width:'+progressPercent+'%"></span></div>'
       +'<span class="day-plan-progress-label">'+progressPercent+'%</span></div>':'';
     box.innerHTML=countHtml+progressHtml
-    +(visible.length>1?'<p class="day-plan-order-note">Houd ☷ vast en sleep een activiteit naar een ander tijdvak.</p>':'')
+    +(movableVisible.length>1?'<p class="day-plan-order-note">Sleep een activiteit via ☷ rechts, of gebruik ↑ ↓. Vaste afspraken blijven staan.</p>':'')
     +(visible.length?visible.map((b,i)=>{
       const previous=visible[i-1],previousEnd=previous?dayPlanMinutes(previous.end||previous.start):null;
       const nextStart=dayPlanMinutes(b.start);
@@ -4193,7 +4201,11 @@
         +'<button type="button" class="day-plan-remove-button" data-dayplan-remove="'+escapeHtml(b.id)+'">Uit planning halen</button></div></details>'
        +'</div>'
        +(dayPlanBlockMode(b)==='fixed'?'<span class="day-plan-drag-static" title="Vast tijdstip, niet versleepbaar">▣</span>'
-       :'<button type="button" class="day-plan-grip" data-dayplan-grip="'+escapeHtml(b.id)+'" aria-label="Sleep '+escapeHtml(b.text)+' naar een andere plek" title="Vasthouden en verslepen">☷</button>')
+       :'<div class="day-plan-position">'
+         +'<button type="button" class="day-plan-grip" data-dayplan-grip="'+escapeHtml(b.id)+'" aria-label="Sleep '+escapeHtml(b.text)+' naar een andere plek" title="Vasthouden en verslepen">☷</button>'
+         +(movableVisible.length>1?'<div class="day-plan-shift-buttons">'
+           +'<button type="button" data-dayplan-shift="-1" data-dayplan-shift-id="'+escapeHtml(b.id)+'" aria-label="'+escapeHtml(b.text)+' omhoog" '+(movableVisible[0]===b?'disabled':'')+'>↑</button>'
+           +'<button type="button" data-dayplan-shift="1" data-dayplan-shift-id="'+escapeHtml(b.id)+'" aria-label="'+escapeHtml(b.text)+' omlaag" '+(movableVisible[movableVisible.length-1]===b?'disabled':'')+'>↓</button></div>':'')+'</div>')
        +'</div>';
     }).join(''):'<div class="empty-state">Alles voor vandaag is afgevinkt.</div>')
     +(moved.length?'<details class="day-plan-deferred" open><summary>Nog inplannen voor morgen ('+moved.length+')</summary>'
@@ -4296,6 +4308,28 @@
     showToast('Activiteiten verschoven; afspraken blijven staan.');
     return true;
   }
+  function shiftDayPlanBlock(blockId,direction){
+    const box=document.getElementById('dayPlanList'),plan=state.dayTimeline;
+    if(!box||!dayPlanIsCurrent(plan))return;
+    if(activeDayPlanFocus()||state.focus.running){
+      showToast('Stop eerst de lopende Focus voordat je de volgorde wijzigt.');return;
+    }
+    const movable=[...box.querySelectorAll(':scope > .day-plan-row[data-dayplan-reorder-id]')]
+      .filter(row=>dayPlanBlockMode(plan.blocks.find(b=>b.id===row.dataset.dayplanReorderId)||{})!=='fixed');
+    const index=movable.findIndex(row=>row.dataset.dayplanReorderId===blockId);
+    const other=movable[index+direction];
+    if(index<0||!other)return;
+    const row=movable[index],marker=document.createComment('dagplan-verplaatsing');
+    box.insertBefore(marker,row);
+    box.insertBefore(row,other);
+    box.insertBefore(other,marker);
+    marker.remove();
+    saveDayPlanDragOrder();
+  }
+  document.addEventListener('click',e=>{
+    const btn=e.target.closest?.('[data-dayplan-shift][data-dayplan-shift-id]');
+    if(btn){e.preventDefault();shiftDayPlanBlock(btn.dataset.dayplanShiftId,Number(btn.dataset.dayplanShift));}
+  });
   document.addEventListener('pointerdown',e=>{
     const grip=e.target.closest?.('[data-dayplan-grip]');
     if(!grip)return;
@@ -4308,7 +4342,8 @@
     const locked=state.dayTimeline?.blocks?.find(b=>b.id===row.dataset.dayplanReorderId);
     if(!locked||dayPlanBlockMode(locked)==='fixed')return;
     e.preventDefault();
-    dayPlanDrag={row,pointerId:e.pointerId,grip,moved:false,gapTime:null,gapEnd:null};
+    dayPlanDrag={row,pointerId:e.pointerId,grip,moved:false,gapTime:null,gapEnd:null,
+      beforeId:null,startY:e.clientY};
     row.classList.add('day-plan-dragging');
     try{grip.setPointerCapture(e.pointerId);}catch{}
   });
@@ -4327,16 +4362,15 @@
       drag.gapTime=Number(freeSlot.dataset.dayplanGapTime);
       drag.gapEnd=Number(freeSlot.dataset.dayplanGapEnd);
     }
+    // Verplaats het echte element nog niet: Android kan daardoor de
+    // pointercapture verliezen. Toon alleen de beoogde plek en verplaats bij loslaten.
     const rows=[...box.querySelectorAll(':scope > .day-plan-row[data-dayplan-reorder-id]')]
       .filter(row=>row!==drag.row);
     const target=rows.find(row=>e.clientY<row.getBoundingClientRect().top+row.getBoundingClientRect().height/2);
-    const before=target||(rows.length?rows[rows.length-1].nextElementSibling:null);
-    if(target&&target!==drag.row.nextElementSibling){
-      box.insertBefore(drag.row,target);drag.moved=true;
-    }else if(!target&&rows.length&&drag.row!==rows[rows.length-1]){
-      const afterLast=rows[rows.length-1].nextElementSibling;
-      box.insertBefore(drag.row,afterLast);drag.moved=true;
-    }
+    drag.beforeId=target?.dataset.dayplanReorderId||null;
+    drag.moved=Math.abs(e.clientY-drag.startY)>8;
+    box.querySelectorAll('.day-plan-drop-target').forEach(el=>el.classList.remove('day-plan-drop-target'));
+    if(target&&drag.moved)target.classList.add('day-plan-drop-target');
     // Ook met een lange planning kan je tijdens het slepen verder omlaag.
     const margin=78;
     if(e.clientY>window.innerHeight-margin)window.scrollBy(0,Math.max(2,Math.ceil((e.clientY-(window.innerHeight-margin))/8)));
@@ -4347,11 +4381,23 @@
     if(!drag||drag.pointerId!==e.pointerId)return;
     dayPlanDrag=null;
     drag.row.classList.remove('day-plan-dragging');
+    const box=drag.row.parentElement;
+    box?.querySelectorAll('.day-plan-drop-target,.day-clock-gap-target').forEach(el=>{
+      el.classList.remove('day-plan-drop-target','day-clock-gap-target');
+    });
     if(drag.gapTime!==null&&drag.gapEnd!==null){
       const id=drag.row.dataset.dayplanReorderId;
       if(!moveDayPlanBlockIntoGap(id,drag.gapTime,drag.gapEnd))renderDayTimeline();
-    }else if(drag.moved)saveDayPlanDragOrder();
-    else renderDayTimeline();
+    }else if(drag.moved&&box){
+      const target=drag.beforeId&&[...box.querySelectorAll(':scope > .day-plan-row')]
+        .find(el=>el.dataset.dayplanReorderId===drag.beforeId);
+      if(target)box.insertBefore(drag.row,target);
+      else{
+        const rows=[...box.querySelectorAll(':scope > .day-plan-row')].filter(row=>row!==drag.row);
+        if(rows.length)box.insertBefore(drag.row,rows[rows.length-1].nextElementSibling);
+      }
+      saveDayPlanDragOrder();
+    }else renderDayTimeline();
   }
   document.addEventListener('pointerup',finishDayPlanDrag);
   document.addEventListener('pointercancel',e=>{
