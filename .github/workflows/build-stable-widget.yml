@@ -41,6 +41,18 @@ jobs:
       - name: Bouw APK en controleer Android-tests
         working-directory: android-widget-stable
         run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon
+      - name: Controleer APK-identiteit en digitale handtekening
+        run: |
+          APK=android-widget-stable/app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK" | tee /tmp/mijndag-signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -m1 "^package:"
+          {
+            echo "## Mijn Dag — installatiecontrole"
+            echo "APK is alleen voor technische controle; veilige vervanging van de huidige app vereist dezelfde ondertekening."
+            echo '~~~~'
+            cat /tmp/mijndag-signature.txt
+            echo '~~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: mijn-dag-widget-v3-apk
