@@ -9,6 +9,7 @@ on:
       - index.html
       - .github/workflows/build-mijn-dag-test.yml
       - android-widget-stable/**
+      - test-preview/**
 
 permissions:
   contents: read
@@ -63,6 +64,11 @@ jobs:
                               "applicationId 'nl.mijnpersoonlijkeapp.test'")
           gradle.write_text(conf,encoding='utf-8')
           source = base/'java/nl/mijnpersoonlijkeapp/widgets/MainActivity.java'
+          shutil.copyfile(Path('test-preview/PreviewAlarmReceiver.java'),source.parent/'PreviewAlarmReceiver.java')
+          xml=manifest.read_text(encoding='utf-8')
+          xml=xml.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">','<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>')
+          xml=xml.replace('</application>','<receiver android:name=".PreviewAlarmReceiver" android:exported="false"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/></intent-filter></receiver></application>')
+          manifest.write_text(xml,encoding='utf-8')
           source.write_text(r'''package nl.mijnpersoonlijkeapp.widgets;
 
           import android.app.Activity;
@@ -75,6 +81,7 @@ jobs:
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
+          import android.webkit.JavascriptInterface;
           import java.io.InputStream;
           import java.io.ByteArrayInputStream;
 
@@ -92,6 +99,11 @@ jobs:
                   settings.setDatabaseEnabled(true);
                   settings.setAllowFileAccess(false);
                   settings.setAllowContentAccess(false);
+                  web.addJavascriptInterface(new PreviewBridge(), "AndroidWidgetBridge");
+                  if (android.os.Build.VERSION.SDK_INT >= 33
+                        && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                      requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 202);
+                  PreviewAlarmReceiver.restore(this);
                   web.setBackgroundColor(Color.WHITE);
                   web.setWebViewClient(new WebViewClient() {
                       @Override
@@ -121,6 +133,33 @@ jobs:
                   });
                   setContentView(web);
                   web.loadUrl("https://"+HOST+"/index.html?nativev=1");
+              }
+              private class PreviewBridge {
+                  @JavascriptInterface public void scheduleReminder(String id,String title,String body,double at,String target) {
+                      PreviewAlarmReceiver.schedule(MainActivity.this,id,title,body,(long)at,0);
+                  }
+                  @JavascriptInterface public void cancelReminder(String id) {
+                      PreviewAlarmReceiver.cancel(MainActivity.this,id);
+                  }
+                  @JavascriptInterface public void scheduleDailyItemReminder(String id,String title,String body,String time,String target,boolean done) {
+                      if(done){cancelReminder(id);return;}
+                      long when=atTime(time,1);
+                      PreviewAlarmReceiver.schedule(MainActivity.this,id,title,body,when,1);
+                  }
+                  @JavascriptInterface public void scheduleEveryDaysReminder(String id,String title,String body,double first,int days,String target){
+                      PreviewAlarmReceiver.schedule(MainActivity.this,id,title,body,(long)first,Math.max(1,days));
+                  }
+                  @JavascriptInterface public void scheduleFocusNamed(int seconds,String name){
+                      PreviewAlarmReceiver.focus(MainActivity.this,seconds,name);
+                  }
+                  @JavascriptInterface public void cancelFocus(){PreviewAlarmReceiver.cancelFocus(MainActivity.this);}
+                  @JavascriptInterface public void pauseFocus(int remain,String name){PreviewAlarmReceiver.cancelFocus(MainActivity.this);}
+                  private long atTime(String time,int days){
+                      java.util.Calendar c=java.util.Calendar.getInstance();
+                      String[] part=time.split(":");
+                      try{c.set(java.util.Calendar.HOUR_OF_DAY,Integer.parseInt(part[0]));c.set(java.util.Calendar.MINUTE,Integer.parseInt(part[1]));c.set(java.util.Calendar.SECOND,0);if(c.getTimeInMillis()<System.currentTimeMillis())c.add(java.util.Calendar.DATE,days);}catch(Exception ex){return System.currentTimeMillis()+60000;}
+                      return c.getTimeInMillis();
+                  }
               }
               @Override
               public void onBackPressed() {
