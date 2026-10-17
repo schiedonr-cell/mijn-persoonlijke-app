@@ -225,8 +225,9 @@ test('agenda blijft vast, ook met oude fixed:false gegevens', () => {
 });
 
 test('voortgang dagplanning telt alleen huidige en afgeronde blokken', () => {
-  assert.match(main, /const totalToday=visible\.length\+completed\.length/);
-  assert.match(main, /Math\.round\(100\*completed\.length\/totalToday\)/);
+  assert.match(main, /const trackableToday=today\.filter\(b=>b\.linkType!=='agenda'\)/);
+  assert.match(main, /const completedToday=trackableToday\.filter\(dayPlanBlockDone\)\.length/);
+  assert.match(main, /Math\.round\(100\*completedToday\/totalToday\)/);
   assert.match(main, /const progressHtml=totalToday\?/);
   assert.match(html, /\.day-plan-progress-track/);
   assert.match(main, /aria-valuenow/);
@@ -377,4 +378,22 @@ test('opnieuw openen van dezelfde dag-Focus reset de timer niet', () => {
   assert.equal(saved,0);
   assert.equal(cancelled,0);
   assert.strictEqual(state.dayTimelineFocus,focus);
+});
+
+test('agenda bevat geen Focus-knop en beïnvloedt voltooiing niet', () => {
+  assert.match(main, /b\.linkType==='agenda'\?'':'<button type="button" class="day-plan-focus-start/);
+  const start=main.indexOf('  function startDayPlanFocus(blockId){');
+  const end=main.indexOf('  function extendDayPlanFocus(',start);
+  assert.ok(start>0&&end>start);
+  const block={id:'afspraak',linkType:'agenda',start:'11:00',end:'12:00'};
+  const state={dayTimeline:{blocks:[block]},focus:{running:false}};
+  const ctx={
+    state,dayPlanIsCurrent:()=>true,dayPlanBlockDone:()=>false,
+    activeDayPlanFocus:()=>null,
+    setDailyTab:()=>{throw Error('Geen Focus op agenda');},
+    saveState:()=>{throw Error('Afspraak blijft intact');}
+  };
+  vm.runInNewContext(main.slice(start,end)+'\nthis.start=startDayPlanFocus;',ctx);
+  ctx.start('afspraak');
+  assert.equal(state.dayTimelineFocus,undefined);
 });
