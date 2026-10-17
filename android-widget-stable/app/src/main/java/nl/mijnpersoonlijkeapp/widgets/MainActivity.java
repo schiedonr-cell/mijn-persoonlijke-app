@@ -32,6 +32,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -47,11 +48,13 @@ public class MainActivity extends Activity {
     private static final int CALENDAR_PERMISSION = 78;
     private static final int NOTIFICATION_PERMISSION = 79;
     private static final int SPEECH_REQUEST = 80;
+    private static final int BACKUP_CREATE_DOCUMENT = 81;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WebView webView;
     private String target = "today";
     private boolean importing = false;
+    private String pendingBackupJson = null;
 
     private final Runnable syncLoop = new Runnable() {
         @Override public void run() {
@@ -143,6 +146,27 @@ public class MainActivity extends Activity {
         catch (Exception e) { Toast.makeText(this, "Kies hieronder het overdrachtsbestand.", Toast.LENGTH_LONG).show(); }
     }
 
+    private void createBackup(String backupJson) {
+        try {
+            JSONObject backup = new JSONObject(backupJson);
+            JSONObject entries = backup.optJSONObject("entries");
+            if (entries == null || entries.optString("mijnPersoonlijkeAppV1", "").isEmpty()) {
+                Toast.makeText(this, "Geen appgegevens voor een back-up gevonden.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            pendingBackupJson = backupJson;
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("application/json");
+            intent.putExtra(Intent.EXTRA_TITLE,
+                    "mijn-dag-backup-" + java.time.LocalDate.now().toString() + ".json");
+            startActivityForResult(intent, BACKUP_CREATE_DOCUMENT);
+        } catch (Exception ex) {
+            pendingBackupJson = null;
+            Toast.makeText(this, "Back-up kon niet worden gestart. Verwijder nog geen apps.", Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void pickFile() {
         Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);
@@ -164,6 +188,19 @@ public class MainActivity extends Activity {
                 deliverSpeechResult(text);
             } else {
                 deliverSpeechResult("");
+            }
+        }
+        if (requestCode == BACKUP_CREATE_DOCUMENT) {
+            String backup = pendingBackupJson;
+            pendingBackupJson = null;
+            if (resultCode != RESULT_OK || data == null || data.getData() == null || backup == null) return;
+            try (OutputStream out = getContentResolver().openOutputStream(data.getData(), "w")) {
+                if (out == null) throw new java.io.IOException("Bestand kan niet worden geopend");
+                out.write(backup.getBytes(StandardCharsets.UTF_8));
+                out.flush();
+                Toast.makeText(this, "Back-up opgeslagen. Bewaar dit bestand goed.", Toast.LENGTH_LONG).show();
+            } catch (Exception ex) {
+                Toast.makeText(this, "Back-up opslaan mislukt. Probeer opnieuw; verwijder nog geen apps.", Toast.LENGTH_LONG).show();
             }
         }
     }
@@ -444,6 +481,9 @@ public class MainActivity extends Activity {
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
 
     private final class Bridge {
+        @JavascriptInterface public void saveBackup(String backupJson) {
+            runOnUiThread(() -> createBackup(backupJson));
+        }
         @JavascriptInterface public void ackDayTimelineUpdates(String idsJson) {
             SnapshotStore.acknowledge(getApplicationContext(),idsJson);
         }
