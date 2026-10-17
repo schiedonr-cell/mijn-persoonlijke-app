@@ -5087,6 +5087,9 @@
   function focusItemByType(type,id){
     const today=localDateKey();
     if(type==='gvb'){
+      // Alleen een reeds lopende oude Focus mag afgemaakt worden.
+      // Een gestopte oude selectie verschijnt niet opnieuw.
+      if(!state.focus.running)return null;
       const block=gvbBlockDef(id);
       if(!block||(state.focus.gvbDate&&state.focus.gvbDate!==today)||gvbDayState().done.includes(id))return null;
       return {type:'gvb',id,item:{name:gvbBlockName(block),description:gvbDayState().topics[id]||'45 minuten GVB oefenen op jouw manier.'}};
@@ -5359,10 +5362,12 @@
   function renderGvbPractice(){
     const el=document.getElementById('gvbPracticePanel');
     if(!el)return;
-    // Behoud de bestaande beheerfunctie, maar toon geen tweede GVB-overzicht in Focus.
-    el.hidden=!gvbBoardExpanded;
-    el.style.display=gvbBoardExpanded?'':'none';
-    el.innerHTML=gvbBoardExpanded?gvbPracticeMarkup():'';
+    // De zes oude GVB-dagdeelblokken worden niet langer als Focus-keuze getoond.
+    // Bestaande registratie en echte ingeplande GVB-activiteiten blijven bewaard.
+    gvbBoardExpanded=false;
+    el.innerHTML='';
+    el.hidden=true;
+    el.style.display='none';
   }
 
   function gvbInlineRows(blocks,day){
@@ -5380,6 +5385,11 @@
     }).join('');
   }
   function renderGvbSummaries(){
+    // Dit tweede overzicht van dezelfde zes generieke GVB-blokken is vervallen.
+    // De onderliggende oefengegevens worden niet gewist of opnieuw opgebouwd.
+    const summary=document.getElementById('gvbTasksSummary');
+    if(summary)summary.innerHTML='';
+    return;
     const day=gvbDayState();
     const finished=GVB_BLOCKS.slice(0,4).filter(b=>day.done.includes(b.id)).length;
     const extra=GVB_BLOCKS.slice(4).filter(b=>day.done.includes(b.id)).length;
@@ -5511,9 +5521,9 @@
     const gvbItems=fromPlan
       ?dayPlanNextOptions().filter(b=>!dayPlanRestLike(b.text)&&b.linkType!=='agenda')
         .map(b=>({id:b.id,name:b.text,type:'dayplan',categoryLabel:'Dagplanning · '+dayPlanRangeLabel(b.start,b.end)}))
-      :gvbOpenBlocks(false).map(b=>({id:b.id,name:gvbBlockName(b),type:'gvb',categoryLabel:'GVB · 45 min'}));
-    const extraGvb=fromPlan?[]
-      :gvbOpenBlocks(true).map(b=>({id:b.id,name:gvbBlockName(b),type:'gvb',categoryLabel:'GVB · extra'}));
+      :[];
+    // Niet meer automatisch zes algemene oefenblokken als alternatief voorstellen.
+    const extraGvb=[];
     return [
       {key:'routine',label:'Routine',type:'habit',items:routines},
       {key:'household',label:'Huishouden',type:'household',items:household},
