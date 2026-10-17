@@ -247,6 +247,14 @@ jobs:
           Path('/tmp/build_preview_test.sh').write_text(script+'\n')
           PY
           bash /tmp/build_preview_test.sh
+      - name: Geef Android-emulator toegang tot KVM
+        run: |
+          if [ ! -e /dev/kvm ]; then
+            echo "::error::KVM is niet beschikbaar op deze testmachine."
+            exit 1
+          fi
+          sudo chmod a+rw /dev/kvm
+          ls -l /dev/kvm
       - name: Android emulator ontvangt alarm op vastgestelde tijd
         uses: reactivecircus/android-emulator-runner@v2
         with:
