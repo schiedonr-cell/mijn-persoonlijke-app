@@ -2789,6 +2789,9 @@
     const block=active.block;
     clearDayPlanFocus();saveState();
     setDayPlanLinkedDone(block,true);
+    // Bij het starten waren alle startmeldingen gepauzeerd.
+    // Zet alleen de toekomstige, nog openstaande dagblokken weer terug.
+    scheduleDayPlanAlarms();
     setDailyTab('start');
     selfCareSuggest('timeline',block);
     const care=selfCareToday();care.offer=null;saveState();renderSelfCare();
@@ -4331,7 +4334,8 @@
   });
 
   function setDayPlanLinkedDone(block,checked){
-    if(checked&&state.dayTimelineFocus?.blockId===block.id){clearDayPlanFocus();saveState();}
+    const focusStoppedByCheck=Boolean(checked&&state.dayTimelineFocus?.blockId===block.id);
+    if(focusStoppedByCheck){clearDayPlanFocus();saveState();}
     const today=state.dayTimeline?.date||localDateKey();
     if(block.linkType==='task'){
       const t=state.tasks.find(x=>x.id===block.linkId);
@@ -4346,6 +4350,7 @@
         if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
         else scheduleDayPlanAlarms();
         markTask(t,allDone,true);
+        if(focusStoppedByCheck)scheduleDayPlanAlarms();
         return;
       }
     }
@@ -4373,6 +4378,7 @@
           if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
           else scheduleDayPlanAlarms();
           saveState();renderToday();renderFocus();
+          if(focusStoppedByCheck)scheduleDayPlanAlarms();
           return;
         }
         h.history||={};h.versionHistory||={};
@@ -4386,6 +4392,7 @@
     if(checked){try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(state.dayTimeline,block));}catch{}}
     else scheduleDayPlanAlarms();
     renderToday();renderAllTasks();renderFocus();
+    if(focusStoppedByCheck)scheduleDayPlanAlarms();
   }
 
   // Gemengde Vandaag-widget zonder kloktijden: native afvinken synchroniseren.
