@@ -1043,6 +1043,10 @@
   .myday-tools[hidden]{display:none!important}
   .myday-tools button{padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);min-height:48px;font-weight:700}
   .today-shell .daily-nav{display:none}
+  /* Een geopend Focus- of bewerkingspaneel blijft vrij van het onderdelenmenu. */
+  .today-shell[data-myday-panel]:not([data-myday-panel="start"]) .myday-part-menu,
+  .today-shell[data-myday-panel]:not([data-myday-panel="start"]) .myday-part-return,
+  .today-shell[data-myday-panel]:not([data-myday-panel="start"]) .myday-switch{display:none!important}
   .day-clock-gap{display:flex;align-items:center;justify-content:space-between;min-height:42px;margin-left:24px;padding:8px 9px;border:1px dashed var(--line);border-radius:11px;background:var(--surface-soft);color:var(--muted);font-size:12px}
   .day-clock-gap strong{font-variant-numeric:tabular-nums;font-size:12px}
   .day-clock-gap span{font-style:italic}
@@ -2173,7 +2177,7 @@
     finally{button.disabled=false;button.textContent='Test melding';}
   }
 
-  function setDailyTab(tab){ dailyTab=tab; document.querySelectorAll('[data-daily-panel]').forEach(p=>p.classList.toggle('active',p.dataset.dailyPanel===tab)); document.querySelectorAll('[data-daily-tab]').forEach(b=>b.classList.toggle('active',b.dataset.dailyTab===tab)); const panelBack=document.getElementById('myDayPanelBack');if(panelBack){panelBack.hidden=tab==='start';panelBack.textContent=tab==='tasks'&&document.querySelector('.today-shell')?.dataset.mydayMode==='taken'?'← Terug naar onderdelen':'← Terug naar Mijn dag';} const titles={start:'Je dag passend bij je energie.',dump:'Even uit je hoofd.',tasks:'Van inbox naar Vandaag, deze week of later.',focus:'Eén ding tegelijk.',shutdown:'Rustig de dag dicht.'}; document.getElementById('todaySubTitle').textContent=titles[tab]||''; if(tab==='focus')renderFocus(); if(tab==='shutdown')renderShutdown(); if(tab==='dump')renderDump(); if(tab==='tasks')renderAllTasks(); window.scrollTo({top:0,behavior:'instant'}); }
+  function setDailyTab(tab){ dailyTab=tab; const shell=document.querySelector('.today-shell');if(shell)shell.dataset.mydayPanel=tab; if(tab!=='start'){const tools=document.getElementById('myDayTools');if(tools)tools.hidden=true;} document.querySelectorAll('[data-daily-panel]').forEach(p=>p.classList.toggle('active',p.dataset.dailyPanel===tab)); document.querySelectorAll('[data-daily-tab]').forEach(b=>b.classList.toggle('active',b.dataset.dailyTab===tab)); const panelBack=document.getElementById('myDayPanelBack');if(panelBack){panelBack.hidden=tab==='start';panelBack.textContent=tab==='tasks'&&document.querySelector('.today-shell')?.dataset.mydayMode==='taken'?'← Terug naar onderdelen':'← Terug naar Mijn dag';} const titles={start:'Je dag passend bij je energie.',dump:'Even uit je hoofd.',tasks:'Van inbox naar Vandaag, deze week of later.',focus:'Eén ding tegelijk.',shutdown:'Rustig de dag dicht.'}; document.getElementById('todaySubTitle').textContent=titles[tab]||''; if(tab==='focus')renderFocus(); if(tab==='shutdown')renderShutdown(); if(tab==='dump')renderDump(); if(tab==='tasks')renderAllTasks(); window.scrollTo({top:0,behavior:'instant'}); }
 
   function energyLimit(){ return Number(state.energy)||1; }
   function deadlinePriority(task){
@@ -4140,7 +4144,7 @@
             +'<input type="time" id="dayplan-time-'+escapeHtml(b.id)+'" data-dayplan-time-input="'+escapeHtml(b.id)+'" value="'+escapeHtml(dayPlanClock((dayPlanMinutes(b.start)??0)%1440))+'"/>'
             +'<button type="button" data-dayplan-time-save="'+escapeHtml(b.id)+'">Verplaats</button>'
             +'<small>Alleen deze activiteit verschuift. Andere tijden blijven staan.</small></div>':'')
-       +'<button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>'
+       +(b.linkType==='agenda'?'':'<button type="button" class="day-plan-mini '+(dayPlanBlockMode(b)==='fixed'?'on':'')+'" data-dayplan-fixed="'+escapeHtml(b.id)+'">'+(dayPlanBlockMode(b)==='fixed'?'Vast':'Flexibel')+'</button>')
        +(b.linkType!=='agenda'?'<button type="button" class="day-plan-mini '+(b.remind?'on':'')+'" data-dayplan-remind="'+escapeHtml(b.id)+'">'+(b.remind?'Herinnering aan':'Herinnering uit')+'</button>':'')
        +(dayPlanMayPostpone(b)?'<button type="button" class="day-plan-mini" data-dayplan-postpone-one="'+escapeHtml(b.id)+'">Naar morgen</button>':'')
         +'<button type="button" class="day-plan-remove-button" data-dayplan-remove="'+escapeHtml(b.id)+'">Uit planning halen</button></div></details>'
@@ -5873,7 +5877,7 @@
     const lock=e.target.closest('[data-dayplan-fixed]');
     if(lock){
       const b=state.dayTimeline?.blocks?.find(x=>x.id===lock.dataset.dayplanFixed);
-      if(b){b.fixed=dayPlanBlockMode(b)==='fixed'?false:true;saveState();renderDayTimeline();}
+      if(b&&b.linkType!=='agenda'){b.fixed=dayPlanBlockMode(b)==='fixed'?false:true;saveState();renderDayTimeline();}
       return;
     }
     const bell=e.target.closest('[data-dayplan-remind]');
