@@ -871,7 +871,10 @@
     .day-calendar-now:after{content:"";position:absolute;right:0;top:-4px;width:7px;height:7px;background:#dd3544;border-radius:50%}
     .day-calendar-now-label{position:absolute;left:0;top:-13px;padding:2px 4px;border-radius:5px;background:#c52c3d;color:#fff;font-size:10px;font-weight:850;white-space:nowrap;font-variant-numeric:tabular-nums}
     @media (max-width:420px){.day-calendar-now{left:-47px}}
-    .day-calendar-event .daycal-checkbox{width:18px;height:18px;flex:none;margin:0;accent-color:var(--accent-strong)}
+    .day-calendar-event .daycal-checkbox{display:inline-flex;align-items:center;justify-content:center;flex:none;
+      width:28px;height:28px;min-width:28px;margin:0;padding:0;border:2px solid #77887b;border-radius:6px;
+      background:#fff;color:#354c3c;font-size:23px;font-weight:800;line-height:1;cursor:pointer;touch-action:manipulation}
+    .day-calendar-event .daycal-checkbox.is-checked{background:#e4e9e3;color:#344d3b;border-color:#708776}
     .day-calendar-event-body{min-width:0;flex:1;overflow:hidden}
     .day-calendar-event-body strong{display:block;line-height:1.25;overflow-wrap:anywhere;font-size:12px}
     .day-calendar-event-body small{display:block;font-size:10px;line-height:1.2;margin-top:2px;font-variant-numeric:tabular-nums}
@@ -4302,9 +4305,10 @@
     const available=blocks.slice().sort((a,b)=>dayPlanMinutes(a.start)-dayPlanMinutes(b.start));
     // Afgeronde activiteiten behouden hun originele tijden, maar nemen in
     // de weergave nog slechts één compacte regel in.
+    const calendarDone=b=>plan?.date===state.dayTimeline?.date?dayPlanBlockDone(b):Boolean(b.done);
     const visualMinutes=b=>{
       const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
-      return dayPlanBlockDone(b)?32:Math.max(36,end!==null&&end>start?end-start:30);
+      return calendarDone(b)?32:Math.max(36,end!==null&&end>start?end-start:30);
     };
     // Overlappende blokken krijgen naast elkaar ruimte; niets wordt verplaatst.
     const layout=new Map();
@@ -4323,11 +4327,11 @@
     for(let m=first+30;m<last;m+=60)halves.push('<div class="day-calendar-half" style="top:'+(m-first)+'px"></div>');
     const cards=available.map(b=>{
       const start=dayPlanMinutes(b.start),rawEnd=dayPlanMinutes(b.end),duration=Math.max(1,rawEnd!==null&&rawEnd>start?rawEnd-start:30);
-      const fixed=dayPlanBlockMode(b)==='fixed',done=dayPlanBlockDone(b),loc=layout.get(b.id),width=100/loc.count,left=loc.column*width;
+      const fixed=dayPlanBlockMode(b)==='fixed',done=calendarDone(b),loc=layout.get(b.id),width=100/loc.count,left=loc.column*width;
       return '<div class="day-calendar-event'+(fixed?' is-fixed':'')+(done?' is-done':'')+'" data-daycal-id="'+escapeHtml(b.id)+'"'
        +' style="top:'+(start-first)+'px;height:'+visualMinutes(b)+'px;left:calc('+left+'% + 2px);width:calc('+width+'% - 4px)"'
        +' aria-label="'+escapeHtml(dayPlanRangeLabel(b.start,b.end)+' '+b.text)+'">'
-       +(b.linkType==='agenda'?'':('<input class="daycal-checkbox" type="checkbox" data-daycal-check="'+escapeHtml(b.id)+'" '+(done?'checked':'')+' aria-label="Afvinken '+escapeHtml(b.text)+'">'))
+       +(b.linkType==='agenda'?'':('<button type="button" class="daycal-checkbox'+(done?' is-checked':'')+'" data-daycal-check="'+escapeHtml(b.id)+'" aria-pressed="'+done+'" aria-label="'+escapeHtml((done?'Ongedaan maken: ':'Afvinken: ')+b.text)+'">'+(done?'↶':'')+'</button>'))
        +'<div class="day-calendar-event-body"><strong>'+escapeHtml(b.text)+'</strong><small>'+escapeHtml(dayPlanRangeLabel(b.start,b.end))+'</small></div>'
        +(!fixed?'<button type="button" class="day-calendar-grip" data-daycal-grip="'+escapeHtml(b.id)+'" aria-label="Versleep '+escapeHtml(b.text)+' naar een andere tijd">☷</button>':'')+'</div>';
     }).join('');
@@ -4350,20 +4354,25 @@
     if(day){dayCalendarSelected=day.dataset.daycalDay;renderDayCalendar();return;}
     const check=e.target.closest?.('[data-daycal-check]');
     if(check){
-      const plan=calendarPlan(),b=plan?.blocks.find(x=>x.id===check.dataset.daycalCheck);
-      if(!b)return;
+      const plan=calendarPlan(),b=plan?.blocks?.find(x=>x.id===check.dataset.daycalCheck);
+      if(!b||b.linkType==='agenda')return;
       if(plan.date===state.dayTimeline?.date){
-        // De kalender kan een bewaarde kopie tonen. Vink altijd af op de
-        // actieve tijdlijn, zodat taken, routines en opslag gelijk blijven.
+        // Gebruik altijd het echte actieve blok in plaats van een kalenderkopie.
         const activeBlock=state.dayTimeline.blocks.find(x=>x.id===b.id);
         if(!activeBlock)return;
-        setDayPlanLinkedDone(activeBlock,check.checked);
+        const next=!dayPlanBlockDone(activeBlock);
+        setDayPlanLinkedDone(activeBlock,next);
+        showToast(next?'Activiteit afgevinkt.':'Afvinken ongedaan gemaakt.');
       }else{
-        b.done=check.checked;
+        // Morgen blijft apart opgeslagen; vandaag en andere blokken veranderen niet.
+        b.done=!Boolean(b.done);
+        state.dayTimelines||={};
         state.dayTimelines[plan.date]=structuredClone(plan);
         saveState();
+        renderDayCalendar();
+        showToast(b.done?'Activiteit afgevinkt.':'Afvinken ongedaan gemaakt.');
       }
-      renderDayTimeline();
+      return;
     }
   });
   document.addEventListener('pointerdown',e=>{
