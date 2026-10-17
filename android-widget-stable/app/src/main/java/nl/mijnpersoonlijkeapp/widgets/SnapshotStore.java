@@ -322,7 +322,8 @@ final class SnapshotStore {
         addRoutines(rows, state, today);
         if (!addLiveHousehold(rows, liveHouseholdJson, state, today)) addHousehold(rows, state, today, energy);
         addTasks(rows, state, today, energy);
-        addGvbToday(rows, state, today);
+        // Oude zes algemene GVB-dagdeelblokken niet meer als losse taken tonen.
+        // Echte ingeplande GVB-oefeningen staan in state.tasks en dayTimeline.
         addAgenda(rows, context, calendarJson, today);
 
         JSONObject snapshot = new JSONObject();
@@ -340,7 +341,7 @@ final class SnapshotStore {
         addRoutines(tomorrowRows, state, tomorrow);
         addTomorrowHousehold(tomorrowRows, state, tomorrow, energy);
         addTomorrowTasks(tomorrowRows, state, tomorrow);
-        addGvbTomorrow(tomorrowRows);
+        // Ook morgen uitsluitend echte GVB-taken, niet de zes oude vaste keuzes.
         addAgenda(tomorrowRows, context, calendarJson, tomorrow);
         snapshot.put("tomorrowRows", tomorrowRows);
         snapshot.put("mixedRows", buildMixedRows(rows, state, today));
@@ -385,7 +386,8 @@ final class SnapshotStore {
 
         for (int i = 0; i < blocks.length(); i++) {
             JSONObject b = blocks.optJSONObject(i);
-            if (b == null) continue;
+            if (b == null || !b.optString("postponedTo", "").isEmpty()
+                    || "gvb".equals(b.optString("linkType", ""))) continue;
             String text = b.optString("text", "").trim();
             String start = b.optString("start", "").trim();
             String end = b.optString("end", "").trim();
@@ -404,13 +406,16 @@ final class SnapshotStore {
                 JSONObject item = findById(habits, linkId);
                 if (!isMinuteRoutine(habits, linkId)) {
                     JSONObject history = item == null ? null : item.optJSONObject("history");
-                    if (history != null) done = truthy(history, today);
+                    // Een reeds afgevinkt kalenderblok mag door een lege
+                    // routinegeschiedenis niet opnieuw open lijken.
+                    if (history != null) done = done || truthy(history, today);
                 }
             } else if ("household".equals(linkType)) {
                 kind = "Huis";
                 JSONObject item = findById(household, linkId);
                 JSONObject history = item == null ? null : item.optJSONObject("history");
-                if (history != null) done = truthy(history, today);
+                // Ook huishoudblokken behouden hun eigen afvinkstatus.
+                if (history != null) done = done || truthy(history, today);
             } else if ("agenda".equals(linkType)) {
                 kind = "Agenda";
             }
