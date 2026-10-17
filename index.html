@@ -880,6 +880,13 @@
     .day-calendar-event-body{cursor:pointer}
     .daycal-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center;z-index:1000;padding:12px}
     .daycal-edit-overlay[hidden]{display:none}
+    /* Minuten direct vanuit Onderdelen > Routines registreren, zonder verborgen Dagplanningpaneel. */
+    .routine-minutes-overlay .daycal-edit-sheet{max-height:calc(100dvh - 26px);overflow-y:auto;overscroll-behavior:contain}
+    .routine-minutes-overlay .day-recovery-grid{margin:3px 0 10px}
+    .routine-minutes-overlay .day-recovery-grid button{color:var(--text);cursor:pointer}
+    .routine-minutes-overlay .day-recovery-grid button.selected{color:var(--accent-strong)}
+    .routine-minutes-overlay .day-recovery-custom{margin:3px 0}
+    .routine-minutes-overlay .daycal-edit-actions button{cursor:pointer}
     .daycal-edit-sheet{background:var(--surface);color:var(--text);border-radius:20px;padding:22px;width:100%;max-width:460px;display:grid;gap:12px;box-shadow:0 15px 40px #0003}
     .daycal-edit-sheet h3{margin:0}.daycal-edit-sheet label{font-weight:700;font-size:14px}
     .daycal-edit-sheet input{width:100%;min-height:46px;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;background:var(--surface);color:var(--text)}
@@ -1554,6 +1561,26 @@
     </section>
   </main>
 
+
+  <div id="routineMinutesOverlay" class="daycal-edit-overlay routine-minutes-overlay" role="dialog" aria-modal="true" aria-labelledby="routineMinutesTitle" hidden>
+    <form class="daycal-edit-sheet" id="routineMinutesForm">
+      <h3 id="routineMinutesTitle">Minuten registreren</h3>
+      <p class="small-muted" id="routineMinutesProgress">Vandaag</p>
+      <div class="day-recovery-grid" role="group" aria-label="Aantal minuten kiezen">
+        <button type="button" data-routine-minutes-preset="5" class="selected">5 min</button>
+        <button type="button" data-routine-minutes-preset="10">10 min</button>
+        <button type="button" data-routine-minutes-preset="15">15 min</button>
+      </div>
+      <label class="day-recovery-custom" for="routineMinutesInput">Of vul zelf minuten in
+        <input id="routineMinutesInput" type="number" min="1" max="360" step="1" inputmode="numeric" value="5" required />
+      </label>
+      <p class="small-muted">De minuten worden bij je bestaande routine opgeteld.</p>
+      <div class="daycal-edit-actions">
+        <button type="button" id="routineMinutesCancel">Annuleren</button>
+        <button type="submit">Minuten opslaan</button>
+      </div>
+    </form>
+  </div>
 
   <div class="modal-backdrop" id="dayPlanModal" role="dialog" aria-modal="true" aria-labelledby="dayPlanModalTitle">
     <div class="sheet">
@@ -3433,6 +3460,26 @@
     return true;
   }
   let recoveryManualMode=false,recoveryCustomMinutes='',focusRecoveryInputPending=false;
+  let routineMinutesKind='';
+  function openRoutineMinutesModal(kind){
+    if(!['stretch','relax'].includes(kind))return;
+    if(recoveryActive())return showToast('Rond je lopende rustmoment eerst af.');
+    const overlay=document.getElementById('routineMinutesOverlay');
+    if(!overlay)return;
+    routineMinutesKind=kind;
+    document.getElementById('routineMinutesTitle').textContent=
+      kind==='stretch'?'Stretchen · minuten registreren':'Bewust ontspannen · minuten registreren';
+    document.getElementById('routineMinutesProgress').textContent=
+      'Vandaag: '+recoveryProgressText(kind);
+    document.getElementById('routineMinutesInput').value='5';
+    overlay.querySelectorAll('[data-routine-minutes-preset]').forEach(b=>
+      b.classList.toggle('selected',b.dataset.routineMinutesPreset==='5'));
+    overlay.hidden=false;
+  }
+  function closeRoutineMinutesModal(){
+    document.getElementById('routineMinutesOverlay').hidden=true;
+    routineMinutesKind='';
+  }
   function openRecoveryManual(kind,fromFocus=false){
     if(recoveryActive())return showToast('Rond je lopende rustmoment eerst af.');
     focusRecoveryInputPending=fromFocus;
@@ -6491,6 +6538,35 @@
   });
 
 
+  document.getElementById('routineMinutesOverlay').addEventListener('click',e=>{
+    if(e.target.id==='routineMinutesOverlay'||e.target.closest('#routineMinutesCancel')){
+      closeRoutineMinutesModal();return;
+    }
+    const preset=e.target.closest('[data-routine-minutes-preset]');
+    if(preset){
+      document.getElementById('routineMinutesInput').value=preset.dataset.routineMinutesPreset;
+      document.querySelectorAll('[data-routine-minutes-preset]').forEach(b=>
+        b.classList.toggle('selected',b===preset));
+    }
+  });
+  document.getElementById('routineMinutesInput').addEventListener('input',e=>{
+    document.querySelectorAll('[data-routine-minutes-preset]').forEach(b=>
+      b.classList.toggle('selected',b.dataset.routineMinutesPreset===e.target.value));
+  });
+  document.getElementById('routineMinutesForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const kind=routineMinutesKind,raw=document.getElementById('routineMinutesInput').value.trim();
+    const minutes=Number(raw);
+    if(!['stretch','relax'].includes(kind)||!/^[0-9]+$/.test(raw)
+      ||!Number.isInteger(minutes)||minutes<1||minutes>360)
+      return showToast('Vul 1 tot 360 hele minuten in.');
+    let done=false;
+    try{done=recordRecoverySession(kind==='stretch'?'stretchen':'zitten',minutes,'handmatig');}
+    catch(error){console.error('Routine-minuten registreren mislukt',error);}
+    if(!done)return showToast('Opslaan is niet gelukt. Probeer opnieuw.');
+    closeRoutineMinutesModal();
+    showToast(minutes+' minuten geregistreerd voor '+(kind==='stretch'?'Stretchen':'Bewust ontspannen')+'.');
+  });
   document.getElementById('dayPlanInput').addEventListener('input',showDayPlanPasteStatus);
   document.addEventListener('input',e=>{
     if(e.target.matches('[data-recovery-custom-minutes]'))recoveryCustomMinutes=e.target.value.trim();
@@ -6513,7 +6589,7 @@
     if(e.target.closest('[data-dayplan-focus-stop]'))return stopDayPlanFocus();
     if(e.target.closest('[data-dayplan-focus-open]'))return setDailyTab('focus');
     const logFor=e.target.closest('[data-recovery-log-for]');
-    if(logFor)return openRecoveryManual(logFor.dataset.recoveryLogFor);
+    if(logFor)return openRoutineMinutesModal(logFor.dataset.recoveryLogFor);
     if(e.target.closest('[data-self-care-lunch]'))return selfCareLunchToggle();
     if(e.target.closest('[data-self-care-now]'))return selfCareNow();
     if(e.target.closest('[data-self-care-later]'))return selfCareLater();
