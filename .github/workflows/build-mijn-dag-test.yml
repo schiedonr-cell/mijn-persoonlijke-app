@@ -55,13 +55,13 @@ jobs:
             shutil.copyfile(path,assets/path.name)
           manifest = base/'AndroidManifest.xml'
           xml = manifest.read_text(encoding='utf-8')
-          xml = xml.replace('android:label="Mijn dag"','android:label="Mijn Dag TEST"')
+          xml = xml.replace('android:label="Mijn dag"','android:label="Mijn Dag TEST Meldingen"')
           xml = re.sub(r'\s*<receiver\b[\s\S]*?</receiver>', '', xml)
           manifest.write_text(xml,encoding='utf-8')
           gradle = Path('android-widget-stable/app/build.gradle')
           conf = gradle.read_text(encoding='utf-8')
           conf = conf.replace("applicationId 'nl.mijnpersoonlijkeapp'",
-                              "applicationId 'nl.mijnpersoonlijkeapp.test'")
+                              "applicationId 'nl.mijnpersoonlijkeapp.testmeldingen'")
           gradle.write_text(conf,encoding='utf-8')
           source = base/'java/nl/mijnpersoonlijkeapp/widgets/MainActivity.java'
           shutil.copyfile(Path('test-preview/PreviewAlarmReceiver.java'),source.parent/'PreviewAlarmReceiver.java')
