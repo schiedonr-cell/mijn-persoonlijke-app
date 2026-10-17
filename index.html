@@ -826,6 +826,27 @@
     .day-plan-row{grid-template-columns:24px 76px minmax(0,1fr) 44px}
     .day-plan-grip{display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft);color:var(--muted);font-size:22px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
     .day-plan-grip:active{cursor:grabbing}
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock .day-plan-replan-actions,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #dayPlanChooseNextButton,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #untimedOrderButton,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #untimedOrderEditor,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #dayPlanReplanStatus,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #dayPlanRecoverySummary,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #dayPlanRecoveryPanel,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #dayPlanNextPicker,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #openDayPlanPasteButton,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #clearDayPlanButton,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #dayCalendarOptions,
+    .today-shell[data-myday-mode="planning"] #dayTimelineBlock #dayPlanTomorrowPreview{display:none!important}
+    .day-calendar-event-body{cursor:pointer}
+    .daycal-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center;z-index:1000;padding:12px}
+    .daycal-edit-overlay[hidden]{display:none}
+    .daycal-edit-sheet{background:var(--surface);color:var(--text);border-radius:20px;padding:22px;width:100%;max-width:460px;display:grid;gap:12px;box-shadow:0 15px 40px #0003}
+    .daycal-edit-sheet h3{margin:0}.daycal-edit-sheet label{font-weight:700;font-size:14px}
+    .daycal-edit-sheet input{width:100%;min-height:46px;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;background:var(--surface);color:var(--text)}
+    .daycal-edit-times{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .daycal-edit-actions{display:flex;gap:8px}.daycal-edit-actions button{flex:1;min-height:48px;border:1px solid var(--line);border-radius:12px;font-weight:750}
+    .daycal-edit-actions button[type="submit"]{background:var(--accent-strong);color:white}
     /* Kalenderachtige dagplanning: kloktijden blijven op hun plek. */
     .day-calendar-view{margin-top:12px}
     .day-calendar-chooser{display:flex;gap:8px;margin:0 0 10px}
@@ -1266,6 +1287,15 @@
                 <button class="secondary-button" id="clearDayPlanButton" style="display:none;">Planning wissen</button>
               </div>
               <div id="dayCalendarView" class="day-calendar-view" aria-label="Dagkalender"></div>
+              <div id="daycalEditOverlay" class="daycal-edit-overlay" hidden>
+                <form id="daycalEditForm" class="daycal-edit-sheet">
+                  <h3>Activiteit bewerken</h3>
+                  <label>Naam<input id="daycalEditName" required /></label>
+                  <div class="daycal-edit-times"><label>Begintijd<input id="daycalEditStart" type="time" required /></label><label>Eindtijd<input id="daycalEditEnd" type="time" required /></label></div>
+                  <p id="daycalEditNote" class="small-muted" hidden></p>
+                  <div class="daycal-edit-actions"><button type="button" id="daycalEditCancel">Annuleren</button><button type="submit">Opslaan</button></div>
+                </form>
+              </div>
               <details class="day-calendar-options" id="dayCalendarOptions">
                 <summary>Meer opties en afgeronde activiteiten</summary>
                 <div id="dayPlanList" class="day-plan-list"></div>
@@ -4167,6 +4197,46 @@
     showToast('Dagplanning verplaatst naar morgen. Vandaag blijft leeg.');
   }
 
+  let editingDayCalendarId=null;
+  function openDayCalendarEditor(id){
+    const plan=calendarPlan(),b=plan?.blocks?.find(x=>x.id===id);
+    if(!b)return;
+    editingDayCalendarId=id;
+    const fixed=dayPlanBlockMode(b)==='fixed';
+    document.getElementById('daycalEditName').value=b.text;
+    document.getElementById('daycalEditStart').value=dayPlanClock((dayPlanMinutes(b.start)||0)%1440);
+    document.getElementById('daycalEditEnd').value=dayPlanClock((dayPlanMinutes(b.end)||dayPlanMinutes(b.start)+30)%1440);
+    for(const id of ['daycalEditName','daycalEditStart','daycalEditEnd'])document.getElementById(id).disabled=fixed;
+    document.getElementById('daycalEditNote').hidden=!fixed;
+    document.getElementById('daycalEditNote').textContent='Vaste afspraken kun je hier niet aanpassen.';
+    document.querySelector('#daycalEditForm button[type="submit"]').hidden=fixed;
+    document.getElementById('daycalEditOverlay').hidden=false;
+  }
+  function closeDayCalendarEditor(){document.getElementById('daycalEditOverlay').hidden=true;editingDayCalendarId=null;}
+  document.addEventListener('click',e=>{
+    if(e.target.id==='daycalEditCancel'||e.target.id==='daycalEditOverlay'){closeDayCalendarEditor();return;}
+    const body=e.target.closest?.('.day-calendar-event-body');
+    if(body){openDayCalendarEditor(body.closest('[data-daycal-id]')?.dataset.daycalId);}
+  });
+  document.getElementById('daycalEditForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const plan=calendarPlan(),b=plan?.blocks?.find(x=>x.id===editingDayCalendarId);
+    if(!b||dayPlanBlockMode(b)==='fixed')return;
+    const name=document.getElementById('daycalEditName').value.trim();
+    const start=dayPlanMinutes(document.getElementById('daycalEditStart').value);
+    let end=dayPlanMinutes(document.getElementById('daycalEditEnd').value);
+    if(end!==null&&start!==null&&end<=start)end+=1440;
+    if(!name||start===null||end===null||end>2880)return showToast('Controleer de naam en tijden.');
+    try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}
+    b.text=name;b.start=dayPlanClock(start);b.end=dayPlanClock(end);
+    b.originalStart=b.start;b.originalEnd=b.end;
+    if(b.linkType==='task'){const task=state.tasks.find(x=>x.id===b.linkId);if(task)task.name=name;}
+    plan.blocks.sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
+    plan.sourceText=plan.blocks.filter(x=>!x.postponedTo).map(x=>x.start+(x.end?'–'+x.end:'')+' '+x.text).join('\n');
+    state.dayTimelines||={};state.dayTimelines[plan.date]=structuredClone(plan);
+    if(state.dayTimeline?.date===plan.date)state.dayTimeline=plan;
+    saveState();scheduleDayPlanAlarms();closeDayCalendarEditor();renderToday();showToast('Activiteit opgeslagen.');
+  });
   // Kalenderweergave voor vandaag én een voorbereide dag van morgen.
   let dayCalendarSelected='today',dayCalendarDrag=null,dayCalendarScroll={};
   function calendarPlan(){
