@@ -1046,6 +1046,8 @@
   .day-clock-gap{display:flex;align-items:center;justify-content:space-between;min-height:42px;margin-left:24px;padding:8px 9px;border:1px dashed var(--line);border-radius:11px;background:var(--surface-soft);color:var(--muted);font-size:12px}
   .day-clock-gap strong{font-variant-numeric:tabular-nums;font-size:12px}
   .day-clock-gap span{font-style:italic}
+  .day-clock-gap[data-dayplan-gap-time]{min-height:48px;cursor:default;transition:background .12s}
+  .day-clock-gap.day-clock-gap-target{border-color:var(--accent-strong);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-strong)}
   .day-plan-more{display:block;margin-top:8px}
   .day-plan-more summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:36px;padding:5px 12px;border:1px solid var(--line);border-radius:11px;background:var(--surface-soft);font-size:19px;letter-spacing:2px;font-weight:700}
   .day-plan-more summary::-webkit-details-marker{display:none}
@@ -1136,7 +1138,8 @@
           <button type="button" data-daily-tab="dump">Snelle invoer</button>
           <button type="button" data-daily-tab="tasks">Volledig takenbord</button>
           <button type="button" data-daily-tab="shutdown">Dag afsluiten</button>
-          <button type="button" data-open="home">Eten en notities</button>
+          <button type="button" data-open="food">Eten & boodschappen</button>
+          <button type="button" data-open="notes">Notities</button>
           <button type="button" data-myday-energy>Dagstart / energie</button>
         </div>
         <div class="myday-part-menu" aria-label="Onderdelen bekijken">
@@ -4079,7 +4082,7 @@
       const previous=visible[i-1],previousEnd=previous?dayPlanMinutes(previous.end||previous.start):null;
       const nextStart=dayPlanMinutes(b.start);
       const gap=previousEnd!==null&&nextStart!==null&&nextStart-previousEnd>=15
-        ?'<div class="day-clock-gap" aria-label="Vrije ruimte tussen activiteiten"><strong>'
+        ?'<div class="day-clock-gap" data-dayplan-gap-time="'+previousEnd+'" data-dayplan-gap-end="'+nextStart+'" aria-label="Vrije ruimte tussen activiteiten"><strong>'
           +escapeHtml(dayPlanClockLabel(previousEnd))+' – '+escapeHtml(dayPlanClockLabel(nextStart))
           +'</strong><span>Vrije ruimte · '+(nextStart-previousEnd)+' min</span></div>'
         :'';
@@ -4110,6 +4113,37 @@
   // instellingen of handmatig tijden invullen. Binnen een actieve Focus
   // mag niet gesleept worden, zodat het eindsignaal ongewijzigd blijft.
   let dayPlanDrag=null;
+  function moveDayPlanBlockIntoGap(blockId,startMinutes,gapEndMinutes){
+    const plan=state.dayTimeline;
+    if(!dayPlanIsCurrent(plan))return false;
+    const block=plan.blocks.find(b=>b.id===blockId);
+    if(!block||block.linkType==='agenda'||block.postponedTo||dayPlanBlockDone(block))return false;
+    if(activeDayPlanFocus()||state.focus.running)return false;
+    const oldStart=dayPlanMinutes(block.start),oldEnd=dayPlanMinutes(block.end);
+    if(oldStart===null||!Number.isInteger(startMinutes))return false;
+    const duration=oldEnd!==null&&oldEnd>oldStart?oldEnd-oldStart:0;
+    const newEnd=startMinutes+Math.max(1,duration);
+    if(startMinutes<0||startMinutes>=2880||newEnd>gapEndMinutes||newEnd>=2880){
+      showToast('Dit blok past niet in de gekozen vrije ruimte.');return false;
+    }
+    const conflict=plan.blocks.some(b=>{
+      if(b===block||b.postponedTo||dayPlanBlockDone(b))return false;
+      const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
+      if(start===null)return false;
+      return start<newEnd&&(end===null||end<=start?start+1:end)>startMinutes;
+    });
+    if(conflict){showToast('Deze tijd is al bezet.');return false;}
+    try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,block));}catch{}
+    block.start=dayPlanClock(startMinutes);
+    if(oldEnd!==null)block.end=dayPlanClock(startMinutes+duration);
+    plan.blocks.sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
+    plan.manualOrderIds=plan.blocks.map(b=>b.id);
+    plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
+      .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+    saveState();scheduleDayPlanAlarms();renderToday();
+    showToast('Activiteit in vrije ruimte gezet; andere tijden blijven gelijk.');
+    return true;
+  }
   function saveDayPlanDragOrder(){
     // Wissel flexibele activiteiten tussen bestaande klokvakken.
     const box=document.getElementById('dayPlanList'),plan=state.dayTimeline;
@@ -4154,7 +4188,7 @@
     const row=grip.closest('.day-plan-row[data-dayplan-reorder-id]');
     if(!row||!dayPlanIsCurrent())return;
     e.preventDefault();
-    dayPlanDrag={row,pointerId:e.pointerId,grip,moved:false};
+    dayPlanDrag={row,pointerId:e.pointerId,grip,moved:false,gapTime:null,gapEnd:null};
     row.classList.add('day-plan-dragging');
     try{grip.setPointerCapture(e.pointerId);}catch{}
   });
@@ -4164,6 +4198,15 @@
     if(e.cancelable)e.preventDefault();
     const box=drag.row.parentElement;
     if(!box)return;
+    const hover=document.elementFromPoint(e.clientX,e.clientY);
+    const freeSlot=hover?.closest?.('[data-dayplan-gap-time]')||null;
+    box.querySelectorAll('.day-clock-gap-target').forEach(el=>el.classList.remove('day-clock-gap-target'));
+    drag.gapTime=null;drag.gapEnd=null;
+    if(freeSlot){
+      freeSlot.classList.add('day-clock-gap-target');
+      drag.gapTime=Number(freeSlot.dataset.dayplanGapTime);
+      drag.gapEnd=Number(freeSlot.dataset.dayplanGapEnd);
+    }
     const rows=[...box.querySelectorAll(':scope > .day-plan-row[data-dayplan-reorder-id]')]
       .filter(row=>row!==drag.row);
     const target=rows.find(row=>e.clientY<row.getBoundingClientRect().top+row.getBoundingClientRect().height/2);
@@ -4184,7 +4227,10 @@
     if(!drag||drag.pointerId!==e.pointerId)return;
     dayPlanDrag=null;
     drag.row.classList.remove('day-plan-dragging');
-    if(drag.moved)saveDayPlanDragOrder();
+    if(drag.gapTime!==null&&drag.gapEnd!==null){
+      const id=drag.row.dataset.dayplanReorderId;
+      if(!moveDayPlanBlockIntoGap(id,drag.gapTime,drag.gapEnd))renderDayTimeline();
+    }else if(drag.moved)saveDayPlanDragOrder();
     else renderDayTimeline();
   }
   document.addEventListener('pointerup',finishDayPlanDrag);
@@ -5784,7 +5830,7 @@
         setDayPlanLinkedDone(b,e.target.checked);
         if(e.target.checked&&dayPlanBlockDone(b)){
           if(!selfCareSuggest('timeline',b))showDayPlanNextPicker();
-        }else replanDayFromNow({silent:true});
+        }
       }
     }
   });
