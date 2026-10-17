@@ -48,7 +48,7 @@ jobs:
             "false")
           banner = ('<div role="status" style="position:sticky;top:0;z-index:99999;padding:10px;'
             'background:#fff1ca;color:#352805;text-align:center;font:700 14px sans-serif;">'
-            'Mijn Dag CONTROLE 3 · Eigen gegevens · Geen widgets</div>')
+            'Mijn Dag GELUIDSTEST 4 · Eigen gegevens · Geen widgets</div>')
           html = html.replace('<body>', '<body>'+banner, 1)
           html = html.replace('</body>','<script src="./PreviewDiagnostics.js"></script></body>',1)
           (assets/'index.html').write_text(html,encoding='utf-8')
@@ -57,13 +57,13 @@ jobs:
           shutil.copyfile('test-preview/PreviewDiagnostics.js',assets/'PreviewDiagnostics.js')
           manifest = base/'AndroidManifest.xml'
           xml = manifest.read_text(encoding='utf-8')
-          xml = xml.replace('android:label="Mijn dag"','android:label="Mijn Dag CONTROLE 3"')
+          xml = xml.replace('android:label="Mijn dag"','android:label="Mijn Dag GELUIDSTEST 4"')
           xml = re.sub(r'\s*<receiver\b[\s\S]*?</receiver>', '', xml)
           manifest.write_text(xml,encoding='utf-8')
           gradle = Path('android-widget-stable/app/build.gradle')
           conf = gradle.read_text(encoding='utf-8')
           conf = conf.replace("applicationId 'nl.mijnpersoonlijkeapp'",
-                              "applicationId 'nl.mijnpersoonlijkeapp.controle3'")
+                              "applicationId 'nl.mijnpersoonlijkeapp.geluidstest4'")
           gradle.write_text(conf,encoding='utf-8')
           source = base/'java/nl/mijnpersoonlijkeapp/widgets/MainActivity.java'
           shutil.copyfile(Path('test-preview/PreviewAlarmReceiver.java'),source.parent/'PreviewAlarmReceiver.java')
@@ -143,7 +143,10 @@ jobs:
                       String last=getSharedPreferences("preview_debug",MODE_PRIVATE).getString("last_alarm","");
                       org.json.JSONObject status=new org.json.JSONObject();
                       try {
-                          status.put("version","CONTROLE 3");
+                          status.put("version","GELUIDSTEST 4");
+                          status.put("alarmVolume",PreviewAlarmReceiver.alarmVolume(MainActivity.this));
+                          status.put("alarmVolumeMax",PreviewAlarmReceiver.alarmVolumeMax(MainActivity.this));
+                          status.put("audioStatus",getSharedPreferences("preview_debug",MODE_PRIVATE).getString("audio_status","nog niet afgespeeld"));
                           status.put("notificationsAllowed",allowed);
                           status.put("lastAlarm",last);
                           status.put("focusScheduled",PreviewAlarmReceiver.focusScheduled(MainActivity.this));
