@@ -2745,7 +2745,7 @@
   }
   function startDayPlanFocus(blockId){
     const plan=state.dayTimeline,block=plan?.blocks?.find(b=>b.id===blockId);
-    if(!block||!dayPlanIsCurrent(plan)||block.postponedTo||dayPlanBlockDone(block))return;
+    if(!block||block.linkType==='agenda'||!dayPlanIsCurrent(plan)||block.postponedTo||dayPlanBlockDone(block))return;
     const active=activeDayPlanFocus();
     // Op 'Focus bezig' drukken opent de lopende sessie, zonder de timer
     // of het ingeplande Android-eindalarm opnieuw te starten.
@@ -4153,9 +4153,12 @@
       +(first&&last?' · van '+escapeHtml(dayPlanClockLabel(first.start))+' tot '+escapeHtml(dayPlanClockLabel(last.end||last.start)):'')
       +(completed.length?' · '+completed.length+' afgerond':'')
       +(moved.length?' · '+moved.length+' naar morgen':'')+'</p>';
-    // Alleen de activiteiten van vandaag tellen mee; verplaatste blokken niet.
-    const totalToday=visible.length+completed.length;
-    const progressPercent=totalToday?Math.round(100*completed.length/totalToday):0;
+    // Alleen afvinkbare activiteiten bepalen het percentage.
+    // Agenda-afspraken blijven in de tijdlijn, maar zijn geen afvinkbare taken.
+    const trackableToday=today.filter(b=>b.linkType!=='agenda');
+    const totalToday=trackableToday.length;
+    const completedToday=trackableToday.filter(dayPlanBlockDone).length;
+    const progressPercent=totalToday?Math.round(100*completedToday/totalToday):0;
     const progressHtml=totalToday?'<div class="day-plan-progress">'
       +'<div class="day-plan-progress-track" role="progressbar" aria-label="Voortgang dagplanning"'
       +' aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+progressPercent+'">'
@@ -4175,7 +4178,7 @@
       const linked=b.linkType!=='agenda',time=escapeHtml(dayPlanRangeLabel(b.start,b.end));
       const mark=linked?'<input class="check" type="checkbox" data-day-plan-check="'+b.id+'" aria-label="Afvinken"/>':(b.linkType==='agenda'?'▣':'•');
       return gap+'<div class="day-plan-row" data-dayplan-reorder-id="'+escapeHtml(b.id)+'"><div class="day-plan-check-space">'+mark+'</div><div class="day-plan-time">'+time+'</div><div>'+dayPlanTaskDetails(b)+'<div class="day-plan-meta">'+escapeHtml(dayPlanKindLabel(b))+(b.linkType&&b.matchedName&&b.matchedName!==b.text?' · '+escapeHtml(b.matchedName):'')+'</div>'
-       +'<button type="button" class="day-plan-focus-start '+(activeDayPlanFocus()?.block.id===b.id?'active':'')+'" data-dayplan-focus-start="'+escapeHtml(b.id)+'">▶ '+(activeDayPlanFocus()?.block.id===b.id?'Focus bezig':'Focus')+'</button>'
+       +(b.linkType==='agenda'?'':'<button type="button" class="day-plan-focus-start '+(activeDayPlanFocus()?.block.id===b.id?'active':'')+'" data-dayplan-focus-start="'+escapeHtml(b.id)+'">▶ '+(activeDayPlanFocus()?.block.id===b.id?'Focus bezig':'Focus')+'</button>')
        +'<details class="day-plan-more"><summary aria-label="Meer opties">•••</summary><div class="day-plan-settings">'
        +(dayPlanFocusDuration(b)?'':'<input type="number" min="1" max="360" placeholder="min" class="day-plan-start-duration" data-dayplan-duration-for="'+escapeHtml(b.id)+'" aria-label="Focusduur in minuten"/>')
        +(dayPlanBlockMode(b)!=='fixed'
