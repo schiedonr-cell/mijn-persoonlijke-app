@@ -2828,14 +2828,23 @@
   }
   function scheduleDayPlanAlarms(){
     const plans=[state.dayTimeline,storedDayTimeline(addDaysKey(1))];
+    const focused=activeDayPlanFocus();
     for(const plan of plans){
-    if(!plan?.date)continue;
-    (plan.blocks||[]).forEach(b=>{
-      if(!b.start||!b.remind||dayPlanBlockDone(b)||b.postponedTo)return;
-      const at=dayPlanTimeAt(plan,dayPlanMinutes(b.start));if(!Number.isFinite(at)||at<=Date.now()+1000)return;
-      const range=dayPlanRangeLabel(b.start,b.end);
-      try{window.AndroidWidgetBridge?.scheduleReminder?.(dayPlanAlarmId(plan,b),b.text,'Dagplanning · '+range,at,'today');}catch{}
-    });
+      if(!plan?.date)continue;
+      const isFocusedDay=Boolean(focused&&plan.date===state.dayTimeline?.date);
+      (plan.blocks||[]).forEach(b=>{
+        // Ook na wijzigen of opnieuw openen mogen flexibele meldingen niet
+        // terugkomen tijdens Focus. Vaste afspraken blijven bereikbaar.
+        if(isFocusedDay&&(b.id===focused.block.id||dayPlanBlockMode(b)!=='fixed')){
+          try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,b));}catch{}
+          return;
+        }
+        if(!b.start||!b.remind||dayPlanBlockDone(b)||b.postponedTo)return;
+        const at=dayPlanTimeAt(plan,dayPlanMinutes(b.start));
+        if(!Number.isFinite(at)||at<=Date.now()+1000)return;
+        const range=dayPlanRangeLabel(b.start,b.end);
+        try{window.AndroidWidgetBridge?.scheduleReminder?.(dayPlanAlarmId(plan,b),b.text,'Dagplanning · '+range,at,'today');}catch{}
+      });
     }
   }
   // Eerste versie: geplakte dagblokken blijven bestaande data; alleen dagtijden wijzigen.
