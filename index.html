@@ -1561,7 +1561,7 @@
   <div class="modal-backdrop" id="quickPlanModal" role="dialog" aria-modal="true" aria-labelledby="quickPlanModalTitle">
     <div class="sheet">
       <div class="sheet-head">
-        <div><h3 id="quickPlanModalTitle">Taak invoegen</h3><p id="quickPlanModalHint" class="small-muted" style="margin:5px 0 0;">Vaste afspraken blijven staan. De rest schuift mee.</p></div>
+        <div><h3 id="quickPlanModalTitle">Taak invoegen</h3><p id="quickPlanModalHint" class="small-muted" style="margin:5px 0 0;">Andere taken en afspraken behouden hun tijden.</p></div>
         <button class="close-button" type="button" data-close-quick-plan aria-label="Sluiten">×</button>
       </div>
       <label class="field-label" for="quickPlanExistingTask">Taak</label>
@@ -1577,10 +1577,7 @@
         <div class="spacer-14"></div>
         <label class="field-label" for="quickPlanStart">Start om</label>
         <input class="text-input" id="quickPlanStart" type="time" step="300" />
-        <div class="spacer-14"></div>
-        <label class="field-label" for="quickPlanPosition">Waar invoegen?</label>
-        <select class="text-input" id="quickPlanPosition"></select>
-        <p class="quick-plan-note">Eerdere activiteiten blijven staan. De app maakt eerst ruimte in vrije tijd. Vaste afspraken en eetmomenten blijven op hun tijd.</p>
+        <p class="quick-plan-note">De gekozen begintijd bepaalt de plek in de kalender. Andere blokken verschuiven niet.</p>
         <p class="quick-plan-note" id="quickPlanError" role="status" aria-live="polite" hidden style="color:var(--danger);font-weight:700"></p>
       </div>
       <div id="quickPlanUntimedNote" class="quick-plan-note" hidden>Zonder tijden: de taak komt bovenaan in je dagvolgorde. Andere onderdelen blijven staan.</div>
@@ -3892,14 +3889,6 @@
     document.getElementById('quickPlanModalHint').textContent=timed
       ?'Kies een starttijd en duur. Andere activiteiten behouden hun tijden; overlap blijft zichtbaar.'
       :'Je taak verschijnt in de volgorde voor vandaag.';
-    const position=document.getElementById('quickPlanPosition');
-    if(timed){
-      const available=dayPlanLogicalOrder((state.dayTimeline.blocks||[])
-        .filter(b=>!b.postponedTo&&!dayPlanBlockDone(b)));
-      position.innerHTML='<option value="next">Als volgende, vanaf starttijd</option>'
-        +available.map(b=>'<option value="before:'+escapeHtml(b.id)+'">Vóór '+escapeHtml(b.text)+'</option>').join('')
-        +'<option value="end">Onderaan de planning</option>';
-    }else position.innerHTML='';
     updateQuickPlanTaskName();
     document.getElementById('quickPlanModal').classList.add('open');
     setTimeout(()=>document.getElementById('quickPlanTaskName')?.focus(),90);
