@@ -152,6 +152,12 @@ jobs:
                   @JavascriptInterface public void scheduleFocusNamed(int seconds,String name){
                       PreviewAlarmReceiver.focus(MainActivity.this,seconds,name);
                   }
+                  @JavascriptInterface public void scheduleDayPlanFocus(int seconds,String name,double endsAt){
+                      PreviewAlarmReceiver.dayFocus(MainActivity.this,seconds,name);
+                  }
+                  @JavascriptInterface public void cancelDayPlanFocus(){
+                      PreviewAlarmReceiver.cancelDayFocus(MainActivity.this);
+                  }
                   @JavascriptInterface public void cancelFocus(){PreviewAlarmReceiver.cancelFocus(MainActivity.this);}
                   @JavascriptInterface public void pauseFocus(int remain,String name){PreviewAlarmReceiver.cancelFocus(MainActivity.this);}
                   private long atTime(String time,int days){
