@@ -5597,7 +5597,7 @@
     const focus=e.target.closest('[data-focus-task]');if(focus)return selectFocusTask(focus.dataset.focusTask);
     const dur=e.target.closest('[data-focus-duration]');if(dur){stopFocusCountdown();state.focus.durationSec=Number(dur.dataset.focusDuration)*60;state.focus.remainingSec=state.focus.durationSec;saveState();return renderFocus();}
     if(e.target.closest('#customFocusButton')){const m=Math.max(1,Math.min(180,Number(document.getElementById('customFocusMinutes').value)||0));if(!m)return showToast('Vul een aantal minuten in.');stopFocusCountdown();state.focus.durationSec=m*60;state.focus.remainingSec=m*60;saveState();return renderFocus();}
-    if(e.target.closest('#focusStartButton')){if(state.focus.running){stopFocusCountdown(true);}else{if(state.focus.remainingSec<=0)state.focus.remainingSec=state.focus.durationSec||300;ensureFocusAudio();state.focus.endsAt=Date.now()+state.focus.remainingSec*1000;state.focus.running=true;stopFocusGuideWhenStarting();}saveState();return renderFocus();}
+    if(e.target.closest('#focusStartButton')){if(state.focus.running){stopFocusCountdown(true);}else{if(state.focus.remainingSec<=0)state.focus.remainingSec=state.focus.durationSec||300;ensureFocusAudio();state.focus.endsAt=Date.now()+state.focus.remainingSec*1000;state.focus.running=true;stopFocusGuideWhenStarting();}saveState();if(state.focus.running)restoreNativeFocusNotification();return renderFocus();}
     if(e.target.closest('[data-focus-finish-done]'))return finishStandardFocus();
     const standardMore=e.target.closest('[data-focus-finish-extra]');
     if(standardMore)return extendStandardFocus(Number(standardMore.dataset.focusFinishExtra));
