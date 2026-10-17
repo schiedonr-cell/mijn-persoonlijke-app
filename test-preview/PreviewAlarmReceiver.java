@@ -11,6 +11,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.SystemClock;
@@ -21,6 +27,7 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
     static final String CHANNEL = "mijndag_test_reminders";
     private static final String PREF = "preview_alarm_store";
     private static final String FOCUS = "test-focus-end";
+    private static final String DIAGNOSE = "mijndag-diagnose";
     private static final String DAY_FOCUS = "test-day-focus-end";
     private static final String FOCUS_CHANNEL = "mijndag_test_focus_v2";
     private static final String END_CHANNEL = "mijndag_test_focus_end_v2";
@@ -65,6 +72,14 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
     static void cancelDayFocus(Context context) {
         cancel(context,DAY_FOCUS);
     }
+    static int alarmVolume(Context context){
+        AudioManager am=(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
+        return am==null?-1:am.getStreamVolume(AudioManager.STREAM_ALARM);
+    }
+    static int alarmVolumeMax(Context context){
+        AudioManager am=(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
+        return am==null?-1:am.getStreamMaxVolume(AudioManager.STREAM_ALARM);
+    }
     static boolean focusScheduled(Context ctx){
         SharedPreferences prefs=ctx.getSharedPreferences(PREF,Context.MODE_PRIVATE);
         return prefs.contains(FOCUS)||prefs.contains(DAY_FOCUS);
@@ -86,7 +101,7 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
         if(manager==null)return;
         PendingIntent pi=pending(ctx,spec.optString("id"),PendingIntent.FLAG_UPDATE_CURRENT);
         // Bij toestemming exact; anders veilige Android fallback (kan vertraagd zijn).
-        if(FOCUS.equals(spec.optString("id"))||DAY_FOCUS.equals(spec.optString("id"))){
+        if(FOCUS.equals(spec.optString("id"))||DAY_FOCUS.equals(spec.optString("id"))||DIAGNOSE.equals(spec.optString("id"))){
             // Android's alarmklok is exact, ook in Doze, zonder extra exacte-alarmtoestemming.
             Intent showIntent=new Intent(ctx,MainActivity.class);
             PendingIntent info=PendingIntent.getActivity(ctx,39172,showIntent,
@@ -129,6 +144,8 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
             JSONObject spec=new JSONObject(prefs.getString(id,"{}"));
             if(!id.equals(spec.optString("id")))return;
             show(context,id,spec.optString("title","Herinnering"),spec.optString("body",""));
+            if(FOCUS.equals(id)||DAY_FOCUS.equals(id)||DIAGNOSE.equals(id))
+                playAlarmSound(context);
             int days=spec.optInt("days");
             if(days>0){
                 Calendar cal=Calendar.getInstance();cal.setTimeInMillis(spec.optLong("at"));
@@ -139,6 +156,44 @@ public final class PreviewAlarmReceiver extends BroadcastReceiver {
         }catch(Exception ex){android.util.Log.w("MijnDagTest","Melding mislukt",ex);}
     }
 
+    // De zichtbare Android-melding is niet voldoende: die kan stil zijn.
+    // Speel daarom bij een ontvangen alarm ook geluid via de echte alarm-audiostroom.
+    // goAsync houdt deze ontvanger maximaal 7 seconden actief tijdens het geluid.
+    private void playAlarmSound(Context context){
+        final PendingResult pending=goAsync();
+        MediaPlayer player=null;
+        try {
+            Uri tone=RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+            if(tone==null)tone=RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            player=new MediaPlayer();
+            player.setAudioAttributes(new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+            player.setDataSource(context,tone);
+            player.setLooping(true);
+            player.prepare();
+            player.start();
+            context.getSharedPreferences("preview_debug",Context.MODE_PRIVATE).edit()
+                .putString("audio_status","alarmgeluid gestart").apply();
+        }catch(Exception exc){
+            android.util.Log.e("MijnDagTest","Alarmgeluid afspelen mislukt",exc);
+            context.getSharedPreferences("preview_debug",Context.MODE_PRIVATE).edit()
+                .putString("audio_status","geluidsfout: "+exc.getClass().getSimpleName()).apply();
+        }
+        try{
+            Vibrator v=(Vibrator)context.getSystemService(Context.VIBRATOR_SERVICE);
+            if(v!=null&&v.hasVibrator()){
+                if(Build.VERSION.SDK_INT>=26)v.vibrate(VibrationEffect.createWaveform(
+                    new long[]{0,500,250,500,250,800},-1));
+                else v.vibrate(new long[]{0,500,250,500,250,800},-1);
+            }
+        }catch(Exception ignored){}
+        final MediaPlayer playing=player;
+        new Handler(Looper.getMainLooper()).postDelayed(()->{
+            if(playing!=null){try{playing.stop();}catch(Exception ignored){}try{playing.release();}catch(Exception ignored){}}
+            pending.finish();
+        },6500);
+    }
     private static void ensureChannels(Context ctx,NotificationManager nm){
         if(Build.VERSION.SDK_INT<26)return;
         NotificationChannel reminders=new NotificationChannel(CHANNEL,
