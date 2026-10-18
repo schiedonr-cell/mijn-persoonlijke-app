@@ -961,7 +961,7 @@
     .day-auto-title strong{font-size:16px;color:var(--text)}
     .day-auto-title span{font-size:11px;font-weight:750;color:var(--accent-strong)}
     .day-auto-hint{font-size:12px;color:var(--muted);line-height:1.4;margin:0 0 8px}
-    .day-auto-row{display:flex;gap:9px;align-items:center;min-height:48px;padding:8px 2px;border-top:1px solid var(--line)}
+    .day-auto-row{display:flex;flex-wrap:wrap;gap:9px;align-items:center;min-height:48px;padding:8px 2px;border-top:1px solid var(--line)}
     .day-auto-row .check{margin:0 0 0 3px;flex-shrink:0}
     .day-auto-copy{min-width:0;flex:1;line-height:1.32}
     .day-auto-copy strong{display:block;font-size:14px;overflow-wrap:anywhere}
@@ -973,6 +973,18 @@
     .day-auto-hint button.day-auto-energy{font:inherit;border:0;background:transparent;color:var(--accent-strong);font-weight:800;text-decoration:underline;padding:3px 2px;min-height:35px;cursor:pointer}
     .day-auto-help{display:block;margin-top:4px}
     .day-auto-empty{font-size:13px;margin:8px 0 2px;color:var(--muted)}
+    /* Compacte wachtlijst: kalender blijft de vertrouwde hoofdweergave. */
+    .day-auto-items{padding:0;overflow:hidden}
+    .day-auto-items > summary{list-style:none;cursor:pointer;padding:14px 12px;min-height:46px;display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--accent-strong);font-weight:800}
+    .day-auto-items > summary::-webkit-details-marker{display:none}
+    .day-auto-items > summary span{font-size:12px;color:var(--muted);font-weight:700}
+    .day-auto-items > summary::after{content:"⌄";font-size:18px}
+    .day-auto-items[open] > summary::after{content:"⌃"}
+    .day-auto-items .day-auto-body{padding:0 12px 9px}
+    .day-auto-row .day-auto-grip{font-size:21px;min-width:40px;touch-action:none;user-select:none;-webkit-touch-callout:none}
+    .day-auto-row.dragging{background:var(--accent-soft);border-radius:10px}
+    .day-auto-row .day-auto-time{min-width:40px}
+    .day-auto-title{display:none}
     .day-calendar-options{border-top:1px solid var(--line);margin:12px 0 0}
     .day-calendar-options > summary{padding:12px 2px;cursor:pointer;min-height:44px;font-size:13px;font-weight:750;color:var(--accent-strong)}
     .today-shell[data-myday-mode="planning"] #dayPlanTomorrowPreview{display:none}
@@ -3992,8 +4004,11 @@
   function updateQuickPlanTaskName(){
     document.getElementById('quickPlanNewTaskWrap').hidden=!!document.getElementById('quickPlanExistingTask').value;
   }
-  function openQuickPlanModal(){
-    const timed=dayPlanIsCurrent(),select=document.getElementById('quickPlanExistingTask');
+  let quickPlanTimeRequested=false,quickPlanFromAuto=false;
+  function openQuickPlanModal(options={}){
+    quickPlanTimeRequested=Boolean(options.withTime);
+    quickPlanFromAuto=Boolean(options.fromAuto);
+    const timed=dayPlanIsCurrent()||quickPlanTimeRequested,select=document.getElementById('quickPlanExistingTask');
     const used=new Set((state.dayTimeline?.blocks||[]).filter(b=>!b.postponedTo)
       .map(b=>b.linkType+':'+b.linkId));
     const formatOptions=(type,items)=>items.filter(item=>!used.has(type+':'+item.id))
@@ -4021,7 +4036,7 @@
     document.getElementById('quickPlanModal').classList.add('open');
     setTimeout(()=>document.getElementById('quickPlanTaskName')?.focus(),90);
   }
-  function closeQuickPlanModal(){document.getElementById('quickPlanModal').classList.remove('open');}
+  function closeQuickPlanModal(){quickPlanTimeRequested=false;quickPlanFromAuto=false;document.getElementById('quickPlanModal').classList.remove('open');}
   function quickPlanError(text){
     const box=document.getElementById('quickPlanError');
     if(box){box.textContent=text;box.hidden=false;}
@@ -4184,8 +4199,8 @@
     if(!name)return showToast('Vul een taaknaam in of kies een bestaande activiteit.');
     const task=!existing?normalizeTask({id:uid('task'),name,bucket:'A',subtasks:[]}):null;
     const item=existing||task, type=existing?selectedType:'task';
-    const plan=state.dayTimeline;
-    if(!dayPlanIsCurrent()){
+    const plan=dayPlanIsCurrent()?state.dayTimeline:{...emptyDayTimeline(),date:localDateKey()};
+    if(!dayPlanIsCurrent()&&!quickPlanTimeRequested){
       if(type==='task'){
         if(task)state.tasks.push(task);
         else{existing.bucket='A';existing.paused=false;existing.deferUntil='';}
@@ -4219,9 +4234,10 @@
       end:dayPlanClock(start+duration),originalStart:dayPlanClock(start),originalEnd:dayPlanClock(start+duration),
       text:name,linkType:linkedType,linkId:item.id,kind:linkedKind,matchedName:name,
       done:false,fixed:false,remind:false};
+    if(!dayPlanIsCurrent())state.dayTimeline=plan;
     plan.blocks.push(block);
     if(task)state.tasks.push(task);
-    else if(type==='task'){existing.bucket='A';existing.paused=false;existing.deferUntil='';}
+    else if(type==='task'&&!quickPlanFromAuto){existing.bucket='A';existing.paused=false;existing.deferUntil='';}
     plan.blocks.sort((x,y)=>(dayPlanMinutes(x.start)??99999)-(dayPlanMinutes(y.start)??99999));
     plan.manualOrderIds=plan.blocks.map(b=>b.id);
     plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
@@ -4571,13 +4587,19 @@
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible')updateDayCalendarNow();
   });
+  let dayAutoExpanded=false;
   function renderDayPlanAutoItems(plan){
     // Hergebruik exact dezelfde ongetimede selectie en volgorde als de widget.
     // Maak geen nieuwe routines/taken; toon alleen verwijzingen naar bestaande items.
-    const scheduled=new Set((plan?.blocks||[])
-      .filter(b=>!b.postponedTo&&b.linkType&&b.linkId)
-      .map(b=>b.linkType+':'+b.linkId));
-    const items=untimedEffectiveOrder().filter(item=>!scheduled.has(item.type+':'+item.itemId));
+    const scheduled=new Set(),scheduledNames=new Set();
+    (plan?.blocks||[]).filter(b=>!b.postponedTo).forEach(b=>{
+      if(b.linkType&&b.linkId)scheduled.add(b.linkType+':'+b.linkId);
+      scheduledNames.add(dayPlanNormalizeText(b.text));
+      const alias=dayPlanAlias(b.text);
+      if(alias)scheduled.add(alias.type+':'+alias.id);
+    });
+    const items=untimedEffectiveOrder().filter(item=>!scheduled.has(untimedItemKey(item))
+      &&!scheduledNames.has(dayPlanNormalizeText(item.name)));
     const load=dayLoadSuggestion();
     const rows=items.map(item=>{
       const name=escapeHtml(item.name),id=escapeHtml(item.itemId);
@@ -4594,23 +4616,23 @@
       }
       const focus=item.type==='lunch'?''
         :'<button type="button" class="day-auto-focus" data-focus-'+(item.type==='habit'?'habit':item.type==='household'?'household':'task')+'="'+id+'">Focus</button>';
+      const time=item.type==='lunch'?'':'<button type="button" class="day-auto-time" data-day-auto-time="'+escapeHtml(untimedItemKey(item))+'">Tijd</button>';
+      const grip='<button type="button" class="day-auto-grip" data-day-auto-grip aria-label="Versleep '+name+' in de dagvolgorde">☷</button>';
       const info=habit&&habit.energyAdaptive
         ?(kind?recoveryProgressText(kind)+' · ':'')
          +habitVersionShort(habitSelectedVersion(habit))+' · '
          +(habitLevel(habit,habitSelectedVersion(habit)).minimum||'Doe wat vandaag past')
         :item.kind;
-      return '<div class="day-auto-row">'+action+'<span class="day-auto-copy"><strong>'+name
-        +'</strong><small>'+escapeHtml(info)+'</small></span>'+focus+'</div>';
+      return '<div class="day-auto-row" data-day-auto-key="'+escapeHtml(untimedItemKey(item))+'">'+action+'<span class="day-auto-copy"><strong>'+name
+        +'</strong><small>'+escapeHtml(info)+'</small></span>'+focus+time+grip+'</div>';
     }).join('');
-    return '<section class="day-auto-items" aria-label="Automatisch vandaag">'
-      +'<div class="day-auto-title"><strong>Ook vandaag</strong><span>Zonder vaste tijden</span></div>'
-      +'<p class="day-auto-hint">Energie '+load.energy+'/3 · '
-        +(load.pressure?'Drukke dag: minder extra taken en kleinere routines':'Energie bepaalt de grootte van je dag')
-        +' · '+load.capacity+' '+(load.capacity===1?'belangrijke taak':'belangrijke taken')
-        +' en '+load.capacity+' '+(load.capacity===1?'huishoudklus':'huishoudklussen')+' als richtlijn.'
-        +' <button type="button" data-myday-energy class="day-auto-energy">Energie aanpassen</button>'
-        +'<span class="day-auto-help">Vaste routines, zelfgekozen versies en ingeplande activiteiten blijven behouden.</span></p>'
-      +(rows||'<p class="day-auto-empty">Geen extra onderdelen meer open.</p>')+'</section>';
+    return '<details class="day-auto-items" id="dayAutoPending" '+(dayAutoExpanded?'open':'')+'>'
+      +'<summary>Ook vandaag · zonder tijd <span>'+items.length+' '+(items.length===1?'onderdeel':'onderdelen')+'</span></summary>'
+      +'<div class="day-auto-body"><p class="day-auto-hint">'
+        +(load.pressure?'Drukke dag: minder extra taken en kleinere routines. ':'')
+        +'Energie '+load.energy+'/3 · Aanpassen kan bij Dagstart. '
+        +'Houd ☷ vast om de volgorde te veranderen. Alleen met Tijd kies je bewust een kloktijd.</p>'
+      +'<div class="day-auto-list">'+(rows||'<p class="day-auto-empty">Alles voor vandaag is ingepland of afgevinkt.</p>')+'</div></div></details>';
   }
   function renderDayCalendar(){
     const root=document.getElementById('dayCalendarView');
@@ -4691,6 +4713,59 @@
       ??Math.max(0,((dayCalendarSelected==='today'?currentMinutes:540)-first)-sc.clientHeight*.33);
     updateDayCalendarNow();
   }
+
+  // Op de Samsung alleen de nog ongetimede onderdelen verslepen; tijden nooit aanpassen.
+  document.addEventListener('toggle',e=>{
+    if(e.target?.id==='dayAutoPending')dayAutoExpanded=e.target.open;
+  },true);
+  document.addEventListener('click',e=>{
+    const btn=e.target.closest?.('[data-day-auto-time]');
+    if(!btn)return;
+    const key=btn.dataset.dayAutoTime;
+    openQuickPlanModal({withTime:true,fromAuto:true});
+    const select=document.getElementById('quickPlanExistingTask');
+    if(!select||![...select.options].some(option=>option.value===key)){
+      closeQuickPlanModal();return showToast('Deze activiteit is inmiddels ingepland.');
+    }
+    select.value=key;updateQuickPlanTaskName();
+  });
+  let dayAutoDrag=null;
+  document.addEventListener('pointerdown',e=>{
+    const grip=e.target.closest?.('[data-day-auto-grip]');
+    if(!grip||e.button>0)return;
+    const row=grip.closest('[data-day-auto-key]');
+    if(!row)return;
+    e.preventDefault();
+    dayAutoDrag={row,id:e.pointerId,moved:false};
+    row.classList.add('dragging');
+    try{grip.setPointerCapture(e.pointerId);}catch{}
+  });
+  document.addEventListener('pointermove',e=>{
+    const d=dayAutoDrag;
+    if(!d||d.id!==e.pointerId)return;
+    if(e.cancelable)e.preventDefault();
+    const list=d.row.parentElement;
+    if(!list)return;
+    const rest=[...list.querySelectorAll('[data-day-auto-key]')].filter(x=>x!==d.row);
+    const insertBefore=rest.find(x=>e.clientY<x.getBoundingClientRect().top+x.getBoundingClientRect().height/2);
+    if(insertBefore&&insertBefore!==d.row.nextElementSibling){list.insertBefore(d.row,insertBefore);d.moved=true;}
+    else if(!insertBefore&&list.lastElementChild!==d.row){list.appendChild(d.row);d.moved=true;}
+  });
+  document.addEventListener('pointerup',e=>{
+    const d=dayAutoDrag;if(!d||d.id!==e.pointerId)return;
+    d.row.classList.remove('dragging');dayAutoDrag=null;
+    if(!d.moved)return;
+    const list=document.querySelector('#dayAutoPending .day-auto-list');
+    if(!list)return;
+    const keys=[...list.querySelectorAll('[data-day-auto-key]')].map(x=>x.dataset.dayAutoKey);
+    state.untimedOrder={date:localDateKey(),keys};
+    state.untimedNext={date:null,type:'',itemId:''};
+    saveState();renderDayCalendar();
+  });
+  document.addEventListener('pointercancel',e=>{
+    if(!dayAutoDrag||dayAutoDrag.id!==e.pointerId)return;
+    dayAutoDrag=null;renderDayCalendar();
+  });
   // Vang de klik rechtstreeks in de kalender op, vóór algemene klikhandlers.
   // Zo blijft het vakje ook op Android los van het bewerkvenster reageren.
   document.getElementById('dayCalendarView').addEventListener('click',e=>{
