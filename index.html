@@ -1001,6 +1001,13 @@
     .day-calendar-event.is-auto{background:var(--surface-soft);border-style:dashed;border-color:var(--line);border-left:4px solid var(--accent-strong)}
     .day-calendar-event.is-auto .day-calendar-event-body small{font-style:italic;color:var(--muted)}
     .day-calendar-event.is-auto .daycal-auto-min{font-size:11px;font-weight:800;padding:0 2px}
+    /* Blokken van 5–25 minuten blijven binnen hun echte tijdvak. */
+    .day-calendar-event.is-short{min-height:0;padding:0 3px;gap:4px;align-items:center;border-radius:5px}
+    .day-calendar-event.is-short .daycal-checkbox{width:13px;height:13px;min-width:13px;border-width:1px;border-radius:3px}
+    .day-calendar-event.is-short .daycal-done-indicator{height:13px;font-size:12px}
+    .day-calendar-event.is-short .day-calendar-event-body strong{font-size:11px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .day-calendar-event.is-short .day-calendar-event-body small{display:none}
+    .day-calendar-event.is-short .day-calendar-grip{min-height:13px;height:13px;min-width:22px;padding:0 2px;font-size:15px;line-height:1;border-radius:4px}
     .day-calendar-options{border-top:1px solid var(--line);margin:12px 0 0}
     .day-calendar-options > summary{padding:12px 2px;cursor:pointer;min-height:44px;font-size:13px;font-weight:750;color:var(--accent-strong)}
     .today-shell[data-myday-mode="planning"] #dayPlanTomorrowPreview{display:none}
@@ -4737,7 +4744,10 @@
     const calendarDone=b=>plan?.date===state.dayTimeline?.date?dayPlanBlockDone(b):Boolean(b.done);
     const visualMinutes=b=>{
       const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
-      return calendarDone(b)?32:Math.max(36,end!==null&&end>start?end-start:30);
+      // De getekende hoogte mag de echte duur niet overschrijden:
+      // 15:45–16:00 en 16:00–16:45 horen onder elkaar te staan.
+      const duration=end!==null&&end>start?end-start:30;
+      return calendarDone(b)?Math.min(32,duration):duration;
     };
     // Legacy-overlap in aparte stabiele kolommen; geen bestaande tijd wijzigen.
     const layout=new Map();
@@ -4768,6 +4778,7 @@
     const cards=available.map(b=>{
       const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
       const fixed=dayPlanBlockMode(b)==='fixed',done=calendarDone(b),loc=layout.get(b.id);
+      const compact=visualMinutes(b)<26;
       const width=100/loc.count,left=loc.column*width;
       let marker='';
       if(b.linkType!=='agenda'){
@@ -4782,7 +4793,7 @@
         }else marker=done?'<span class="daycal-done-indicator" aria-hidden="true">✓</span>'
           :'<button type="button" class="daycal-checkbox" data-daycal-check="'+escapeHtml(b.id)+'" aria-label="'+escapeHtml('Afvinken: '+b.text)+'"></button>';
       }
-      return '<div class="day-calendar-event'+(fixed?' is-fixed':'')+(done?' is-done':'')+(b.autoPreview?' is-auto':'')+'" data-daycal-id="'+escapeHtml(b.id)+'"'
+      return '<div class="day-calendar-event'+(fixed?' is-fixed':'')+(done?' is-done':'')+(b.autoPreview?' is-auto':'')+(compact?' is-short':'')+'" data-daycal-id="'+escapeHtml(b.id)+'"'
         +' style="top:'+(start-first)+'px;height:'+visualMinutes(b)+'px;left:calc('+left+'% + 2px);width:calc('+width+'% - 4px)"'
         +' aria-label="'+escapeHtml(b.text+(b.autoPreview?' zonder vaste tijd':' '+dayPlanRangeLabel(b.start,b.end)))+'">'
         +marker+'<div class="day-calendar-event-body"><strong>'+escapeHtml(b.text)+'</strong><small>'
