@@ -910,8 +910,8 @@
     .day-calendar-hint{font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 8px}
     .day-calendar-scroll{max-height:66vh;min-height:320px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:15px;background:var(--surface);position:relative;touch-action:pan-y}
     .day-calendar-inner{position:relative;padding-left:53px;min-width:0}
-    .day-calendar-grid{position:relative;width:100%;height:100%;border-left:1px solid var(--line);
-      background:repeating-linear-gradient(to bottom,transparent 0,transparent 59px,var(--line) 59px,var(--line) 60px)}
+    .day-calendar-grid{position:relative;width:100%;height:100%;border-left:1px solid var(--line);background:var(--surface)}
+    .day-calendar-hour-rule{position:absolute;left:0;right:0;border-top:1px solid var(--line);pointer-events:none}
     .day-calendar-hour{position:absolute;left:-51px;width:45px;text-align:right;transform:translateY(-8px);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;pointer-events:none}
     .day-calendar-half{position:absolute;left:0;right:0;border-top:1px dotted var(--line);opacity:.55;pointer-events:none}
     .day-calendar-event{position:absolute;display:flex;align-items:flex-start;gap:5px;box-sizing:border-box;
@@ -4501,7 +4501,40 @@
     saveState();scheduleDayPlanAlarms();closeDayCalendarEditor();renderToday();showToast('Activiteit opgeslagen.');
   });
   // Kalenderweergave voor vandaag én een voorbereide dag van morgen.
-  let dayCalendarSelected='today',dayCalendarDrag=null,dayCalendarScroll={};
+  let dayCalendarSelected='today',dayCalendarDrag=null,dayCalendarScroll={},dayCalendarGeometry=null;
+  // Dezelfde kalender, met voldoende leesruimte voor korte blokken.
+  // Dit is alleen een visuele schaal: de kloktijden in state blijven gelijk.
+  function dayCalendarVisualGeometry(items,first,last){
+    const span=Math.max(1,last-first),scale=new Float64Array(span).fill(1);
+    for(const block of items){
+      const start=dayPlanMinutes(block.start),rawEnd=dayPlanMinutes(block.end);
+      if(start===null)continue;
+      const end=rawEnd!==null&&rawEnd>start?rawEnd:start+30;
+      const duration=end-start;
+      if(duration>=40)continue;
+      const factor=40/duration;
+      for(let minute=Math.max(first,start);minute<Math.min(last,end);minute++)
+        scale[minute-first]=Math.max(scale[minute-first],factor);
+    }
+    const positions=new Float64Array(span+1);
+    for(let i=0;i<span;i++)positions[i+1]=positions[i]+scale[i];
+    const toPx=minute=>{
+      const offset=Math.max(0,Math.min(span,Number(minute)-first)),whole=Math.floor(offset);
+      return positions[whole]+(whole<span?(offset-whole)*scale[whole]:0);
+    };
+    const toMinute=px=>{
+      if(px<=0)return first;
+      if(px>=positions[span])return last;
+      let lo=0,hi=span;
+      while(lo+1<hi){
+        const mid=Math.floor((lo+hi)/2);
+        if(positions[mid]<=px)lo=mid;else hi=mid;
+      }
+      return first+lo+(px-positions[lo])/scale[lo];
+    };
+    return {first,last,height:positions[span],toPx,toMinute};
+  }
+
   function calendarPlan(){
     return dayCalendarSelected==='tomorrow'?storedDayTimeline(addDaysKey(1)):storedDayTimeline(localDateKey());
   }
@@ -4604,7 +4637,7 @@
     const first=Number(line.dataset.daycalFirst),last=Number(line.dataset.daycalLast);
     if(minutes<first||minutes>last){line.hidden=true;return;}
     line.hidden=false;
-    line.style.top=(minutes-first)+'px';
+    line.style.top=(dayCalendarGeometry?.toPx(minutes)??minutes-first)+'px';
     const clock=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
     line.querySelector('.day-calendar-now-label').textContent='NU '+clock;
   }
@@ -4734,20 +4767,21 @@
     const plan=calendarPlan(),blocks=(plan?.blocks||[]).filter(b=>!b.postponedTo&&dayPlanMinutes(b.start)!==null);
     const autoBlocks=dayCalendarAutoBlocks(plan);
     const currentMinutes=new Date().getHours()*60+new Date().getMinutes();
-    const minStart=Math.min(360,...blocks.map(b=>dayPlanMinutes(b.start)),...(dayCalendarSelected==='today'?[currentMinutes]:[]));
-    const maxEnd=Math.max(1320,...blocks.map(b=>dayPlanMinutes(b.end)??dayPlanMinutes(b.start)+30),...(dayCalendarSelected==='today'?[currentMinutes+30]:[]));
-    const first=Math.max(0,Math.floor(minStart/60)*60),last=Math.min(2880,Math.ceil(maxEnd/60)*60+60);
-    const height=last-first;
     const available=[...blocks,...autoBlocks].sort((a,b)=>dayPlanMinutes(a.start)-dayPlanMinutes(b.start));
+    const minStart=Math.min(360,...available.map(b=>dayPlanMinutes(b.start)),...(dayCalendarSelected==='today'?[currentMinutes]:[]));
+    const maxEnd=Math.max(1320,...available.map(b=>dayPlanMinutes(b.end)??dayPlanMinutes(b.start)+30),...(dayCalendarSelected==='today'?[currentMinutes+30]:[]));
+    const first=Math.max(0,Math.floor(minStart/60)*60),last=Math.min(2880,Math.ceil(maxEnd/60)*60+60);
+    const geometry=dayCalendarVisualGeometry(available,first,last);
+    dayCalendarGeometry=geometry;
+    const height=geometry.height;
     // Afgeronde activiteiten behouden hun originele tijden, maar nemen in
     // de weergave nog slechts één compacte regel in.
     const calendarDone=b=>plan?.date===state.dayTimeline?.date?dayPlanBlockDone(b):Boolean(b.done);
-    const visualMinutes=b=>{
+    const visualPixels=b=>{
       const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
-      // De getekende hoogte mag de echte duur niet overschrijden:
-      // 15:45–16:00 en 16:00–16:45 horen onder elkaar te staan.
-      const duration=end!==null&&end>start?end-start:30;
-      return calendarDone(b)?Math.min(32,duration):duration;
+      const finish=end!==null&&end>start?end:start+30;
+      const height=geometry.toPx(finish)-geometry.toPx(start);
+      return calendarDone(b)?Math.min(32,height):height;
     };
     // Legacy-overlap in aparte stabiele kolommen; geen bestaande tijd wijzigen.
     const layout=new Map();
@@ -4758,7 +4792,7 @@
       cluster=[];columns=[];clusterEnd=-1;
     };
     for(const b of available){
-      const start=dayPlanMinutes(b.start),end=start+visualMinutes(b);
+      const start=geometry.toPx(dayPlanMinutes(b.start)),end=start+visualPixels(b);
       if(cluster.length&&start>=clusterEnd)flushCluster();
       let column=columns.findIndex(x=>x<=start);
       if(column<0){column=columns.length;columns.push(end);}
@@ -4772,13 +4806,17 @@
       return bs<(oe===null?os+30:oe)&&os<(be===null?bs+30:be);
     }));
     const hours=[];
-    for(let m=first;m<=last;m+=60)hours.push('<span class="day-calendar-hour" style="top:'+(m-first)+'px">'+escapeHtml(dayPlanClockLabel(m))+'</span>');
+    for(let m=first;m<=last;m+=60){
+      const y=geometry.toPx(m);
+      hours.push('<span class="day-calendar-hour" style="top:'+y+'px">'+escapeHtml(dayPlanClockLabel(m))+'</span>'
+        +'<div class="day-calendar-hour-rule" style="top:'+y+'px"></div>');
+    }
     const halves=[];
-    for(let m=first+30;m<last;m+=60)halves.push('<div class="day-calendar-half" style="top:'+(m-first)+'px"></div>');
+    for(let m=first+30;m<last;m+=60)halves.push('<div class="day-calendar-half" style="top:'+geometry.toPx(m)+'px"></div>');
     const cards=available.map(b=>{
       const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
       const fixed=dayPlanBlockMode(b)==='fixed',done=calendarDone(b),loc=layout.get(b.id);
-      const compact=visualMinutes(b)<26;
+      const compact=visualPixels(b)<26;
       const width=100/loc.count,left=loc.column*width;
       let marker='';
       if(b.linkType!=='agenda'){
@@ -4794,7 +4832,7 @@
           :'<button type="button" class="daycal-checkbox" data-daycal-check="'+escapeHtml(b.id)+'" aria-label="'+escapeHtml('Afvinken: '+b.text)+'"></button>';
       }
       return '<div class="day-calendar-event'+(fixed?' is-fixed':'')+(done?' is-done':'')+(b.autoPreview?' is-auto':'')+(compact?' is-short':'')+'" data-daycal-id="'+escapeHtml(b.id)+'"'
-        +' style="top:'+(start-first)+'px;height:'+visualMinutes(b)+'px;left:calc('+left+'% + 2px);width:calc('+width+'% - 4px)"'
+        +' style="top:'+geometry.toPx(start)+'px;height:'+visualPixels(b)+'px;left:calc('+left+'% + 2px);width:calc('+width+'% - 4px)"'
         +' aria-label="'+escapeHtml(b.text+(b.autoPreview?' zonder vaste tijd':' '+dayPlanRangeLabel(b.start,b.end)))+'">'
         +marker+'<div class="day-calendar-event-body"><strong>'+escapeHtml(b.text)+'</strong><small>'
         +(b.autoPreview?'Zonder vaste tijd':escapeHtml(dayPlanRangeLabel(b.start,b.end)))+'</small></div>'
@@ -4816,7 +4854,7 @@
          +'<div><button class="secondary-button" type="button" data-dayplan-edit-tomorrow>Planning voor morgen maken</button></div></div>');
     const sc=root.querySelector('.day-calendar-scroll');
     if(sc)sc.scrollTop=dayCalendarScroll[dayCalendarSelected]
-      ??Math.max(0,((dayCalendarSelected==='today'?currentMinutes:540)-first)-sc.clientHeight*.33);
+      ??Math.max(0,geometry.toPx(dayCalendarSelected==='today'?currentMinutes:540)-sc.clientHeight*.33);
     updateDayCalendarNow();
   }
 
@@ -4897,14 +4935,14 @@
     const duration=oldEnd!==null&&oldEnd>oldStart?oldEnd-oldStart:30;
     dayCalendarDrag={id,pointerId:e.pointerId,handle,sc,card,mode,y:e.clientY,
       oldStart,oldEnd:oldStart+duration,scrollY:sc.scrollTop,
-      first:Number(sc.dataset.daycalFirst),newStart:oldStart,newEnd:oldStart+duration,
+      first:Number(sc.dataset.daycalFirst),geometry:dayCalendarGeometry,newStart:oldStart,newEnd:oldStart+duration,
       moved:false,preview:null,autoBlock:b.autoPreview?b:null};
     card.classList.add('is-dragged');
     const preview=document.createElement('div');
     preview.className='day-calendar-preview';
     preview.style.left='2px';preview.style.right='2px';
-    preview.style.top=(oldStart-dayCalendarDrag.first)+'px';
-    preview.style.height=Math.max(8,duration)+'px';
+    preview.style.top=dayCalendarDrag.geometry.toPx(oldStart)+'px';
+    preview.style.height=Math.max(8,dayCalendarDrag.geometry.toPx(oldStart+duration)-dayCalendarDrag.geometry.toPx(oldStart))+'px';
     sc.querySelector('.day-calendar-grid')?.appendChild(preview);
     dayCalendarDrag.preview=preview;
     try{handle.setPointerCapture(e.pointerId);}catch{}
@@ -4916,7 +4954,9 @@
     if(e.clientY>bounds.bottom-36)d.sc.scrollTop+=12;
     else if(e.clientY<bounds.top+36)d.sc.scrollTop-=12;
     const delta=e.clientY-d.y+(d.sc.scrollTop-d.scrollY);
-    const snapped=Math.round(delta/5)*5;
+    const base=d.mode==='end'?d.oldEnd:d.oldStart;
+    const projected=d.geometry.toMinute(d.geometry.toPx(base)+delta);
+    const snapped=Math.round((projected-base)/5)*5;
     // Kleine vingerbeweging tijdens aantikken is geen sleepactie.
     d.moved=d.moved||Math.abs(delta)>9;
     if(d.mode==='start'){
@@ -4930,8 +4970,8 @@
       d.newStart=Math.max(0,Math.min(2880-length,d.oldStart+snapped));
       d.newEnd=d.newStart+length;
     }
-    d.preview.style.top=(d.newStart-d.first)+'px';
-    d.preview.style.height=Math.max(8,d.newEnd-d.newStart)+'px';
+    d.preview.style.top=d.geometry.toPx(d.newStart)+'px';
+    d.preview.style.height=Math.max(8,d.geometry.toPx(d.newEnd)-d.geometry.toPx(d.newStart))+'px';
     d.preview.classList.toggle('has-collision',
       Boolean(calendarTimeConflict(calendarPlan(),d.id,d.newStart,d.newEnd)));
     d.preview.textContent=dayPlanClockLabel(d.newStart)+'–'+dayPlanClockLabel(d.newEnd);
