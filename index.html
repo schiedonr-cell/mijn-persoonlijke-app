@@ -4755,6 +4755,7 @@
     root.innerHTML='<div class="day-calendar-chooser"><button type="button" data-daycal-day="today" class="'+(dayCalendarSelected==='today'?'active':'')+'">Vandaag</button>'
       +'<button type="button" data-daycal-day="tomorrow" class="'+(dayCalendarSelected==='tomorrow'?'active':'')+'">Morgen'+(tomorrow?.blocks?.length?' ✓':'')+'</button></div>'
       +autoItems
+      +(dayCalendarSelected==='tomorrow'&&!blocks.length?'<button type="button" class="secondary-button" data-dayplan-edit-tomorrow>Planning voor morgen maken</button>':'')
       +'<details class="day-calendar-times" id="dayCalendarTimeDetails" '+(dayCalendarTimeOpen?'open':'')+'><summary>Uren en tijdblokken bekijken</summary>'
       +'<p class="day-calendar-hint">Verplaats via ☷. Sleep het streepje boven- of onderaan een blok om begin- of eindtijd te veranderen, per 5 minuten.</p>'
       +(existingOverlaps?'<p class="day-calendar-overlap-note">Er staan nog activiteiten op hetzelfde tijdstip. Pas een van die blokken aan; andere tijden blijven staan.</p>':'')
@@ -4762,8 +4763,7 @@
         +'<div class="day-calendar-grid">'+hours.join('')+halves.join('')+cards
         +(dayCalendarSelected==='today'?'<div class="day-calendar-now" data-daycal-now data-daycal-first="'+first+'" data-daycal-last="'+last+'"><span class="day-calendar-now-label">NU</span></div>':'')
         +'</div></div></div>'
-        :(autoItems?'':'<div class="day-calendar-empty">Voor morgen staat nog geen planning met tijden klaar.'
-        +'<div><button class="secondary-button" type="button" data-dayplan-edit-tomorrow>Planning voor morgen maken</button></div></div>'))
+        :'<div class="day-calendar-empty">Geen tijdsblokken ingepland.</div>')
       +'</details>';
     const sc=root.querySelector('.day-calendar-scroll');
     if(sc)sc.scrollTop=dayCalendarScroll[dayCalendarSelected]
