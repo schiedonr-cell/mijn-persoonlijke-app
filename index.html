@@ -973,6 +973,19 @@
     .day-auto-hint button.day-auto-energy{font:inherit;border:0;background:transparent;color:var(--accent-strong);font-weight:800;text-decoration:underline;padding:3px 2px;min-height:35px;cursor:pointer}
     .day-auto-help{display:block;margin-top:4px}
     .day-auto-empty{font-size:13px;margin:8px 0 2px;color:var(--muted)}
+    /* Tijdloze activiteiten zitten in dezelfde tijdlijn, zonder gefingeerde kloktijden. */
+    .day-calendar-scroll .day-auto-items{border:0;border-bottom:1px solid var(--line);border-radius:0;margin:0;padding:5px 9px 7px;background:var(--surface-soft);overflow:visible}
+    .day-calendar-scroll .day-auto-caption{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;color:var(--accent-strong)}
+    .day-calendar-scroll .day-auto-caption strong{font-size:13px}
+    .day-calendar-scroll .day-auto-caption span{font-size:11px;color:var(--muted)}
+    .day-calendar-scroll .day-auto-row{flex-wrap:nowrap;min-height:43px;gap:5px;padding:5px 0}
+    .day-calendar-scroll .day-auto-copy strong{font-size:12px;line-height:1.25}
+    .day-calendar-scroll .day-auto-copy small{font-size:10px}
+    .day-calendar-scroll .day-auto-row button{min-height:33px;padding:4px 5px;font-size:11px;border-radius:8px}
+    .day-calendar-scroll .day-auto-row .day-auto-grip{min-width:32px;font-size:19px}
+    .day-calendar-scroll .day-auto-row .day-auto-focus{min-width:43px}
+    .day-calendar-scroll .day-auto-row .day-auto-time{min-width:34px}
+    .day-calendar-scroll .day-auto-row .check{margin:0 3px 0 1px}
     /* Compacte wachtlijst: kalender blijft de vertrouwde hoofdweergave. */
     .day-auto-items{padding:0;overflow:hidden}
     .day-auto-items > summary{list-style:none;cursor:pointer;padding:14px 12px;min-height:46px;display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--accent-strong);font-weight:800}
@@ -4587,7 +4600,6 @@
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible')updateDayCalendarNow();
   });
-  let dayAutoExpanded=false;
   function renderDayPlanAutoItems(plan){
     // Hergebruik exact dezelfde ongetimede selectie en volgorde als de widget.
     // Maak geen nieuwe routines/taken; toon alleen verwijzingen naar bestaande items.
@@ -4626,13 +4638,9 @@
       return '<div class="day-auto-row" data-day-auto-key="'+escapeHtml(untimedItemKey(item))+'">'+action+'<span class="day-auto-copy"><strong>'+name
         +'</strong><small>'+escapeHtml(info)+'</small></span>'+focus+time+grip+'</div>';
     }).join('');
-    return '<details class="day-auto-items" id="dayAutoPending" '+(dayAutoExpanded?'open':'')+'>'
-      +'<summary>Ook vandaag · zonder tijd <span>'+items.length+' '+(items.length===1?'onderdeel':'onderdelen')+'</span></summary>'
-      +'<div class="day-auto-body"><p class="day-auto-hint">'
-        +(load.pressure?'Drukke dag: minder extra taken en kleinere routines. ':'')
-        +'Energie '+load.energy+'/3 · Aanpassen kan bij Dagstart. '
-        +'Houd ☷ vast om de volgorde te veranderen. Alleen met Tijd kies je bewust een kloktijd.</p>'
-      +'<div class="day-auto-list">'+(rows||'<p class="day-auto-empty">Alles voor vandaag is ingepland of afgevinkt.</p>')+'</div></div></details>';
+    return '<div class="day-auto-items" id="dayAutoPending" aria-label="Activiteiten zonder tijd">'
+      +'<div class="day-auto-caption"><strong>Zonder tijd</strong><span>'+items.length+' '+(items.length===1?'onderdeel':'onderdelen')+' · sleep ☷ voor volgorde</span></div>'
+      +'<div class="day-auto-list">'+(rows||'<p class="day-auto-empty">Alles voor vandaag is ingepland of afgevinkt.</p>')+'</div></div>';
   }
   function renderDayCalendar(){
     const root=document.getElementById('dayCalendarView');
@@ -4701,23 +4709,22 @@
       +'<button type="button" data-daycal-day="tomorrow" class="'+(dayCalendarSelected==='tomorrow'?'active':'')+'">Morgen'+(tomorrow?.blocks?.length?' ✓':'')+'</button></div>'
       +'<p class="day-calendar-hint">Verplaats via ☷. Sleep het streepje boven- of onderaan een blok om begin- of eindtijd te veranderen, per 5 minuten.</p>'
       +(existingOverlaps?'<p class="day-calendar-overlap-note">Er staan nog activiteiten op hetzelfde tijdstip. Pas een van die blokken aan; andere tijden blijven staan.</p>':'')
-      +(blocks.length?'<div class="day-calendar-scroll" data-daycal-first="'+first+'" data-daycal-last="'+last+'"><div class="day-calendar-inner" style="height:'+height+'px">'
-        +'<div class="day-calendar-grid">'+hours.join('')+halves.join('')+cards
-        +(dayCalendarSelected==='today'?'<div class="day-calendar-now" data-daycal-now data-daycal-first="'+first+'" data-daycal-last="'+last+'"><span class="day-calendar-now-label">NU</span></div>':'')
-        +'</div></div></div>'
-        :(autoItems?'':'<div class="day-calendar-empty">Voor morgen staat nog geen planning met tijden klaar.'
-        +'<div><button class="secondary-button" type="button" data-dayplan-edit-tomorrow>Planning voor morgen maken</button></div></div>'))
-      +autoItems;
+      +((blocks.length||dayCalendarSelected==='today')
+        ?'<div class="day-calendar-scroll" data-daycal-first="'+first+'" data-daycal-last="'+last+'">'
+         +autoItems
+         +'<div class="day-calendar-inner" style="height:'+height+'px">'
+         +'<div class="day-calendar-grid">'+hours.join('')+halves.join('')+cards
+         +(dayCalendarSelected==='today'?'<div class="day-calendar-now" data-daycal-now data-daycal-first="'+first+'" data-daycal-last="'+last+'"><span class="day-calendar-now-label">NU</span></div>':'')
+         +'</div></div></div>'
+        :'<div class="day-calendar-empty">Voor morgen staat nog geen planning met tijden klaar.'
+         +'<div><button class="secondary-button" type="button" data-dayplan-edit-tomorrow>Planning voor morgen maken</button></div></div>');
     const sc=root.querySelector('.day-calendar-scroll');
     if(sc)sc.scrollTop=dayCalendarScroll[dayCalendarSelected]
-      ??Math.max(0,((dayCalendarSelected==='today'?currentMinutes:540)-first)-sc.clientHeight*.33);
+      ??(autoItems?0:Math.max(0,((dayCalendarSelected==='today'?currentMinutes:540)-first)-sc.clientHeight*.33));
     updateDayCalendarNow();
   }
 
   // Op de Samsung alleen de nog ongetimede onderdelen verslepen; tijden nooit aanpassen.
-  document.addEventListener('toggle',e=>{
-    if(e.target?.id==='dayAutoPending')dayAutoExpanded=e.target.open;
-  },true);
   document.addEventListener('click',e=>{
     const btn=e.target.closest?.('[data-day-auto-time]');
     if(!btn)return;
