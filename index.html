@@ -1008,6 +1008,8 @@
     .day-calendar-event.is-short .day-calendar-event-body strong{font-size:11px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .day-calendar-event.is-short .day-calendar-event-body small{display:none}
     .day-calendar-event.is-short .day-calendar-grip{min-height:13px;height:13px;min-width:22px;padding:0 2px;font-size:15px;line-height:1;border-radius:4px}
+    .day-calendar-allday{margin:4px 0 9px;padding:8px 10px;background:var(--surface-soft);border:1px solid var(--line);border-radius:9px;font-size:12px;line-height:1.4;color:var(--text)}
+    .day-calendar-allday strong{color:var(--accent-strong)}
     .day-calendar-options{border-top:1px solid var(--line);margin:12px 0 0}
     .day-calendar-options > summary{padding:12px 2px;cursor:pointer;min-height:44px;font-size:13px;font-weight:750;color:var(--accent-strong)}
     .today-shell[data-myday-mode="planning"] #dayPlanTomorrowPreview{display:none}
@@ -4417,7 +4419,8 @@
 
   let editingDayCalendarId=null;
   function openDayCalendarEditor(id){
-    const plan=calendarPlan(),b=plan?.blocks?.find(x=>x.id===id);
+    const plan=calendarPlan(),b=plan?.blocks?.find(x=>x.id===id)
+      ||dayCalendarAgendaBlocks(plan).find(x=>x.id===id);
     if(!b)return;
     editingDayCalendarId=id;
     const fixed=dayPlanBlockMode(b)==='fixed';
@@ -4429,7 +4432,7 @@
     document.getElementById('daycalEditNote').textContent='Vaste afspraken kun je hier niet aanpassen.';
     const completion=document.getElementById('daycalEditCompletion');
     completion.hidden=b.linkType==='agenda';
-    completion.textContent=(plan.date===state.dayTimeline?.date?dayPlanBlockDone(b):Boolean(b.done))
+    completion.textContent=(plan?.date===state.dayTimeline?.date?dayPlanBlockDone(b):Boolean(b.done))
       ?'Afvinken ongedaan maken':'Als afgerond markeren';
     document.querySelector('#daycalEditForm button[type="submit"]').hidden=fixed;
     const hasTask=b.linkType==='task'&&state.tasks.some(t=>t.id===b.linkId);
@@ -4689,12 +4692,80 @@
       +'<div class="day-auto-list">'+(rows||'<p class="day-auto-empty">Alles voor vandaag is ingepland of afgevinkt.</p>')+'</div></div>';
   }
 
+
+  // Toon Android/Google-agenda direct in de bestaande tijdlijn, zonder een
+  // kopie in dayTimeline te bewaren of bestaande afspraken te wijzigen.
+  let dayCalendarNativeEvents=null,dayCalendarNativeReadAt=0;
+  function dayCalendarSourceEvents(){
+    if(window.AndroidWidgetBridge?.getTodayGoogleCalendarEvents){
+      const now=Date.now();
+      if(dayCalendarNativeEvents===null||now-dayCalendarNativeReadAt>300000){
+        dayCalendarNativeReadAt=now;
+        try{
+          const next=JSON.parse(AndroidWidgetBridge.getTodayGoogleCalendarEvents()||'[]');
+          if(Array.isArray(next))dayCalendarNativeEvents=next;
+        }catch{}
+      }
+      if(Array.isArray(dayCalendarNativeEvents))return dayCalendarNativeEvents;
+    }
+    try{
+      const cache=JSON.parse(localStorage.getItem('mijnPersoonlijkeAppCalendarEventsV1')||'{}');
+      if(cache.date===localDateKey()&&Array.isArray(cache.items))return cache.items;
+    }catch{}
+    return [];
+  }
+  function dayCalendarAgendaEntries(date,plan){
+    const scheduled=(plan?.blocks||[]).filter(b=>!b.postponedTo);
+    const seen=new Set(),timed=[],allDay=[];
+    const dayStart=new Date(date+'T00:00:00').getTime();
+    if(!Number.isFinite(dayStart))return {timed,allDay};
+    const nextDay=new Date(date+'T00:00:00');nextDay.setDate(nextDay.getDate()+1);
+    const dayEnd=nextDay.getTime();
+    for(const e of dayCalendarSourceEvents()){
+      if(!e||e.status==='cancelled')continue;
+      const title=String(e.summary||'Afspraak').trim()||'Afspraak';
+      const normalized=dayPlanNormalizeText(title);
+      const startDate=e.start?.date,endDate=e.end?.date;
+      if(startDate&&!e.start?.dateTime){
+        if(startDate<=date&&(endDate?date<endDate:date===startDate)){
+          if(scheduled.some(b=>b.linkType==='agenda'&&dayPlanNormalizeText(b.text)===normalized))continue;
+          const key='all|'+normalized;
+          if(seen.has(key))continue;
+          seen.add(key);allDay.push(title);
+        }
+        continue;
+      }
+      if(!e.start?.dateTime)continue;
+      const s=new Date(e.start.dateTime).getTime(),endRaw=e.end?.dateTime?new Date(e.end.dateTime).getTime():NaN;
+      if(!Number.isFinite(s))continue;
+      const finish=Number.isFinite(endRaw)&&endRaw>s?endRaw:s+30*60000;
+      if(s>=dayEnd||finish<=dayStart)continue;
+      const begin=Math.max(s,dayStart),end=Math.min(finish,dayEnd);
+      const startMinute=Math.round((begin-dayStart)/60000);
+      const endMinute=Math.max(startMinute+5,Math.round((end-dayStart)/60000));
+      if(scheduled.some(b=>b.linkType==='agenda'
+        &&dayPlanNormalizeText(b.text)===normalized
+        &&Math.abs((dayPlanMinutes(b.start)??-1000)-startMinute)<=5))continue;
+      const key=normalized+'|'+startMinute+'|'+endMinute;
+      if(seen.has(key))continue;
+      seen.add(key);
+      timed.push({id:'agenda-cache|'+date+'|'+key,text:title,
+        start:dayPlanClock(startMinute),end:dayPlanClock(endMinute),
+        linkType:'agenda',kind:'Agenda',fixed:true,remind:false,done:false,
+        calendarPreview:true});
+    }
+    return {timed,allDay};
+  }
+  function dayCalendarAgendaBlocks(plan){
+    const date=dayCalendarSelected==='today'?localDateKey():addDaysKey(1);
+    return dayCalendarAgendaEntries(date,plan).timed;
+  }
   // Dagelijkse onderdelen worden alleen getekend, niet in de planning opgeslagen.
   // De aangegeven plek is voorlopig en heeft geen herinnering of vaste tijd.
   function dayCalendarAutoBlocks(plan){
     if(dayCalendarSelected!=='today')return [];
     const linked=new Set(),names=new Set(),occupied=[];
-    for(const b of plan?.blocks||[]){
+    for(const b of [...(plan?.blocks||[]),...dayCalendarAgendaBlocks(plan)]){
       if(b.linkType&&b.linkId)linked.add(b.linkType+':'+b.linkId);
       names.add(dayPlanNormalizeText(b.text));
       const alias=dayPlanAlias(b.text);
@@ -4765,9 +4836,10 @@
     root.dataset.daycalDay=dayCalendarSelected;
     const tomorrow=storedDayTimeline(addDaysKey(1));
     const plan=calendarPlan(),blocks=(plan?.blocks||[]).filter(b=>!b.postponedTo&&dayPlanMinutes(b.start)!==null);
+    const agenda=dayCalendarAgendaEntries(dayCalendarSelected==='today'?localDateKey():addDaysKey(1),plan);
     const autoBlocks=dayCalendarAutoBlocks(plan);
     const currentMinutes=new Date().getHours()*60+new Date().getMinutes();
-    const available=[...blocks,...autoBlocks].sort((a,b)=>dayPlanMinutes(a.start)-dayPlanMinutes(b.start));
+    const available=[...blocks,...agenda.timed,...autoBlocks].sort((a,b)=>dayPlanMinutes(a.start)-dayPlanMinutes(b.start));
     const minStart=Math.min(360,...available.map(b=>dayPlanMinutes(b.start)),...(dayCalendarSelected==='today'?[currentMinutes]:[]));
     const maxEnd=Math.max(1320,...available.map(b=>dayPlanMinutes(b.end)??dayPlanMinutes(b.start)+30),...(dayCalendarSelected==='today'?[currentMinutes+30]:[]));
     const first=Math.max(0,Math.floor(minStart/60)*60),last=Math.min(2880,Math.ceil(maxEnd/60)*60+60);
@@ -4844,6 +4916,7 @@
     root.innerHTML='<div class="day-calendar-chooser"><button type="button" data-daycal-day="today" class="'+(dayCalendarSelected==='today'?'active':'')+'">Vandaag</button>'
       +'<button type="button" data-daycal-day="tomorrow" class="'+(dayCalendarSelected==='tomorrow'?'active':'')+'">Morgen'+(tomorrow?.blocks?.length?' ✓':'')+'</button></div>'
       +'<p class="day-calendar-hint">Verplaats via ☷. Sleep het streepje boven- of onderaan een blok om begin- of eindtijd te veranderen, per 5 minuten.</p>'
+      +(agenda.allDay.length?'<div class="day-calendar-allday"><strong>Hele dag</strong> '+agenda.allDay.map(escapeHtml).join(' · ')+'</div>':'')
       +(existingOverlaps?'<p class="day-calendar-overlap-note">Er staan nog activiteiten op hetzelfde tijdstip. Pas een van die blokken aan; andere tijden blijven staan.</p>':'')
       +(available.length
         ?'<div class="day-calendar-scroll" data-daycal-first="'+first+'" data-daycal-last="'+last+'"><div class="day-calendar-inner" style="height:'+height+'px">'
