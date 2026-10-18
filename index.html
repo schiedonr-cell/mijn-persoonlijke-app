@@ -2399,7 +2399,7 @@
   // beperken alleen nieuwe voorstellen; niets wordt uit de tijdlijn gewist.
   function dayLoadSuggestion(date=localDateKey()){
     const plan=storedDayTimeline(date);
-    const scheduled=(plan?.blocks||[]).filter(b=>!b.postponedTo&&!b.done
+    const scheduled=(plan?.blocks||[]).filter(b=>!b.postponedTo
       &&!dayPlanRestLike(b.text)&&b.linkType!=='habit');
     let minutes=0,items=0;
     for(const b of scheduled){
