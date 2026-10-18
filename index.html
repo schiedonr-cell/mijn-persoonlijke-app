@@ -998,6 +998,9 @@
     .day-auto-row.dragging{background:var(--accent-soft);border-radius:10px}
     .day-auto-row .day-auto-time{min-width:40px}
     .day-auto-title{display:none}
+    .day-calendar-event.is-auto{background:var(--surface-soft);border-style:dashed;border-color:var(--line);border-left:4px solid var(--accent-strong)}
+    .day-calendar-event.is-auto .day-calendar-event-body small{font-style:italic;color:var(--muted)}
+    .day-calendar-event.is-auto .daycal-auto-min{font-size:11px;font-weight:800;padding:0 2px}
     .day-calendar-options{border-top:1px solid var(--line);margin:12px 0 0}
     .day-calendar-options > summary{padding:12px 2px;cursor:pointer;min-height:44px;font-size:13px;font-weight:750;color:var(--accent-strong)}
     .today-shell[data-myday-mode="planning"] #dayPlanTomorrowPreview{display:none}
@@ -2908,6 +2911,7 @@
   }
   function dayPlanBlockDone(block){
     const today=state.dayTimeline?.date||localDateKey();
+    if(block.linkType==='lunch')return Boolean(selfCareToday().lunchDone);
     if(block.linkType==='task')return Boolean(block.done||state.tasks.find(x=>x.id===block.linkId)?.done);
     if(block.linkType==='habit'){
       const h=state.habits.find(x=>x.id===block.linkId);
@@ -2923,7 +2927,7 @@
     return Boolean(block.done);
   }
   function dayPlanKindLabel(block){
-    return block.linkType==='task'?'Taak':block.linkType==='habit'?'Routine':block.linkType==='household'?'Huishouden':block.linkType==='agenda'?'Agenda':'Dagblok';
+    return block.linkType==='task'?'Taak':block.linkType==='habit'?'Routine':block.linkType==='household'?'Huishouden':block.linkType==='agenda'?'Agenda':block.linkType==='lunch'?'Voor jezelf':'Dagblok';
   }
   function dayPlanAlarmId(plan,block){return 'dayplan-'+(plan?.date||'')+'-'+block.id;}
 
@@ -4462,8 +4466,10 @@
   document.addEventListener('click',e=>{
     if(e.target.id==='daycalEditCancel'||e.target.id==='daycalEditOverlay'){closeDayCalendarEditor();return;}
     const card=e.target.closest?.('.day-calendar-event[data-daycal-id]');
-    if(card&&!e.target.closest?.('[data-daycal-grip],[data-daycal-resize],[data-daycal-check]')){
-      openDayCalendarEditor(card.dataset.daycalId);
+    if(card&&!e.target.closest?.('[data-daycal-grip],[data-daycal-resize],[data-daycal-check],[data-task-check],[data-habit-check],[data-household-check],[data-recovery-log-for],[data-self-care-lunch]')){
+      const preview=dayCalendarAutoBlocks(calendarPlan()).find(x=>x.id===card.dataset.daycalId);
+      if(preview)dayCalendarAutoTimePicker(preview);
+      else openDayCalendarEditor(card.dataset.daycalId);
     }
   });
   document.getElementById('daycalEditForm').addEventListener('submit',e=>{
@@ -4642,6 +4648,75 @@
       +'<div class="day-auto-caption"><strong>Zonder tijd</strong><span>'+items.length+' '+(items.length===1?'onderdeel':'onderdelen')+' · sleep ☷ voor volgorde</span></div>'
       +'<div class="day-auto-list">'+(rows||'<p class="day-auto-empty">Alles voor vandaag is ingepland of afgevinkt.</p>')+'</div></div>';
   }
+
+  // Dagelijkse onderdelen worden alleen getekend, niet in de planning opgeslagen.
+  // De aangegeven plek is voorlopig en heeft geen herinnering of vaste tijd.
+  function dayCalendarAutoBlocks(plan){
+    if(dayCalendarSelected!=='today')return [];
+    const linked=new Set(),names=new Set(),occupied=[];
+    for(const b of plan?.blocks||[]){
+      if(b.linkType&&b.linkId)linked.add(b.linkType+':'+b.linkId);
+      names.add(dayPlanNormalizeText(b.text));
+      const alias=dayPlanAlias(b.text);
+      if(alias)linked.add(alias.type+':'+alias.id);
+      if(b.postponedTo)continue;
+      const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
+      if(start!==null)occupied.push([start,end!==null&&end>start?end:start+30]);
+    }
+    const sources=untimedEffectiveOrder().filter(x=>!linked.has(untimedItemKey(x))
+      &&!names.has(dayPlanNormalizeText(x.name)));
+    const items=[];
+    sources.forEach((source,index)=>{
+      const length=25,preferred=420+Math.round(index*900/Math.max(1,sources.length-1)/5)*5;
+      const free=t=>!occupied.some(([a,b])=>t<b&&t+length>a);
+      let start=null;
+      for(let t=preferred;t<=1410;t+=5)if(free(t)){start=t;break;}
+      if(start===null)for(let t=Math.min(preferred,1410);t>=360;t-=5)if(free(t)){start=t;break;}
+      if(start===null)start=preferred;
+      occupied.push([start,start+length]);
+      items.push({id:'auto|'+untimedItemKey(source),text:source.name,
+        start:dayPlanClock(start),end:dayPlanClock(start+length),
+        linkType:source.type,linkId:source.itemId,kind:source.kind,
+        autoPreview:true,done:false,fixed:false,remind:false});
+    });
+    return items;
+  }
+  function dayCalendarPlaceAutoBlock(item,start){
+    if(!item?.autoPreview||dayCalendarSelected!=='today')return false;
+    if(state.focus.running||activeDayPlanFocus()){
+      showToast('Stop eerst Focus voordat je een activiteit verschuift.');return false;
+    }
+    const today=localDateKey(),existing=storedDayTimeline(today);
+    const plan=existing?.date===today?existing:{...emptyDayTimeline(),date:today};
+    if(plan.blocks.some(b=>b.linkType===item.linkType&&b.linkId===item.linkId)){
+      showToast('Deze activiteit staat al in de dagplanning.');return false;
+    }
+    const dur=dayPlanMinutes(item.end)-dayPlanMinutes(item.start);
+    if(!Number.isInteger(start)||start<0||start+dur>2880)return false;
+    const conflict=calendarTimeConflict(plan,null,start,start+dur);
+    if(conflict){showToast('Deze plek overlapt met '+conflict.text+'.');return false;}
+    const block={id:uid('plan'),originalOrder:plan.blocks.length,
+      start:dayPlanClock(start),end:dayPlanClock(start+dur),
+      originalStart:dayPlanClock(start),originalEnd:dayPlanClock(start+dur),
+      text:item.text,linkType:item.linkType,linkId:item.linkId,kind:item.kind,
+      matchedName:item.text,done:false,fixed:false,remind:false};
+    plan.blocks.push(block);
+    state.dayTimeline=plan;
+    calendarPersistBlockChange(plan);
+    showToast('Activiteit verschoven en bewaard.');
+    return true;
+  }
+  function dayCalendarAutoTimePicker(item){
+    if(!item?.autoPreview)return;
+    openQuickPlanModal({withTime:true,fromAuto:true});
+    const select=document.getElementById('quickPlanExistingTask');
+    const key=item.linkType+':'+item.linkId;
+    if(!select||![...select.options].some(o=>o.value===key)){
+      closeQuickPlanModal();showToast('Dit onderdeel is niet meer beschikbaar.');return;
+    }
+    select.value=key;document.getElementById('quickPlanStart').value=item.start;
+    updateQuickPlanTaskName();
+  }
   function renderDayCalendar(){
     const root=document.getElementById('dayCalendarView');
     if(!root)return;
@@ -4650,13 +4725,13 @@
     root.dataset.daycalDay=dayCalendarSelected;
     const tomorrow=storedDayTimeline(addDaysKey(1));
     const plan=calendarPlan(),blocks=(plan?.blocks||[]).filter(b=>!b.postponedTo&&dayPlanMinutes(b.start)!==null);
-    const autoItems=dayCalendarSelected==='today'?renderDayPlanAutoItems(plan):'';
+    const autoBlocks=dayCalendarAutoBlocks(plan);
     const currentMinutes=new Date().getHours()*60+new Date().getMinutes();
     const minStart=Math.min(360,...blocks.map(b=>dayPlanMinutes(b.start)),...(dayCalendarSelected==='today'?[currentMinutes]:[]));
     const maxEnd=Math.max(1320,...blocks.map(b=>dayPlanMinutes(b.end)??dayPlanMinutes(b.start)+30),...(dayCalendarSelected==='today'?[currentMinutes+30]:[]));
     const first=Math.max(0,Math.floor(minStart/60)*60),last=Math.min(2880,Math.ceil(maxEnd/60)*60+60);
     const height=last-first;
-    const available=blocks.slice().sort((a,b)=>dayPlanMinutes(a.start)-dayPlanMinutes(b.start));
+    const available=[...blocks,...autoBlocks].sort((a,b)=>dayPlanMinutes(a.start)-dayPlanMinutes(b.start));
     // Afgeronde activiteiten behouden hun originele tijden, maar nemen in
     // de weergave nog slechts één compacte regel in.
     const calendarDone=b=>plan?.date===state.dayTimeline?.date?dayPlanBlockDone(b):Boolean(b.done);
@@ -4691,28 +4766,38 @@
     const halves=[];
     for(let m=first+30;m<last;m+=60)halves.push('<div class="day-calendar-half" style="top:'+(m-first)+'px"></div>');
     const cards=available.map(b=>{
-      const start=dayPlanMinutes(b.start),rawEnd=dayPlanMinutes(b.end),duration=Math.max(1,rawEnd!==null&&rawEnd>start?rawEnd-start:30);
-      const fixed=dayPlanBlockMode(b)==='fixed',done=calendarDone(b),loc=layout.get(b.id),width=100/loc.count,left=loc.column*width;
-      return '<div class="day-calendar-event'+(fixed?' is-fixed':'')+(done?' is-done':'')+'" data-daycal-id="'+escapeHtml(b.id)+'"'
-       +' style="top:'+(start-first)+'px;height:'+visualMinutes(b)+'px;left:calc('+left+'% + 2px);width:calc('+width+'% - 4px)"'
-       +' aria-label="'+escapeHtml(dayPlanRangeLabel(b.start,b.end)+' '+b.text)+'">'
-       +(b.linkType==='agenda'?'':done
-         ?'<span class="daycal-done-indicator" aria-hidden="true">✓</span>'
-         :'<button type="button" class="daycal-checkbox" data-daycal-check="'+escapeHtml(b.id)+'" aria-label="'+escapeHtml('Afvinken: '+b.text)+'"></button>')
-       +'<div class="day-calendar-event-body"><strong>'+escapeHtml(b.text)+'</strong><small>'+escapeHtml(dayPlanRangeLabel(b.start,b.end))+'</small></div>'
-       +(!fixed?'<button type="button" class="day-calendar-grip" data-daycal-grip="'+escapeHtml(b.id)+'" aria-label="Versleep '+escapeHtml(b.text)+' naar een andere tijd">☷</button>':'')
-       +(!fixed&&!done?'<button type="button" class="day-calendar-resize" data-daycal-resize="start" data-daycal-resize-id="'+escapeHtml(b.id)+'" aria-label="Sleep bovenrand voor begintijd: '+escapeHtml(b.text)+'"></button>'
-         +'<button type="button" class="day-calendar-resize" data-daycal-resize="end" data-daycal-resize-id="'+escapeHtml(b.id)+'" aria-label="Sleep onderrand voor eindtijd: '+escapeHtml(b.text)+'"></button>':'')
-       +'</div>';
+      const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
+      const fixed=dayPlanBlockMode(b)==='fixed',done=calendarDone(b),loc=layout.get(b.id);
+      const width=100/loc.count,left=loc.column*width;
+      let marker='';
+      if(b.linkType!=='agenda'){
+        if(b.autoPreview){
+          if(b.linkType==='lunch')marker='<button type="button" class="daycal-checkbox daycal-auto-min" data-self-care-lunch>✓</button>';
+          else{
+            const habit=b.linkType==='habit'?state.habits.find(h=>h.id===b.linkId):null;
+            const kind=habit?recoveryRoutineKind(habit):'';
+            marker=kind?'<button type="button" class="daycal-checkbox daycal-auto-min" data-recovery-log-for="'+escapeHtml(kind)+'">Min</button>'
+              :'<input type="checkbox" class="daycal-checkbox" data-'+(b.linkType==='task'?'task':b.linkType==='household'?'household':'habit')+'-check="'+escapeHtml(b.linkId)+'" aria-label="'+escapeHtml('Afvinken: '+b.text)+'"/>';
+          }
+        }else marker=done?'<span class="daycal-done-indicator" aria-hidden="true">✓</span>'
+          :'<button type="button" class="daycal-checkbox" data-daycal-check="'+escapeHtml(b.id)+'" aria-label="'+escapeHtml('Afvinken: '+b.text)+'"></button>';
+      }
+      return '<div class="day-calendar-event'+(fixed?' is-fixed':'')+(done?' is-done':'')+(b.autoPreview?' is-auto':'')+'" data-daycal-id="'+escapeHtml(b.id)+'"'
+        +' style="top:'+(start-first)+'px;height:'+visualMinutes(b)+'px;left:calc('+left+'% + 2px);width:calc('+width+'% - 4px)"'
+        +' aria-label="'+escapeHtml(b.text+(b.autoPreview?' zonder vaste tijd':' '+dayPlanRangeLabel(b.start,b.end)))+'">'
+        +marker+'<div class="day-calendar-event-body"><strong>'+escapeHtml(b.text)+'</strong><small>'
+        +(b.autoPreview?'Zonder vaste tijd':escapeHtml(dayPlanRangeLabel(b.start,b.end)))+'</small></div>'
+        +(!fixed?'<button type="button" class="day-calendar-grip" data-daycal-grip="'+escapeHtml(b.id)+'" aria-label="Sleep '+escapeHtml(b.text)+' naar een andere plek">☷</button>':'')
+        +(!fixed&&!done&&!b.autoPreview?'<button type="button" class="day-calendar-resize" data-daycal-resize="start" data-daycal-resize-id="'+escapeHtml(b.id)+'" aria-label="Versleep begintijd"></button>'
+          +'<button type="button" class="day-calendar-resize" data-daycal-resize="end" data-daycal-resize-id="'+escapeHtml(b.id)+'" aria-label="Versleep eindtijd"></button>':'')
+        +'</div>';
     }).join('');
     root.innerHTML='<div class="day-calendar-chooser"><button type="button" data-daycal-day="today" class="'+(dayCalendarSelected==='today'?'active':'')+'">Vandaag</button>'
       +'<button type="button" data-daycal-day="tomorrow" class="'+(dayCalendarSelected==='tomorrow'?'active':'')+'">Morgen'+(tomorrow?.blocks?.length?' ✓':'')+'</button></div>'
       +'<p class="day-calendar-hint">Verplaats via ☷. Sleep het streepje boven- of onderaan een blok om begin- of eindtijd te veranderen, per 5 minuten.</p>'
       +(existingOverlaps?'<p class="day-calendar-overlap-note">Er staan nog activiteiten op hetzelfde tijdstip. Pas een van die blokken aan; andere tijden blijven staan.</p>':'')
-      +((blocks.length||dayCalendarSelected==='today')
-        ?'<div class="day-calendar-scroll" data-daycal-first="'+first+'" data-daycal-last="'+last+'">'
-         +autoItems
-         +'<div class="day-calendar-inner" style="height:'+height+'px">'
+      +(available.length
+        ?'<div class="day-calendar-scroll" data-daycal-first="'+first+'" data-daycal-last="'+last+'"><div class="day-calendar-inner" style="height:'+height+'px">'
          +'<div class="day-calendar-grid">'+hours.join('')+halves.join('')+cards
          +(dayCalendarSelected==='today'?'<div class="day-calendar-now" data-daycal-now data-daycal-first="'+first+'" data-daycal-last="'+last+'"><span class="day-calendar-now-label">NU</span></div>':'')
          +'</div></div></div>'
@@ -4720,7 +4805,7 @@
          +'<div><button class="secondary-button" type="button" data-dayplan-edit-tomorrow>Planning voor morgen maken</button></div></div>');
     const sc=root.querySelector('.day-calendar-scroll');
     if(sc)sc.scrollTop=dayCalendarScroll[dayCalendarSelected]
-      ??(autoItems?0:Math.max(0,((dayCalendarSelected==='today'?currentMinutes:540)-first)-sc.clientHeight*.33));
+      ??Math.max(0,((dayCalendarSelected==='today'?currentMinutes:540)-first)-sc.clientHeight*.33);
     updateDayCalendarNow();
   }
 
@@ -4792,7 +4877,8 @@
     const sc=handle.closest('.day-calendar-scroll'),card=handle.closest('.day-calendar-event');
     if(!sc||!card)return;
     const mode=handle.hasAttribute('data-daycal-resize')?handle.dataset.daycalResize:'move';
-    const id=card.dataset.daycalId,b=calendarPlan()?.blocks?.find(x=>x.id===id);
+    const id=card.dataset.daycalId,b=calendarPlan()?.blocks?.find(x=>x.id===id)
+      ||dayCalendarAutoBlocks(calendarPlan()).find(x=>x.id===id);
     if(!b||dayPlanBlockMode(b)==='fixed')return;
     const oldStart=dayPlanMinutes(b.start),oldEnd=dayPlanMinutes(b.end);
     if(oldStart===null)return;
@@ -4801,7 +4887,7 @@
     dayCalendarDrag={id,pointerId:e.pointerId,handle,sc,card,mode,y:e.clientY,
       oldStart,oldEnd:oldStart+duration,scrollY:sc.scrollTop,
       first:Number(sc.dataset.daycalFirst),newStart:oldStart,newEnd:oldStart+duration,
-      moved:false,preview:null};
+      moved:false,preview:null,autoBlock:b.autoPreview?b:null};
     card.classList.add('is-dragged');
     const preview=document.createElement('div');
     preview.className='day-calendar-preview';
@@ -4846,12 +4932,14 @@
     if(!d.moved){
       // Een korte tik op een sleepgreep of rand opent gewoon Bewerken.
       // Eerder werd de tik opgeslokt door de sleepbediening.
-      openDayCalendarEditor(d.id);
+      if(d.autoBlock)dayCalendarAutoTimePicker(d.autoBlock);
+      else openDayCalendarEditor(d.id);
       return;
     }
     if(d.newStart!==d.oldStart||d.newEnd!==d.oldEnd){
       const plan=calendarPlan();
-      if(d.mode==='move')calendarMoveBlock(plan,d.id,d.newStart);
+      if(d.autoBlock)dayCalendarPlaceAutoBlock(d.autoBlock,d.newStart);
+      else if(d.mode==='move')calendarMoveBlock(plan,d.id,d.newStart);
       else calendarResizeBlock(plan,d.id,d.newStart,d.newEnd);
     }
     renderDayCalendar();
@@ -5225,6 +5313,7 @@
       }
     }
     if(block.linkType==='household'){const h=state.householdTasks.find(x=>x.id===block.linkId);if(h){h.history||={};if(checked){h.history[today]=true;h.deferUntil='';}else delete h.history[today];saveState();}}
+    if(block.linkType==='lunch'){selfCareToday().lunchDone=checked;block.done=checked;saveState();}
     // Ook een los kalenderblok met een verdwenen koppeling moet afvinkbaar blijven.
     const missingTask=block.linkType==='task'&&!state.tasks.some(x=>x.id===block.linkId);
     const missingHabit=block.linkType==='habit'&&!state.habits.some(x=>x.id===block.linkId);
