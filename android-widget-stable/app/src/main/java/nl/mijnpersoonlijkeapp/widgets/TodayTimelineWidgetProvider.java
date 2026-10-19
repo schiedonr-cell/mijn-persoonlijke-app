@@ -87,6 +87,8 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
     private static final Pattern CLOCK = Pattern.compile("(\\d{1,2}):(\\d{2})");
     private static final String ACTION_TOGGLE = "nl.mijnpersoonlijkeapp.widgets.TIMELINE_TOGGLE";
     private static final String ACTION_QUICK = "nl.mijnpersoonlijkeapp.widgets.MIXED_TOGGLE";
+    private static final String ACTION_AGENDA_TOGGLE = "nl.mijnpersoonlijkeapp.widgets.AGENDA_LOCAL_TOGGLE";
+    private static final String AGENDA_PREFS = "timeline_agenda_local_checks";
     private static final String ACTION_NEXT_PAGE = "nl.mijnpersoonlijkeapp.widgets.TIMELINE_NEXT_PAGE";
     private static final String PAGE_PREFS = "timeline_widget_pages";
 
@@ -103,6 +105,27 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
                         SnapshotStore.toggleBlock(context,date,blockId,!row.optBoolean("done",false));
                         break;
                     }
+                }
+            }
+            return;
+        }
+        if(intent!=null&&ACTION_AGENDA_TOGGLE.equals(intent.getAction())){
+            String date=intent.getStringExtra("date"),key=intent.getStringExtra("agendaKey");
+            if(date!=null&&key!=null&&date.equals(SnapshotStore.todayKey())){
+                JSONObject snapshot=SnapshotStore.read(context);
+                JSONArray planned=snapshot.optJSONArray("timelineRows");
+                JSONArray mixed=snapshot.optJSONArray("mixedRows");
+                // Geen wijziging aan de Android-/Google-agenda of de dagplanning.
+                if(date.equals(snapshot.optString("date")) &&
+                        (agendaKeyPresent(planned,key)||agendaKeyPresent(mixed,key))){
+                    SharedPreferences pref=context.getSharedPreferences(AGENDA_PREFS,Context.MODE_PRIVATE);
+                    java.util.Set<String> updated=new java.util.HashSet<>(
+                            date.equals(pref.getString("date",""))
+                                    ?pref.getStringSet("checked",java.util.Collections.emptySet())
+                                    :java.util.Collections.emptySet());
+                    if(!updated.add(key))updated.remove(key);
+                    pref.edit().putString("date",date).putStringSet("checked",updated).commit();
+                    refreshAll(context);
                 }
             }
             return;
@@ -214,6 +237,10 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         pref.edit().putString("token-" + id, token).putInt("page-" + id, page).apply();
         int start = page * maxRows;
         int visible = Math.min(maxRows, items.size() - start);
+        SharedPreferences agendaPrefs=context.getSharedPreferences(AGENDA_PREFS,Context.MODE_PRIVATE);
+        java.util.Set<String> checkedAgenda=snapshot.optString("date").equals(agendaPrefs.getString("date",""))
+                ?agendaPrefs.getStringSet("checked",java.util.Collections.emptySet())
+                :java.util.Collections.emptySet();
         for(int i=0;i<visible;i++) {
             JSONObject row=items.get(start+i);
             String kind=row.optString("kind","");
@@ -226,7 +253,20 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(TIME_IDS[i], usingDayPlan ? (clock.isEmpty() ? "—" : clock) : "");
             boolean completed=row.optBoolean("done",false);
             v.setTextViewText(TEXT_IDS[i], row.optString("text",""));
-            if(!tomorrow && usingDayPlan && !"agenda".equals(row.optString("linkType")) && !row.optString("blockId").isEmpty()){
+            if(!tomorrow && "Agenda".equals(kind)){
+                String agendaKey=agendaCheckKey(row);
+                v.setViewVisibility(CHECK_IDS[i],View.VISIBLE);
+                v.setTextViewText(CHECK_IDS[i],checkedAgenda.contains(agendaKey)?"☑":"□");
+                Intent toggle=new Intent(context,TodayTimelineWidgetProvider.class);
+                toggle.setAction(ACTION_AGENDA_TOGGLE);
+                toggle.setData(android.net.Uri.parse("mijndag://agenda-check/"
+                        +android.net.Uri.encode(snapshot.optString("date")+"|"+agendaKey)));
+                toggle.putExtra("date",snapshot.optString("date"));
+                toggle.putExtra("agendaKey",agendaKey);
+                PendingIntent pi=PendingIntent.getBroadcast(context,7000+i+id*100,toggle,
+                        PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+                v.setOnClickPendingIntent(CHECK_IDS[i],pi);
+            }else if(!tomorrow && usingDayPlan && !"agenda".equals(row.optString("linkType")) && !row.optString("blockId").isEmpty()){
                 v.setViewVisibility(CHECK_IDS[i], View.VISIBLE);
                 v.setTextViewText(CHECK_IDS[i], completed ? "☑" : "□");
                 Intent toggle=new Intent(context,TodayTimelineWidgetProvider.class);
@@ -273,6 +313,24 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         } else v.setViewVisibility(R.id.timeline_more, View.GONE);
 
         manager.updateAppWidget(id, v);
+    }
+
+    private static String agendaCheckKey(JSONObject row) {
+        String name=row.optString("text","").trim().toLowerCase(Locale.ROOT);
+        String time=row.optString("time","").trim();
+        int label=time.indexOf(" · ");
+        if(label>=0)time=time.substring(label+3).trim();
+        return name+"|"+time;
+    }
+
+    private static boolean agendaKeyPresent(JSONArray rows,String key) {
+        if(rows==null)return false;
+        for(int i=0;i<rows.length();i++){
+            JSONObject row=rows.optJSONObject(i);
+            if(row!=null&&"Agenda".equals(row.optString("kind",""))
+                    &&key.equals(agendaCheckKey(row)))return true;
+        }
+        return false;
     }
 
     private static boolean agendaIsToday(JSONObject row) {
