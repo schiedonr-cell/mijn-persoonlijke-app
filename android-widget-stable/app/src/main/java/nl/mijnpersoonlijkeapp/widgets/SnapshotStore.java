@@ -355,19 +355,92 @@ final class SnapshotStore {
                 &&tomorrowPlan.optJSONArray("blocks")!=null
                 &&tomorrowPlan.optJSONArray("blocks").length()>0){
             snapshot.put("hasTomorrowDayTimeline",true);
-            snapshot.put("tomorrowTimelineTotal",tomorrowPlan.optJSONArray("blocks").length());
-            snapshot.put("tomorrowTimelineRows",buildDayTimelineRows(state,tomorrowPlan,tomorrow));
+            JSONArray timeline=addAgendaToTimeline(context,buildDayTimelineRows(state,tomorrowPlan,tomorrow),tomorrowRows,tomorrow);
+            snapshot.put("tomorrowTimelineTotal",timeline.length());
+            snapshot.put("tomorrowTimelineRows",timeline);
         }
 
         JSONObject plan = state.optJSONObject("dayTimeline");
         JSONArray blocks = plan == null ? null : plan.optJSONArray("blocks");
         if (plan != null && today.equals(plan.optString("date", "")) && blocks != null && blocks.length() > 0) {
             snapshot.put("hasDayTimeline", true);
-            snapshot.put("timelineTotal", blocks.length());
-            snapshot.put("timelineRows", buildDayTimelineRows(state, today));
+            JSONArray timeline=addAgendaToTimeline(context,buildDayTimelineRows(state, today),rows,today);
+            snapshot.put("timelineTotal", timeline.length());
+            snapshot.put("timelineRows", timeline);
         }
 
         return snapshot;
+    }
+
+    // Ook wanneer een dagplanning bestaat, moeten echte agenda-afspraken
+    // in de grote Vandaag-widget blijven staan. Alleen de snapshot-weergave
+    // wordt aangevuld: de gebruikersplanning en alarmen blijven ongemoeid.
+    private static JSONArray addAgendaToTimeline(Context context, JSONArray planned, JSONArray categoryRows, String date) {
+        List<JSONObject> result=new ArrayList<>();
+        Set<String> known=new HashSet<>();
+        for(int i=0;i<planned.length();i++){
+            JSONObject row=planned.optJSONObject(i);
+            if(row==null)continue;
+            result.add(row);
+            known.add(agendaTimelineKey(row));
+        }
+
+        // Gebruik eerst exact de agenda-afspraken die de losse categorie al toont.
+        for(int i=0;i<categoryRows.length();i++){
+            JSONObject row=categoryRows.optJSONObject(i);
+            if(row==null||!"Agenda".equals(row.optString("kind","")))continue;
+            appendAgendaTimeline(result,known,row.optString("text",""),
+                    normalizeAgendaTimelineTime(row.optString("time","")));
+        }
+
+        // De losse Agenda-widget toont ook zichtbare FamilyWall-abonnementen.
+        // Neem die mee zonder de geselecteerde agenda's of andere widgets te wijzigen.
+        JSONArray upcoming=CalendarData.upcomingEvents(context,12);
+        for(int i=0;i<upcoming.length();i++){
+            JSONObject event=upcoming.optJSONObject(i);
+            if(event==null||"cancelled".equals(event.optString("status",""))
+                    ||!isEventOnDate(event,date))continue;
+            appendAgendaTimeline(result,known,event.optString("summary","Afspraak"),
+                    normalizeAgendaTimelineTime(eventTime(event)));
+        }
+
+        Collections.sort(result,(a,b)->Integer.compare(agendaTimelineMinute(a),agendaTimelineMinute(b)));
+        JSONArray out=new JSONArray();
+        for(JSONObject row:result)out.put(row);
+        return out;
+    }
+
+    private static void appendAgendaTimeline(List<JSONObject> list, Set<String> known, String text, String time) {
+        if(text==null||text.trim().isEmpty()||time.isEmpty())return;
+        JSONObject row=new JSONObject();
+        try{
+            row.put("kind","Agenda");
+            row.put("text",text.trim());
+            row.put("time",time);
+            row.put("linkType","agenda");
+            String key=agendaTimelineKey(row);
+            if(known.add(key))list.add(row);
+        }catch(Exception ignored){}
+    }
+
+    private static String normalizeAgendaTimelineTime(String value) {
+        if(value==null)return "";
+        if(value.toLowerCase(Locale.ROOT).contains("hele dag"))return "Hele dag";
+        int pos=value.indexOf(" · ");
+        return pos<0?value.trim():value.substring(pos+3).trim();
+    }
+
+    private static int agendaTimelineMinute(JSONObject row) {
+        String time=row.optString("time","");
+        if(time.toLowerCase(Locale.ROOT).contains("hele dag"))return -1;
+        java.util.regex.Matcher clock=java.util.regex.Pattern.compile("(\\d{1,2}):(\\d{2})").matcher(time);
+        if(!clock.find())return 2881;
+        return Integer.parseInt(clock.group(1))*60+Integer.parseInt(clock.group(2));
+    }
+
+    private static String agendaTimelineKey(JSONObject row) {
+        String text=row.optString("text","").trim().toLowerCase(Locale.ROOT);
+        return text+"|"+agendaTimelineMinute(row);
     }
 
     private static JSONArray buildDayTimelineRows(JSONObject state, String today) {
