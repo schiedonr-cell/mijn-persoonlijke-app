@@ -73,7 +73,7 @@
 
     // Bestaande notities en mappen behouden; alleen daadwerkelijk lege
     // placeholders overslaan bij de eerste migratie.
-    out.notes=out.notes.filter(n=>(n.title||'').trim()||(n.plainText||'').trim()||stripHtml(n.html||''));
+    out.notes=out.notes.filter(n=>(n.title||'').trim()||(n.plainText||'').trim()||stripHtml(n.html||'')||(n.files||[]).length);
     if(stored===null || Array.isArray(raw.notes))saveData(out);
     return out;
   }
@@ -378,7 +378,7 @@
         </button>
         <button type="button" class="note-file-remove" data-note-file-remove="${esc(f.id)}" aria-label="Bestand verwijderen">×</button>
       </div>`).join('');
-    if(!note)list.innerHTML='<p class="note-file-hint">Bewaar de nieuwe notitie eerst. Open haar daarna om bestanden toe te voegen.</p>';
+    if(!note)list.innerHTML='<p class="note-file-hint">Je kunt direct een foto of PDF toevoegen, ook aan een nieuwe notitie.</p>';
     else if(!files.length)list.innerHTML='<p class="note-file-hint">Nog geen bestanden bij deze notitie.</p>';
   }
   function readFileAsDataURL(file){
@@ -413,27 +413,67 @@
       return {id:uid('file'),name:file.name||'Foto.jpg',mime:'image/jpeg',size:Math.round(src.length*.75),src};
     }finally{URL.revokeObjectURL(url);}
   }
+  let addingNoteFile=false;
   async function addNoteFile(file){
-    if(!file)return;
-    const note=data.notes.find(n=>n.id===editingId);
-    if(!note){toast('Bewaar eerst je notitie, open haar daarna opnieuw.');return;}
-    if((note.files||[]).length>=12){toast('Maximaal 12 bestanden in deze proefversie.');return;}
-    const button=document.getElementById('noteAddFileButton');
-    if(button)button.disabled=true;
+    if(!file||addingNoteFile)return;
+    const startedWith=editingId;
+    const existing=startedWith?data.notes.find(n=>n.id===startedWith):null;
+    if(startedWith&&!existing){toast('Notitie niet gevonden.');return;}
+    if(existing&&(existing.files||[]).length>=12){toast('Maximaal 12 bestanden in deze proefversie.');return;}
+    addingNoteFile=true;
+    const buttons=['noteAddFileButton','noteCameraButton'].map(id=>document.getElementById(id));
+    buttons.forEach(button=>{if(button)button.disabled=true;});
     try{
       const attachment=await prepareNoteFile(file);
-      if(!data.notes.includes(note)||editingId!==note.id)return;
-      note.files||=[];
-      note.files.push(attachment);
-      note.updatedAt=Date.now();
-      if(!saveData()){
-        note.files.pop();
-        toast('Opslag vol: bestand niet toegevoegd. Je bestaande notitie blijft bewaard.');
-        return;
+      if(editingId!==startedWith)return;
+      let note=existing;
+      if(!note){
+        // Een bijlage bij een nieuwe notitie mag direct; geen extra bewaren/openen.
+        const titleField=document.getElementById('noteEditorTitle');
+        const editor=document.getElementById('noteRichEditor');
+        const now=Date.now();
+        note=normalizeNote({
+          id:uid('note'),createdAt:now,updatedAt:now,
+          title:titleField.value.trim()||(file.name||'Bijlage').replace(/\.[^.]+$/,'')||'Bijlage',
+          html:editor.innerHTML.trim(),plainText:(editor.innerText||'').trim(),
+          folderId:document.getElementById('noteEditorFolder').value||null,
+          pinned:document.getElementById('noteEditorPinned').checked,
+          files:[attachment]
+        });
+        data.notes.push(note);
+        if(!saveData()){
+          data.notes=data.notes.filter(n=>n.id!==note.id);
+          toast('Opslaan mislukt. Het bestand is niet toegevoegd.');
+          return;
+        }
+        editingId=note.id;
+        titleField.value=note.title;
+        document.getElementById('noteEditorHeading').textContent='Notitie bewerken';
+        document.getElementById('deleteRichNoteButton').style.display='block';
+        document.getElementById('noteEditorActions').classList.add('has-delete');
+      }else{
+        if(!data.notes.includes(note))return;
+        const previousTime=note.updatedAt;
+        note.files||=[];
+        note.files.push(attachment);
+        note.updatedAt=Date.now();
+        if(!saveData()){
+          note.files.pop();
+          note.updatedAt=previousTime;
+          toast('Opslag vol: bestand niet toegevoegd. Je bestaande notitie blijft bewaard.');
+          return;
+        }
       }
       renderFileList(note);renderNotes();toast('Bestand toegevoegd aan de notitie.');
     }catch(error){toast(error?.message||'Bestand toevoegen is mislukt.');}
-    finally{if(button)button.disabled=false;for(const id of ['noteFileInput','noteCameraInput']){const input=document.getElementById(id);if(input)input.value='';}}
+    finally{
+      addingNoteFile=false;
+      buttons.forEach(button=>{if(button)button.disabled=false;});
+      for(const id of ['noteFileInput','noteCameraInput']){
+        const input=document.getElementById(id);
+        if(input)input.value='';
+      }
+    }
   }
   function openNoteFile(id){
     const note=data.notes.find(n=>n.id===editingId),file=note?.files?.find(f=>f.id===id);
