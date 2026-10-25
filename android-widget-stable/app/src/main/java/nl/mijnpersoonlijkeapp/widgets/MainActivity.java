@@ -453,8 +453,7 @@ public class MainActivity extends Activity {
     }
 
     private void requestCalendarIfNeeded() {
-        if (checkSelfPermission(Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED)
-            requestPermissions(new String[]{Manifest.permission.READ_CALENDAR}, CALENDAR_PERMISSION);
+        // Proefapp vraagt geen agenda-toegang; alleen Notities wordt getest.
     }
 
     private void injectCalendarCache() {
