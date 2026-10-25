@@ -658,6 +658,36 @@ public class MainActivity extends Activity {
             return true;
         }
 
+        private StringBuilder noteImageParts;
+        private int expectedNoteImageLength;
+        @JavascriptInterface public synchronized boolean beginNoteImage(int length){
+            if(length<1||length>2500000){noteImageParts=null;return false;}
+            expectedNoteImageLength=length;
+            noteImageParts=new StringBuilder(length);
+            return true;
+        }
+        @JavascriptInterface public synchronized boolean addNoteImagePart(String part){
+            if(noteImageParts==null||part==null||part.length()>32768||
+               noteImageParts.length()+part.length()>expectedNoteImageLength){
+                noteImageParts=null;return false;
+            }
+            noteImageParts.append(part);
+            return true;
+        }
+        @JavascriptInterface public boolean finishNoteImage(String mime){
+            if(!"image/jpeg".equals(mime)&&!"image/png".equals(mime)&&!"image/webp".equals(mime))return false;
+            final String value;
+            synchronized(this){
+                if(noteImageParts==null||noteImageParts.length()!=expectedNoteImageLength){
+                    noteImageParts=null;return false;
+                }
+                value=noteImageParts.toString();
+                noteImageParts=null;
+            }
+            runOnUiThread(()->showNoteImage(value,mime));
+            return true;
+        }
+
         private StringBuilder notePdfParts;
         private int expectedNotePdfLength;
         @JavascriptInterface public synchronized boolean beginNotePdf(int length) {
@@ -733,17 +763,53 @@ public class MainActivity extends Activity {
                     if (!dir.exists() && !dir.mkdirs()) throw new java.io.IOException("Kan PDF-map niet maken");
                     File pdf = File.createTempFile("notitie-", ".pdf", dir);
                     try (FileOutputStream out = new FileOutputStream(pdf)) { out.write(bytes); }
-                    Uri uri = FileProvider.getUriForFile(MainActivity.this,
-                            getPackageName() + ".notesfiles", pdf);
-                    Intent open = new Intent(Intent.ACTION_VIEW);
-                    open.setDataAndType(uri, "application/pdf");
-                    open.setClipData(ClipData.newRawUri("PDF", uri));
-                    open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    startActivity(Intent.createChooser(open, "PDF bekijken"));
+                    // Rechtstreeks ingebouwde PDF-lezer, geen herhaalde Adobe-keuze.
+                    Intent open = new Intent(MainActivity.this, NotePdfViewerActivity.class);
+                    open.putExtra("path",pdf.getAbsolutePath());
+                    open.putExtra("name",name==null?"Document.pdf":name);
+                    startActivity(open);
                 } catch (Exception ex) {
                     Toast.makeText(MainActivity.this, "PDF openen lukt niet. Controleer of je een PDF-lezer hebt.", Toast.LENGTH_LONG).show();
                 }
         }
+        private void showNoteImage(String base64,String mime){
+            try{
+                if(base64==null||base64.length()>2500000)throw new java.io.IOException("Foto te groot");
+                byte[] bytes=Base64.decode(base64,Base64.DEFAULT);
+                if(bytes.length<6||bytes.length>1900000)throw new java.io.IOException("Foto te groot");
+                boolean jpeg=(bytes[0]&255)==255&&(bytes[1]&255)==216;
+                boolean png=(bytes[0]&255)==137&&(bytes[1]&255)==80&&(bytes[2]&255)==78&&(bytes[3]&255)==71;
+                boolean webp=bytes.length>12&&bytes[0]=='R'&&bytes[1]=='I'&&
+                    bytes[2]=='F'&&bytes[3]=='F'&&bytes[8]=='W'&&bytes[9]=='E';
+                if(!(("image/jpeg".equals(mime)&&jpeg)||("image/png".equals(mime)&&png)||
+                     ("image/webp".equals(mime)&&webp)))
+                    throw new java.io.IOException("Ongeldige foto");
+                File dir=new File(getCacheDir(),"note-files");
+                if(!dir.exists()&&!dir.mkdirs())throw new java.io.IOException("Kan fotomap niet maken");
+                String suffix="image/png".equals(mime)?".png":("image/webp".equals(mime)?".webp":".jpg");
+                File photo=File.createTempFile("notitiefoto-",suffix,dir);
+                try(FileOutputStream out=new FileOutputStream(photo)){out.write(bytes);}
+                Uri uri=FileProvider.getUriForFile(MainActivity.this,
+                    getPackageName()+".notesfiles",photo);
+                Intent view=new Intent(Intent.ACTION_VIEW);
+                view.setDataAndType(uri,mime);
+                view.setClipData(ClipData.newRawUri("Foto",uri));
+                view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                // Samsung: eerst rechtstreeks de Galerij; indien niet beschikbaar
+                // de standaard fotoviewer gebruiken, ZONDER verplichte chooser.
+                try{
+                    Intent samsung=new Intent(view);
+                    samsung.setPackage("com.sec.android.gallery3d");
+                    startActivity(samsung);
+                }catch(android.content.ActivityNotFoundException notFound){
+                    startActivity(view);
+                }
+            }catch(Exception error){
+                Toast.makeText(MainActivity.this,
+                    "Foto openen in Galerij lukte niet. Probeer een fotoviewer.",Toast.LENGTH_LONG).show();
+            }
+        }
+
         private void showWordDocument(String base64,String mime){
             try{
                 if(base64==null||base64.length()>11200000)throw new java.io.IOException("Document te groot");
