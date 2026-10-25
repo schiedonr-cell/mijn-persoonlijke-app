@@ -17,6 +17,9 @@
   let addingQuickFile = false;
   let editingId = null;
   let actionNoteId = null;
+  let editingNotebookId = null;
+  let choosingNotebookCoverId = null;
+  let savingNotebookCover = false;
 
   function uid(prefix='note') {
     return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
@@ -31,7 +34,12 @@
     const d=document.createElement('div'); d.innerHTML=String(html||''); return (d.innerText||d.textContent||'').trim();
   }
   function normalizeFolder(f) {
-    return {id:f?.id||uid('folder'),name:String(f?.name||'Map').trim()||'Map',createdAt:Number(f?.createdAt||Date.now())};
+    // Bewaar een kleine cover in dezelfde bestaande notities-back-up.
+    // Onbekende velden of onveilige URLs nooit in een img-src overnemen.
+    const cover=typeof f?.cover==='string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(f.cover)
+      && f.cover.length<=135000 ? f.cover : '';
+    return {id:f?.id||uid('folder'),name:String(f?.name||'Map').trim()||'Map',
+      cover,createdAt:Number(f?.createdAt||Date.now())};
   }
   const DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const DOC_MIME='application/msword';
@@ -149,6 +157,23 @@
       .notes-book-cover.book-tone-5{background:linear-gradient(135deg,#d6be90,#f3eddc 55%,#d3b788);color:#63523e}
       .notes-book-title{display:block;font-size:17px;font-weight:850;line-height:1.3;overflow-wrap:anywhere}
       .notes-book-count{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+      .notes-book-item{position:relative}
+      .notes-book-more{position:absolute;right:3px;top:3px;width:46px;height:46px;border:0;border-radius:14px;background:rgba(255,255,255,.95);color:#20332a;font-size:27px;font-weight:850;line-height:1;z-index:4;box-shadow:0 2px 9px #0002}
+      .notes-book-cover.has-photo::after{display:none}
+      .notes-book-cover.has-photo .book-art{display:none}
+      .notes-book-cover-image{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
+      .folder-manage-row{grid-template-columns:1fr auto}
+      .folder-manage-row button{min-height:46px}
+      .notes-book-edit-preview{display:flex;align-items:center;gap:14px;margin:14px 0 16px}
+      .notes-book-edit-cover{width:112px;flex:0 0 112px;aspect-ratio:.88;border-radius:8px 13px 13px 8px;background:var(--surface-soft);overflow:hidden;display:grid;place-items:center;border:1px solid var(--line);font-size:15px;font-weight:800;color:var(--accent-strong)}
+      .notes-book-edit-cover img{height:100%;width:100%;object-fit:cover}
+      .notes-book-cover-buttons{display:grid;gap:8px;flex:1}
+      .notes-book-cover-buttons button{min-height:52px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--accent-strong);font-weight:850;padding:9px}
+      .notes-book-cover-buttons button:disabled{opacity:.5}
+      .notes-book-edit-actions{display:grid;gap:9px;margin-top:12px}
+      .notes-book-edit-actions .primary-button{min-height:55px}
+      .notes-book-delete{min-height:50px;border:1px solid #ead7d3;border-radius:14px;background:#fff7f5;color:var(--danger);font-weight:850}
+      .notes-book-edit-note{font-size:12px;line-height:1.5;color:var(--muted)}
       .notes-books-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:6px}
       .notes-books-actions button{min-height:52px;border:1px solid var(--line);background:var(--surface);border-radius:15px;color:var(--accent-strong);font-weight:850}
       .notes-book-bar{display:flex;align-items:center;justify-content:space-between;gap:9px;margin:0 0 15px}
@@ -417,6 +442,30 @@
               <button class="primary-button" id="noteActionEdit">Bewerken</button>
               <button class="secondary-button" id="noteActionPin">Vastzetten</button>
               <button class="note-action-delete" id="noteActionDelete">Verwijderen</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-backdrop" id="noteBookEditModal" role="dialog" aria-modal="true" aria-labelledby="noteBookEditHeading">
+          <div class="sheet">
+            <div class="sheet-head">
+              <div><h3 id="noteBookEditHeading">Notitieboek bewerken</h3>
+                <p class="small-muted" style="margin:5px 0 0;">Naam en voorpagina aanpassen.</p></div>
+              <button type="button" class="close-button" id="closeNoteBookEdit" aria-label="Sluiten">×</button>
+            </div>
+            <label for="noteBookEditName" class="field-label">Naam</label>
+            <input type="text" id="noteBookEditName" class="text-input" maxlength="70" />
+            <div class="notes-book-edit-preview">
+              <div class="notes-book-edit-cover" id="noteBookEditPreview" aria-label="Huidige omslag">Standaard</div>
+              <div class="notes-book-cover-buttons">
+                <button type="button" id="noteBookChooseCover">Foto kiezen</button>
+                <button type="button" id="noteBookResetCover">Standaardomslag</button>
+              </div>
+            </div>
+            <input type="file" id="noteBookCoverInput" accept="image/*" style="display:none" />
+            <p class="notes-book-edit-note">De foto wordt verkleind en meegenomen in je bestaande back-up.</p>
+            <div class="notes-book-edit-actions">
+              <button type="button" class="primary-button" id="noteBookSaveName">Naam bewaren</button>
+              <button type="button" class="notes-book-delete" id="noteBookDelete">Notitieboek verwijderen</button>
             </div>
           </div>
         </div>
