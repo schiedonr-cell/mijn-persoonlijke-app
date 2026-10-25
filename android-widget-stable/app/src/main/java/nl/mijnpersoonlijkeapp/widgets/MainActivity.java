@@ -248,7 +248,12 @@ public class MainActivity extends Activity {
              BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
             char[] b = new char[8192];
             int n;
-            while ((n = r.read(b)) > 0 && out.length() < 2_000_000) out.append(b,0,n);
+            while ((n = r.read(b)) > 0) {
+                // Een back-up kan foto's en kleine PDF's bevatten.
+                // Nooit een afgekapt JSON-bestand proberen terug te zetten.
+                if (out.length() + n > 16_000_000) return "";
+                out.append(b, 0, n);
+            }
         } catch (Exception ignored) {}
         return out.toString();
     }
@@ -359,6 +364,15 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void failImport() {
+        // Het originele bestand niet wissen als slechts een deel is teruggezet.
+        importing = false;
+        Toast.makeText(this,
+                "Herstellen is niet gelukt. Je back-upbestand is bewaard; verwijder geen gegevens.",
+                Toast.LENGTH_LONG).show();
+        showTransferChoice(false);
+    }
+
     private void injectNext(List<String[]> pairs, int i) {
         if (i >= pairs.size()) {
             importFile().delete();
@@ -368,8 +382,40 @@ public class MainActivity extends Activity {
             webView.reload();
             return;
         }
-        String[] p = pairs.get(i);
-        webView.evaluateJavascript("localStorage.setItem(" + JSONObject.quote(p[0]) + "," + JSONObject.quote(p[1]) + ");", v -> injectNext(pairs, i+1));
+        // Android WebView kan grote JavaScript-opdrachten afbreken.
+        // Verstuur back-ups daarom in kleine, gecontroleerde stukken.
+        injectTransferChunk(pairs, i, 0);
+    }
+
+    private void injectTransferChunk(List<String[]> pairs, int i, int offset) {
+        if (!importing || webView == null) return;
+        String[] pair = pairs.get(i);
+        String key = pair[0], value = pair[1];
+        if (offset >= value.length()) {
+            String js =
+                    "(function(){try{var v=window.__mijnDagImportBuffer||'';" +
+                    "localStorage.setItem(" + JSONObject.quote(key) + ",v);" +
+                    "var ok=localStorage.getItem(" + JSONObject.quote(key) + ")===v;" +
+                    "delete window.__mijnDagImportBuffer;return ok;}" +
+                    "catch(e){delete window.__mijnDagImportBuffer;return false;}})();";
+            webView.evaluateJavascript(js, result -> {
+                if ("true".equals(result)) injectNext(pairs, i + 1);
+                else failImport();
+            });
+            return;
+        }
+        final int end = Math.min(offset + 32768, value.length());
+        final String part = JSONObject.quote(value.substring(offset, end));
+        String js =
+                "(function(){try{" +
+                (offset == 0 ? "window.__mijnDagImportBuffer='';" : "") +
+                "window.__mijnDagImportBuffer+=" + part + ";" +
+                "return window.__mijnDagImportBuffer.length===" + end + ";" +
+                "}catch(e){return false;}})();";
+        webView.evaluateJavascript(js, result -> {
+            if ("true".equals(result)) injectTransferChunk(pairs, i, end);
+            else failImport();
+        });
     }
 
     private void ensureCurrentNotesModule() {
