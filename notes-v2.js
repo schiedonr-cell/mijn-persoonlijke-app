@@ -150,11 +150,11 @@
       .notes-book-back{border:0;background:var(--surface-soft);color:var(--accent-strong);font-weight:850;border-radius:14px;min-height:50px;padding:9px 13px}
       .notes-book-add{border:0;background:var(--accent);color:#fff;font-weight:900;min-height:50px;border-radius:14px;padding:9px 17px}
       /* Eén grote plusknop met keuzemenu, zonder direct het notitieformulier te openen. */
-      .note-create-backdrop{position:fixed;inset:0;background:rgba(24,28,25,.35);z-index:9100}
+      .note-create-backdrop{position:fixed;inset:0;background:rgba(24,28,25,.35);z-index:70}
       .note-create-backdrop[hidden],.note-create-menu[hidden]{display:none!important}
-      .note-create-fab{position:fixed;right:max(18px,calc((100vw - 680px)/2 + 18px));bottom:calc(90px + env(safe-area-inset-bottom));width:72px;height:72px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:43px;font-weight:500;line-height:1;box-shadow:0 5px 17px rgba(20,35,25,.27);z-index:9103;cursor:pointer}
+      .note-create-fab{position:fixed;right:max(18px,calc((100vw - 680px)/2 + 18px));bottom:calc(90px + env(safe-area-inset-bottom));width:72px;height:72px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:43px;font-weight:500;line-height:1;box-shadow:0 5px 17px rgba(20,35,25,.27);z-index:72;cursor:pointer}
       .note-create-fab[aria-expanded="true"]{background:#303b32;transform:rotate(45deg)}
-      .note-create-menu{position:fixed;right:max(18px,calc((100vw - 680px)/2 + 18px));bottom:calc(178px + env(safe-area-inset-bottom));width:min(344px,calc(100vw - 36px));max-height:min(440px,60dvh);overflow-y:auto;z-index:9102;border-radius:24px;background:#28302b;color:white;box-shadow:0 15px 40px rgba(0,0,0,.32);padding:20px 17px 17px}
+      .note-create-menu{position:fixed;right:max(18px,calc((100vw - 680px)/2 + 18px));bottom:calc(178px + env(safe-area-inset-bottom));width:min(344px,calc(100vw - 36px));max-height:min(440px,60dvh);overflow-y:auto;z-index:71;border-radius:24px;background:#28302b;color:white;box-shadow:0 15px 40px rgba(0,0,0,.32);padding:20px 17px 17px}
       .note-create-menu h3{font-size:17px;font-weight:850;margin:0 0 18px;color:#fff}
       .note-create-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 8px}
       .note-create-choice{min-width:0;min-height:96px;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0 2px;background:transparent;border:0;color:#fff;font-size:13px;font-weight:650;cursor:pointer}
