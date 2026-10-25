@@ -529,18 +529,23 @@
     if(!books)return;
     // Losse notities krijgen altijd een eigen boek; niets raakt zoek of kwijt.
     const sources=[
-      ...data.folders.map(f=>({id:f.id,name:f.name})),
-      {id:GENERAL,name:'Losse notities'}
+      ...data.folders,
+      {id:GENERAL,name:'Losse notities',cover:''}
     ];
     books.innerHTML=sources.map((book,i)=>{
       const count=data.notes.filter(n=>book.id===GENERAL?!n.folderId:n.folderId===book.id).length;
       const mark=book.id===GENERAL?'N':book.name.trim().slice(0,3).toLocaleUpperCase('nl');
+      const image=book.cover ? `<img class="notes-book-cover-image" src="${esc(book.cover)}" alt="" />` : '';
       return `<div class="notes-book-item">
         <button type="button" class="notes-book-open" data-notebook-open="${esc(book.id)}" aria-label="${esc(book.name)} openen, ${count} notities">
-          <span class="notes-book-cover book-tone-${i%6}"><span class="book-art">${esc(mark)}</span></span>
+          <span class="notes-book-cover book-tone-${i%6}${image?' has-photo':''}">
+            ${image}<span class="book-art">${esc(mark)}</span>
+          </span>
           <span class="notes-book-title">${esc(book.name)}</span>
           <span class="notes-book-count">${count} ${count===1?'notitie':'notities'}</span>
         </button>
+        ${book.id===GENERAL?'':`<button type="button" class="notes-book-more"
+          data-notebook-edit="${esc(book.id)}" aria-label="${esc(book.name)} bewerken">⋯</button>`}
       </div>`;
     }).join('');
     const title=booksHome?'Notitieboeken':(activeFolder===ALL?'Alle notities':(activeFolder===GENERAL?'Losse notities':folderName(activeFolder)));
@@ -1052,10 +1057,9 @@
     list.innerHTML=data.folders.length?data.folders.map(f=>`
       <div class="folder-manage-row">
         <strong>${esc(f.name)}</strong>
-        <button data-folder-rename="${esc(f.id)}">Naam</button>
-        <button class="danger" data-folder-delete="${esc(f.id)}">Wis</button>
+        <button type="button" data-notebook-edit="${esc(f.id)}">Bewerken</button>
       </div>
-    `).join(''):`<div class="empty-state">Je hebt nog geen eigen mappen.</div>`;
+    `).join(''):`<div class="empty-state">Je hebt nog geen eigen notitieboeken.</div>`;
   }
   function createFolder(name) {
     name=String(name||'').trim();
