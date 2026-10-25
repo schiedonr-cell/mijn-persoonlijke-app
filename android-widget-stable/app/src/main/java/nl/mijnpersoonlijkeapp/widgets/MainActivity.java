@@ -57,7 +57,7 @@ public class MainActivity extends Activity {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WebView webView;
-    private String target = "today";
+    private String target = "notes-list";
     private boolean importing = false;
     private String pendingBackupJson = null;
     private ValueCallback<Uri[]> pendingNoteFile;
@@ -78,8 +78,9 @@ public class MainActivity extends Activity {
         NativeAlarmScheduler.clearLegacySnoozesOnce(this);
         NativeAlarmScheduler.rescheduleAll(this);
         readTarget(getIntent());
-        if (acceptSharedTransfer(getIntent()) || imported() || importFile().exists()) openApp();
-        else showTransferChoice(true);
+        // Losse notities-proefapp: nooit bestaande productiedata importeren of overschrijven.
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(IMPORT_DONE, true).apply();
+        openApp();
     }
 
     @Override protected void onNewIntent(Intent intent) {
