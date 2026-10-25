@@ -317,7 +317,12 @@ public class MainActivity extends Activity {
                         if(types.isEmpty())types.add("application/pdf");
                         Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                         pick.addCategory(Intent.CATEGORY_OPENABLE);
-                        pick.setType(types.size()==1?types.get(0):"*/*");
+                        // Google Drive kan een echte JPG/PNG als application/octet-stream
+                        // of met een leeg MIME-type aanbieden. Met image/* verdwijnt die
+                        // foto dan uit de kiezer. Alleen bij FOTO kiezen alle bestanden
+                        // laten zien; de webapp controleert de daadwerkelijke afbeeldingsbytes.
+                        boolean onlyPhoto=types.size()==1 && "image/*".equals(types.get(0));
+                        pick.setType(onlyPhoto?"*/*":(types.size()==1?types.get(0):"*/*"));
                         if(types.size()>1)pick.putExtra(Intent.EXTRA_MIME_TYPES,types.toArray(new String[0]));
                         startActivityForResult(pick, NOTE_FILE_CHOOSER);
                     }
@@ -461,7 +466,7 @@ public class MainActivity extends Activity {
             "if(window.__mijnDagNotesV2Loaded){try{window.MijnDagNotes&&window.MijnDagNotes.refresh&&window.MijnDagNotes.refresh();}catch(_){ }return;}" +
             "var old=document.getElementById('mijnDagNotesV2Script');if(old)old.remove();" +
             "var sc=document.createElement('script');sc.id='mijnDagNotesV2Script';" +
-            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=58';" +
+            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=59';" +
             "sc.async=false;document.head.appendChild(sc);" +
             "})();";
         try { webView.evaluateJavascript(js, null); } catch (Exception ignored) {}
