@@ -17,35 +17,55 @@
     <button class="button secondary" id="download" type="button">Alleen bestand downloaden</button>
     <div class="status" id="status"></div>
   </main>
+  <script src="./note-blob-storage.js"></script>
   <script>
   (()=>{
     const status=document.getElementById('status'),share=document.getElementById('share'),download=document.getElementById('download');
-    function payload(){
+    async function payload(){
       const entries={};
       const keep=['mijnPersoonlijkeAppV1','mijnPersoonlijkeAppRemindersV1','mijnPersoonlijkeAppCalendarEventsV1','mijnPersoonlijkeAppNotesV1'];
       for(const key of keep){
         const value=localStorage.getItem(key);
         if(value!=null) entries[key]=value;
       }
-      return {version:2,exportedAt:Date.now(),entries};
+      const notes=JSON.parse(entries.mijnPersoonlijkeAppNotesV1||'{"notes":[]}').notes||[];
+      if(notes.some(n=>(n.files||[]).some(f=>f.storage==='indexeddb'))){
+        if(!window.MijnDagNoteBlobStorage)throw new Error('Bijlagenopslag niet beschikbaar.');
+        entries.mijnPersoonlijkeAppNoteBlobsV1=await window.MijnDagNoteBlobStorage.exportPayload(notes);
+      }
+      return {version:3,exportedAt:Date.now(),entries};
     }
-    function text(){return JSON.stringify(payload());}
-    function file(){return new File([text()],'mijn-persoonlijke-app-overdracht.json',{type:'application/json'});}
+    async function text(){
+      const data=JSON.stringify(await payload());
+      if(data.length>15500000)throw new Error('Back-up te groot (maximaal circa 15 MB).');
+      return data;
+    }
     function hasData(){try{return Boolean(localStorage.getItem('mijnPersoonlijkeAppV1'));}catch{return false;}}
-    function saveFile(){const f=file(),a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);status.textContent='Bestand gedownload. Ga terug naar Mijn dag en kies “Overdrachtsbestand kiezen”.';}
-    share.addEventListener('click',async()=>{
+    function saveFile(data){
+      const f=new File([data],'mijn-persoonlijke-app-overdracht.json',{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;
+      document.body.appendChild(a);a.click();
+      setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+      status.textContent='Bestand gedownload. Ga terug naar Mijn dag en kies “Overdrachtsbestand kiezen”.';
+    }
+    async function exportToDevice(preferShare){
       if(!hasData()){status.textContent='Ik zie hier geen bestaande appgegevens.';return;}
-      const data=text();
+      share.disabled=true;download.disabled=true;status.textContent='Gegevens en bestanden verzamelen…';
       try{
-        if(navigator.share){
-          await navigator.share({title:'Mijn app gegevens',text:data});
-          status.innerHTML='<span class="ok">Kies “Mijn dag” in het deelmenu.</span>';
-          return;
+        const data=await text();
+        if(preferShare && data.length<300000 && navigator.share){
+          try{
+            await navigator.share({title:'Mijn app gegevens',text:data});
+            status.innerHTML='<span class="ok">Kies “Mijn dag” in het deelmenu.</span>';
+            return;
+          }catch(e){if(e?.name==='AbortError')return;}
         }
-      }catch(e){if(e?.name==='AbortError')return;}
-      saveFile();
-    });
-    download.addEventListener('click',saveFile);
+        saveFile(data);
+      }catch(e){status.textContent='Overdracht niet gemaakt: '+(e?.message||'Onbekende fout');}
+      finally{share.disabled=false;download.disabled=false;}
+    }
+    share.addEventListener('click',()=>exportToDevice(true));
+    download.addEventListener('click',()=>exportToDevice(false));
     if(hasData())status.textContent='Je bestaande appgegevens zijn gevonden.';else{status.textContent='Nog geen appgegevens gevonden op deze plek.';share.disabled=true;}
   })();
   </script>
