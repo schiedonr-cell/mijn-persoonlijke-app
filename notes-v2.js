@@ -501,6 +501,13 @@
     if(contents)contents.hidden=booksHome;
   }
 
+  function standaloneAttachment(note){
+    if(!note || !Array.isArray(note.files) || note.files.length!==1)return null;
+    const text=String(note.plainText||'').trim()||stripHtml(note.html||'').trim();
+    if(text)return null;
+    const file=note.files[0];
+    return file && (isDocumentMime(file.mime)||file.mime?.startsWith('image/'))?file:null;
+  }
   function noteCover(note){
     const files=note.files||[];
     const photo=files.find(f=>f.mime?.startsWith('image/') && /^data:image\//.test(f.src||''));
@@ -772,8 +779,8 @@
     if(input){input.value='';input.click();}
   }
 
-  async function openNoteFile(id){
-    const note=data.notes.find(n=>n.id===editingId),file=note?.files?.find(f=>f.id===id);
+  async function openNoteFile(id,noteId=editingId){
+    const note=data.notes.find(n=>n.id===noteId),file=note?.files?.find(f=>f.id===id);
     if(!file)return;
     if(isDocumentMime(file.mime)){
       try{
@@ -1040,7 +1047,14 @@
     if(e.target.closest('#noteActionDelete')){if(actionNoteId)deleteNote(actionNoteId);return;}
 
     const open=e.target.closest('[data-rich-note-open]');
-    if(open){openEditor(open.dataset.richNoteOpen);return;}
+    if(open){
+      const note=data.notes.find(n=>n.id===open.dataset.richNoteOpen);
+      if(!note)return;
+      const attachment=standaloneAttachment(note);
+      if(attachment){void openNoteFile(attachment.id,note.id);}
+      else openEditor(note.id);
+      return;
+    }
     const pin=e.target.closest('[data-rich-note-pin]');
     if(pin){const n=data.notes.find(x=>x.id===pin.dataset.richNotePin);if(n){const prev=n.pinned;n.pinned=!n.pinned;n.updatedAt=Date.now();if(!saveData()){n.pinned=prev;toast('Niet opgeslagen. Probeer opnieuw.');return;}renderNotes();}return;}
 
