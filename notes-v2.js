@@ -10,6 +10,7 @@
 
   let data = loadData();
   let activeFolder = ALL;
+  let booksHome = true;
   let searchQuery = '';
   let editingId = null;
   let actionNoteId = null;
@@ -122,11 +123,51 @@
       .notes-search input{width:100%;min-width:0;min-height:52px;border:1px solid var(--line);border-radius:15px;padding:10px 13px;background:#fff;color:var(--text);font-size:16px}
       .notes-search input:focus{outline:2px solid var(--accent);outline-offset:1px}
       .notes-search button{min-height:48px;border:0;border-radius:13px;padding:8px 13px;background:var(--surface-soft);color:var(--accent-strong);font-weight:850}
-      .notes-grid{display:grid;gap:10px}
-      .note-v2-card{border:1px solid var(--line);border-radius:19px;background:#fff;padding:13px;box-shadow:0 4px 14px rgba(34,42,34,.04)}
-      .note-v2-card.pinned{border-color:rgba(69,98,77,.34);background:linear-gradient(180deg,#fff,#fbfcf8)}
-      .note-v2-top{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start}
-      .note-v2-open{border:0;background:transparent;color:var(--text);padding:0;text-align:left;min-width:0;cursor:pointer}
+      /* Nieuw eerste scherm: echte notitieboeken, geen extra navigatiemenu's. */
+      .notes-books-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:3px 0 17px}
+      .notes-books-top strong{font-size:16px}
+      .notes-books-top button{min-height:45px;border:1px solid var(--line);background:var(--surface);border-radius:13px;padding:8px 13px;font-weight:800;color:var(--accent-strong)}
+      .notes-books-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 17px;padding:4px 0 20px}
+      .notes-book-item{min-width:0}
+      .notes-book-open{width:100%;min-width:0;border:0;background:transparent;color:var(--text);padding:0;text-align:center;cursor:pointer}
+      .notes-book-cover{position:relative;display:flex;align-items:center;justify-content:center;aspect-ratio:0.88;overflow:hidden;margin:0 7px 11px;border-radius:8px 16px 16px 8px;background:#e6dac3;box-shadow:4px 5px 13px rgba(29,32,29,.17),inset 5px 0 0 rgba(0,0,0,.12)}
+      .notes-book-cover::before{content:'';position:absolute;inset:0 auto 0 9px;width:2px;background:rgba(27,33,27,.13);z-index:2}
+      .notes-book-cover::after{content:'';position:absolute;inset:13px;border:1px solid rgba(46,54,46,.18);border-radius:5px 11px 11px 4px}
+      .notes-book-cover .book-art{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:60%;aspect-ratio:1;border:2px solid currentColor;border-radius:50%;font-size:clamp(21px,5vw,33px);font-weight:900;letter-spacing:.04em;opacity:.83}
+      .notes-book-cover.book-tone-0{background:repeating-linear-gradient(0deg,#f3e4c8 0 18px,#d4bda0 19px,#f3e4c8 20px);color:#5b4234}
+      .notes-book-cover.book-tone-1{background:repeating-linear-gradient(45deg,#1e3940 0 17px,#456168 17px 19px,#1e3940 19px 35px);color:#faf4e9}
+      .notes-book-cover.book-tone-2{background:radial-gradient(circle at 24% 22%,#d3dec7 0 9%,transparent 9.5%),radial-gradient(circle at 68% 72%,#d3dec7 0 13%,transparent 13.5%),#729276;color:#153f2f}
+      .notes-book-cover.book-tone-3{background:repeating-linear-gradient(0deg,#f5e7d2 0 25px,#b7c8c0 26px,#f5e7d2 27px);color:#845f66}
+      .notes-book-cover.book-tone-4{background:repeating-linear-gradient(90deg,#51425c 0 22px,#796b89 24px,#51425c 26px);color:#faf0ef}
+      .notes-book-cover.book-tone-5{background:linear-gradient(135deg,#d6be90,#f3eddc 55%,#d3b788);color:#63523e}
+      .notes-book-title{display:block;font-size:17px;font-weight:850;line-height:1.3;overflow-wrap:anywhere}
+      .notes-book-count{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+      .notes-books-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:6px}
+      .notes-books-actions button{min-height:52px;border:1px solid var(--line);background:var(--surface);border-radius:15px;color:var(--accent-strong);font-weight:850}
+      .notes-book-bar{display:flex;align-items:center;justify-content:space-between;gap:9px;margin:0 0 15px}
+      .notes-book-back{border:0;background:var(--surface-soft);color:var(--accent-strong);font-weight:850;border-radius:14px;min-height:50px;padding:9px 13px}
+      .notes-book-add{border:0;background:var(--accent);color:#fff;font-weight:900;min-height:50px;border-radius:14px;padding:9px 17px}
+      .notes-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
+      @media(min-width:640px){.notes-books-grid{grid-template-columns:repeat(3,minmax(0,1fr));}.notes-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+      #notesBooksHome[hidden],#notesBookContents[hidden]{display:none!important}
+      .note-v2-card{position:relative;min-width:0;border:0;border-radius:11px;background:transparent;padding:0;box-shadow:none}
+      .note-v2-card.pinned .note-v2-cover{box-shadow:0 0 0 2px var(--accent)}
+      .note-v2-cover{height:auto;aspect-ratio:1;overflow:hidden;border-radius:9px;background:#f7edbc;box-shadow:0 2px 7px rgba(26,30,26,.13);position:relative;text-align:left}
+      .note-v2-cover.note-cover-pdf{background:#c8442c;color:#fff;display:flex;flex-direction:column;justify-content:space-between;padding:13px}
+      .note-v2-cover.note-cover-pdf strong{font-size:16px;overflow-wrap:anywhere;line-height:1.3;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+      .note-pdf-mark{font-size:38px;font-weight:950;align-self:center;line-height:1.1;margin:auto}
+      .note-v2-cover.note-cover-photo img{display:block;width:100%;height:100%;object-fit:cover}
+      .note-v2-cover.note-cover-text{background:#faedac;padding:13px 11px;overflow:hidden}
+      .note-cover-text-title{font-size:15px;font-weight:850;line-height:1.25;max-height:60px;overflow:hidden;word-break:break-word}
+      .note-cover-text-body{margin-top:10px;color:#3d402f;font-size:13px;line-height:1.4;max-height:130px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
+      .note-v2-caption{padding:8px 2px 0;display:flex;justify-content:space-between;gap:3px;align-items:flex-start}
+      .note-v2-caption .note-v2-title{font-size:14px;line-height:1.3;margin:0;flex:1;min-width:0;max-height:40px;overflow:hidden;overflow-wrap:anywhere}
+      .note-v2-stamp{position:absolute;right:8px;top:8px;background:#fff;border-radius:50%;padding:4px 6px;font-size:11px;box-shadow:0 1px 5px #0002}
+      .note-v2-card .note-v2-more{width:39px;height:39px;flex:0 0 39px;border-radius:50%;background:#e7e9e2}
+      .note-v2-card .note-v2-pin{width:34px;height:34px;flex:0 0 34px;font-size:16px;border-radius:11px}
+      .notes-v2-shell{max-width:680px;margin:0 auto}
+      .note-v2-top{display:block}
+      .note-v2-open{border:0;background:transparent;color:var(--text);padding:0;text-align:left;min-width:0;width:100%;cursor:pointer}
       .note-v2-title{font-size:16px;font-weight:900;line-height:1.3;margin-bottom:5px}
       .note-v2-preview{font-size:14px;line-height:1.5;color:var(--text);max-height:96px;overflow:hidden;word-break:break-word}
       .note-v2-preview ul,.note-v2-preview ol{padding-left:21px;margin:4px 0}
@@ -140,7 +181,7 @@
       .note-action-delete{grid-column:1/-1;border:1px solid #ead7d3;background:#fff7f5;color:var(--danger)}
       .note-action-title{overflow-wrap:anywhere}
 
-      .note-v2-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:9px}
+      .note-v2-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:5px}
       .note-folder-badge{background:var(--accent-soft);color:var(--accent-strong);border-radius:999px;padding:5px 8px;font-weight:800}
       .note-editor-sheet{max-height:92vh;overflow:auto}
       .note-editor-title{font-size:19px;font-weight:850}
@@ -209,24 +250,37 @@
       <div class="notes-v2-shell">
         <header class="screen-header">
           <button class="back-button" data-back aria-label="Terug naar startscherm">←</button>
-          <div class="screen-title-wrap"><h2>Notities</h2><p>Mappen, lijstjes en korte notities op één plek.</p></div>
+          <div class="screen-title-wrap">
+            <h2 id="notesScreenTitle">Notitieboeken</h2>
+            <p id="notesScreenCaption">Je notities, foto's en documenten bij elkaar.</p>
+          </div>
         </header>
 
-        <div class="section-card">
-          <div class="notes-actions">
-            <button class="primary-button" id="newRichNoteButton">+ Nieuwe notitie</button>
-            <button class="secondary-button" id="openFoldersButton" style="width:auto;padding:0 16px;">Mappen</button>
+        <div id="notesBooksHome">
+          <div class="notes-books-top">
+            <strong>Mijn notitieboeken</strong>
+            <button type="button" id="notesBooksSearchButton">Zoeken</button>
           </div>
-          <div class="notes-search">
-             <input type="search" id="notesSearchInput" aria-label="Notities zoeken" placeholder="Zoek in je notities…" autocomplete="off" />
-             <button type="button" id="notesSearchClear" hidden>Wissen</button>
-           </div>
-           <div class="notes-folder-strip" id="notesFolderStrip"></div>
-          <div class="notes-folder-tools"><span id="notesFolderSummary"></span><button id="quickNewFolderButton">+ Nieuwe map</button></div>
+          <div class="notes-books-grid" id="notesBooksGrid"></div>
+          <div class="notes-books-actions">
+            <button type="button" id="quickNewFolderButton">+ Notitieboek</button>
+            <button type="button" id="openFoldersButton">Beheren</button>
+          </div>
         </div>
 
-        <div class="section-card">
-          <div class="section-heading"><div><h3 id="notesListTitle">Alle notities</h3><span class="small-muted">Vastgezette notities eerst</span></div><span class="small-muted" id="noteV2Counter">0</span></div>
+        <div id="notesBookContents" hidden>
+          <div class="notes-book-bar">
+            <button type="button" class="notes-book-back" id="notesBackToBooks">← Notitieboeken</button>
+            <button type="button" class="notes-book-add" id="newRichNoteButton">+ Nieuw</button>
+          </div>
+          <div class="notes-search">
+            <input type="search" id="notesSearchInput" aria-label="Notities zoeken" placeholder="Zoek in notities…" autocomplete="off" />
+            <button type="button" id="notesSearchClear" hidden>Wissen</button>
+          </div>
+          <div class="section-heading">
+            <div><h3 id="notesListTitle">Inhoud</h3><span class="small-muted">Tik op een tegel om te openen</span></div>
+            <span class="small-muted" id="noteV2Counter">0</span>
+          </div>
           <div class="notes-grid" id="noteV2List"></div>
         </div>
       </div>
