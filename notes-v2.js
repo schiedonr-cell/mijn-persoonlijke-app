@@ -16,6 +16,7 @@
   let quickPickerType = null;
   let addingQuickFile = false;
   let editingId = null;
+  let readingNoteId = null;
   let actionNoteId = null;
   let editingNotebookId = null;
   let choosingNotebookCoverId = null;
@@ -235,6 +236,28 @@
 
       .note-v2-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:5px}
       .note-folder-badge{background:var(--accent-soft);color:var(--accent-strong);border-radius:999px;padding:5px 8px;font-weight:800}
+      /* Alleen-lezen: een rustige notitiepagina, niet meteen de editor. */
+      #noteReaderModal{padding:0;align-items:stretch;background:var(--surface);z-index:102}
+      #noteReaderModal .note-reader-sheet{width:100%;max-width:680px;max-height:100dvh;height:100dvh;border-radius:0;padding:0;display:flex;flex-direction:column;overflow:hidden;box-shadow:none;background:var(--surface)}
+      .note-reader-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;border-bottom:1px solid var(--line)}
+      .note-reader-top button{min-height:50px;border:0;border-radius:14px;padding:9px 14px;font-weight:850;font-size:15px;cursor:pointer}
+      .note-reader-back{background:var(--surface-soft);color:var(--accent-strong)}
+      .note-reader-edit{background:var(--accent);color:#fff}
+      .note-reader-scroll{overflow-y:auto;flex:1;overscroll-behavior:contain;padding:26px 21px calc(28px + env(safe-area-inset-bottom))}
+      .note-reader-heading{font-size:clamp(23px,6vw,30px);line-height:1.22;overflow-wrap:anywhere;margin:0 0 10px;color:var(--text)}
+      .note-reader-meta{font-size:13px;color:var(--muted);margin-bottom:25px}
+      .note-reader-content{font-size:17px;line-height:1.72;color:var(--text);overflow-wrap:anywhere}
+      .note-reader-content:empty{display:none}
+      .note-reader-content p,.note-reader-content div{margin:0 0 13px}
+      .note-reader-content h3{font-size:21px;line-height:1.35;margin:20px 0 10px}
+      .note-reader-content ul,.note-reader-content ol{padding-left:25px;margin:10px 0 18px}
+      .note-reader-content li{margin:5px 0}
+      .note-reader-files{display:grid;gap:11px;margin-top:20px}
+      .note-reader-files:empty{display:none}
+      .note-reader-file{display:flex;align-items:center;gap:12px;min-height:72px;padding:10px;border:1px solid var(--line);border-radius:16px;background:var(--surface-soft);color:var(--text);font-weight:800;text-align:left;overflow-wrap:anywhere;font-size:15px}
+      .note-reader-file-thumb{display:flex;align-items:center;justify-content:center;width:58px;height:58px;flex:none;overflow:hidden;border-radius:10px;background:#b9422d;color:#fff;font-size:13px;font-weight:900}
+      .note-reader-file-thumb img{width:100%;height:100%;object-fit:cover}
+      .note-reader-file-thumb.word{background:#315d9a}
       .note-editor-sheet{max-height:92vh;overflow:auto}
       .note-editor-title{font-size:19px;font-weight:850}
       .note-rich-toolbar{display:flex;gap:7px;overflow-x:auto;padding:8px 0 10px;scrollbar-width:none}
@@ -368,6 +391,20 @@
 
     if(!document.getElementById('noteEditorModal')){
       document.body.insertAdjacentHTML('beforeend',`
+        <div class="modal-backdrop" id="noteReaderModal" role="dialog" aria-modal="true" aria-labelledby="noteReaderTitle">
+          <div class="sheet note-reader-sheet">
+            <div class="note-reader-top">
+              <button type="button" class="note-reader-back" id="closeNoteReader">← Terug</button>
+              <button type="button" class="note-reader-edit" id="editNoteReader">Bewerken</button>
+            </div>
+            <div class="note-reader-scroll" id="noteReaderScroll">
+              <h2 class="note-reader-heading" id="noteReaderTitle">Notitie</h2>
+              <div class="note-reader-meta" id="noteReaderMeta"></div>
+              <article class="note-reader-content" id="noteReaderContent"></article>
+              <div class="note-reader-files" id="noteReaderFiles"></div>
+            </div>
+          </div>
+        </div>
         <div class="modal-backdrop" id="noteEditorModal" role="dialog" aria-modal="true" aria-labelledby="noteEditorHeading">
           <div class="sheet note-editor-sheet">
             <div class="sheet-head">
@@ -955,6 +992,64 @@
       window.MijnDagNoteBlobStorage?.remove(id).catch(()=>{});
     }
   }
+  // Geen HTML uitvoeren uit opgeslagen notities: alleen basale opmaak lezen.
+  function safeReaderHtml(html,plainText){
+    const template=document.createElement('template');
+    template.innerHTML=String(html||'');
+    const allowed=new Set(['P','DIV','BR','H3','B','STRONG','I','EM','U','S','STRIKE',
+      'UL','OL','LI','BLOCKQUOTE','SPAN','FONT']);
+    const blocked=new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH',
+      'FORM','TEMPLATE','NOSCRIPT','VIDEO','AUDIO','LINK','META']);
+    function safeNode(node){
+      if(node.nodeType===3)return esc(node.textContent||'');
+      if(node.nodeType!==1)return '';
+      const tag=node.tagName.toUpperCase();
+      if(blocked.has(tag))return '';
+      const body=Array.from(node.childNodes).map(safeNode).join('');
+      if(!allowed.has(tag))return body;
+      if(tag==='BR')return '<br>';
+      // execCommand(foreColor) maakt soms FONT, kleur uitsluitend als hex.
+      if(tag==='FONT'||tag==='SPAN'){
+        const attrColor=tag==='FONT' ? node.getAttribute('color') : '';
+        const styleColor=tag==='SPAN' ? (node.style?.color||'') : '';
+        const color=attrColor||styleColor;
+        const valid=/^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(color) ? color : '';
+        return valid ? '<span style="color:'+valid+'">'+body+'</span>' : body;
+      }
+      const canonical=tag==='STRIKE'?'s':tag.toLowerCase();
+      return '<'+canonical+'>'+body+'</'+canonical+'>';
+    }
+    const markup=Array.from(template.content.childNodes).map(safeNode).join('');
+    return markup.trim() || (plainText ? '<p>'+esc(plainText).replace(/\n/g,'<br>')+'</p>' : '');
+  }
+  function openReader(id){
+    const note=data.notes.find(n=>n.id===id);if(!note)return;
+    readingNoteId=note.id;
+    document.getElementById('noteReaderTitle').textContent=noteTitle(note);
+    document.getElementById('noteReaderMeta').textContent=folderName(note.folderId);
+    document.getElementById('noteReaderContent').innerHTML=safeReaderHtml(note.html,note.plainText);
+    document.getElementById('noteReaderFiles').innerHTML=(note.files||[]).map(file=>{
+      const photo=file.mime?.startsWith('image/') && /^data:image\//.test(file.src||'');
+      const word=isWordMime(file.mime);
+      const icon=photo?'<img src="'+esc(file.src)+'" alt="" />':
+        (word?(file.mime===DOCX_MIME?'DOCX':'DOC'):'PDF');
+      return '<button type="button" class="note-reader-file" data-note-reader-file="'+esc(file.id)+'">'+
+        '<span class="note-reader-file-thumb'+(word?' word':'')+'">'+icon+'</span>'+
+        '<span>'+esc(file.name||'Bijlage')+'</span></button>';
+    }).join('');
+    const scroll=document.getElementById('noteReaderScroll');if(scroll)scroll.scrollTop=0;
+    document.getElementById('noteReaderModal').classList.add('open');
+  }
+  function closeReader(){
+    readingNoteId=null;
+    document.getElementById('noteReaderModal')?.classList.remove('open');
+  }
+  function editReaderNote(){
+    const id=readingNoteId;
+    closeReader();
+    if(id)openEditor(id);
+  }
+
   function openEditor(id=null,options={}) {
     replaceNotesView();
     editingId=id;
@@ -1035,6 +1130,7 @@
       }
     }
     if(editingId===id)closeEditor();
+    if(readingNoteId===id)closeReader();
     if(actionNoteId===id)closeNoteAction();
     renderNotes();
     toast('Notitie definitief verwijderd.');
@@ -1281,6 +1377,13 @@
       }
       return;
     }
+    if(e.target.closest('#closeNoteReader')){closeReader();return;}
+    if(e.target.closest('#editNoteReader')){editReaderNote();return;}
+    const readerFile=e.target.closest('[data-note-reader-file]');
+    if(readerFile&&readingNoteId){
+      void openNoteFile(readerFile.dataset.noteReaderFile,readingNoteId);
+      return;
+    }
     if(e.target.closest('#closeNoteEditor')){closeEditor();return;}
     if(e.target.closest('#saveRichNoteButton')){saveEditor();return;}
     if(e.target.closest('#noteAddFileButton')){document.getElementById('noteFileInput')?.click();return;}
@@ -1320,7 +1423,7 @@
       if(!note)return;
       const attachment=standaloneAttachment(note);
       if(attachment){void openNoteFile(attachment.id,note.id);}
-      else openEditor(note.id);
+      else openReader(note.id);
       return;
     }
     const pin=e.target.closest('[data-rich-note-pin]');
@@ -1346,6 +1449,7 @@
     if(e.key==='Escape' && document.getElementById('noteCreateFab')?.getAttribute('aria-expanded')==='true'){
       toggleCreateMenu(false);return;
     }
+    if(e.key==='Escape' && readingNoteId){closeReader();return;}
     if(e.key==='Escape' && editingNotebookId){closeNotebookEdit();return;}
     if(e.key==='Escape' && actionNoteId){closeNoteAction();return;}
     if(e.target?.id==='newFolderName'&&e.key==='Enter'){e.preventDefault();document.getElementById('createFolderButton')?.click();}

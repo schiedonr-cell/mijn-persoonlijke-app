@@ -1,5 +1,5 @@
-const CACHE_NAME='mijn-persoonlijke-app-notitieboek-omslagen-v60-20261025';
-const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js','./notes.js','./recipes-extra-1.js','./recipes-extra-2.js','./recipes-extra-3.js','./recipes-extra-4.js','./note-blob-storage.js','./note-pdf-previews.js?v=2','./notes-v2.js?v=60'];
+const CACHE_NAME='mijn-persoonlijke-app-notities-lezen-v61-20261026';
+const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./calendar.js','./notes.js','./recipes-extra-1.js','./recipes-extra-2.js','./recipes-extra-3.js','./recipes-extra-4.js','./note-blob-storage.js','./note-pdf-previews.js?v=2','./notes-v2.js?v=61'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)));
