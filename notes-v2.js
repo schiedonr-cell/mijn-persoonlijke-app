@@ -390,54 +390,104 @@
       filePanel.style.display='none';
   }
 
-  function renderFolderStrip() {
-    const strip=document.getElementById('notesFolderStrip');
-    if(!strip) return;
-    const count=id => id===ALL ? data.notes.length : data.notes.filter(n=>(id===GENERAL?!n.folderId:n.folderId===id)).length;
-    const chips=[
-      {id:ALL,name:'Alles'},
-      {id:GENERAL,name:'Algemeen'},
-      ...data.folders.map(f=>({id:f.id,name:f.name}))
+  function openNotebook(id){
+    // Gebruik de bestaande map-ID's: geen migratie of duplicatie van gegevens.
+    if(id!==ALL && id!==GENERAL && !data.folders.some(f=>f.id===id))return;
+    activeFolder=id;
+    booksHome=false;
+    searchQuery='';
+    const input=document.getElementById('notesSearchInput');
+    if(input)input.value='';
+    renderNotes();
+  }
+  function backToNotebooks(){
+    booksHome=true;
+    activeFolder=ALL;
+    searchQuery='';
+    const input=document.getElementById('notesSearchInput');
+    if(input)input.value='';
+    renderNotes();
+  }
+  function renderFolderStrip(){
+    const books=document.getElementById('notesBooksGrid');
+    if(!books)return;
+    // Losse notities krijgen altijd een eigen boek; niets raakt zoek of kwijt.
+    const sources=[
+      ...data.folders.map(f=>({id:f.id,name:f.name})),
+      {id:GENERAL,name:'Losse notities'}
     ];
-    strip.innerHTML=chips.map(f=>`<button class="notes-folder-chip ${activeFolder===f.id?'active':''}" data-note-folder-filter="${esc(f.id)}">${esc(f.name)} · ${count(f.id)}</button>`).join('');
-    const title=document.getElementById('notesListTitle');
-    if(title) title.textContent=activeFolder===ALL?'Alle notities':(activeFolder===GENERAL?'Algemeen':folderName(activeFolder));
-    const summary=document.getElementById('notesFolderSummary');
-    if(summary) summary.textContent=data.folders.length ? data.folders.length+' eigen '+(data.folders.length===1?'map':'mappen') : 'Nog geen eigen mappen';
+    books.innerHTML=sources.map((book,i)=>{
+      const count=data.notes.filter(n=>book.id===GENERAL?!n.folderId:n.folderId===book.id).length;
+      const mark=book.id===GENERAL?'N':book.name.trim().slice(0,3).toLocaleUpperCase('nl');
+      return `<div class="notes-book-item">
+        <button type="button" class="notes-book-open" data-notebook-open="${esc(book.id)}" aria-label="${esc(book.name)} openen, ${count} notities">
+          <span class="notes-book-cover book-tone-${i%6}"><span class="book-art">${esc(mark)}</span></span>
+          <span class="notes-book-title">${esc(book.name)}</span>
+          <span class="notes-book-count">${count} ${count===1?'notitie':'notities'}</span>
+        </button>
+      </div>`;
+    }).join('');
+    const title=booksHome?'Notitieboeken':(activeFolder===ALL?'Alle notities':(activeFolder===GENERAL?'Losse notities':folderName(activeFolder)));
+    const screenTitle=document.getElementById('notesScreenTitle');
+    if(screenTitle)screenTitle.textContent=title;
+    const caption=document.getElementById('notesScreenCaption');
+    if(caption)caption.textContent=booksHome?'Kies een boek om je notities te bekijken.':'Foto\'s, PDF\'s, lijstjes en tekst bij elkaar.';
+    const listTitle=document.getElementById('notesListTitle');
+    if(listTitle)listTitle.textContent=title;
+    const home=document.getElementById('notesBooksHome');
+    const contents=document.getElementById('notesBookContents');
+    if(home)home.hidden=!booksHome;
+    if(contents)contents.hidden=booksHome;
   }
 
+  function noteCover(note){
+    const files=note.files||[];
+    const photo=files.find(f=>f.mime?.startsWith('image/') && /^data:image\//.test(f.src||''));
+    if(photo)return `<div class="note-v2-cover note-cover-photo">
+      <img src="${esc(photo.src)}" alt="Foto bij ${esc(noteTitle(note))}" loading="lazy" />
+    </div>`;
+    const pdf=files.find(f=>f.mime==='application/pdf');
+    if(pdf)return `<div class="note-v2-cover note-cover-pdf">
+      <strong>${esc(pdf.name)}</strong><span class="note-pdf-mark">PDF</span>
+    </div>`;
+    return `<div class="note-v2-cover note-cover-text">
+      <div class="note-cover-text-title">${esc(noteTitle(note))}</div>
+      <div class="note-cover-text-body">${esc(note.plainText || stripHtml(note.html||''))}</div>
+    </div>`;
+  }
   function renderNotes() {
     replaceNotesView();
     renderFolderStrip();
     const list=document.getElementById('noteV2List');
     const counter=document.getElementById('noteV2Counter');
-    if(!list) return;
+    if(!list || booksHome)return;
     let notes=data.notes.slice();
-    if(activeFolder===GENERAL) notes=notes.filter(n=>!n.folderId);
-    else if(activeFolder!==ALL) notes=notes.filter(n=>n.folderId===activeFolder);
+    if(activeFolder===GENERAL)notes=notes.filter(n=>!n.folderId);
+    else if(activeFolder!==ALL)notes=notes.filter(n=>n.folderId===activeFolder);
     const needle=searchQuery.trim().toLocaleLowerCase('nl');
     if(needle)notes=notes.filter(n=>[
       n.title,n.plainText,folderName(n.folderId),...(n.files||[]).map(f=>f.name)
     ].some(v=>String(v||'').toLocaleLowerCase('nl').includes(needle)));
     notes.sort((a,b)=>(Number(b.pinned)-Number(a.pinned)) || (b.updatedAt-a.updatedAt));
-    if(counter) counter.textContent=String(notes.length);
+    if(counter)counter.textContent=String(notes.length);
     const clear=document.getElementById('notesSearchClear');
     if(clear)clear.hidden=!searchQuery;
     list.innerHTML=notes.length?notes.map(n=>`
-      <div class="note-v2-card ${n.pinned?'pinned':''}">
-        <div class="note-v2-top">
-          <button class="note-v2-open" data-rich-note-open="${esc(n.id)}">
-            <div class="note-v2-title">${esc(noteTitle(n))}</div>
-            <div class="note-v2-preview">${n.html||plainToHtml(n.plainText)}</div>
-          </button>
-          <div class="note-v2-tools">
-            <button class="note-v2-pin" data-rich-note-pin="${esc(n.id)}" aria-label="${n.pinned?'Losmaken':'Vastzetten'}">${n.pinned?'📌':'○'}</button>
-            <button class="note-v2-more" data-rich-note-action="${esc(n.id)}" aria-label="Acties voor ${esc(noteTitle(n))}">⋯</button>
-          </div>
+      <article class="note-v2-card ${n.pinned?'pinned':''}">
+        <button type="button" class="note-v2-open" data-rich-note-open="${esc(n.id)}">
+          ${noteCover(n)}
+        </button>
+        <div class="note-v2-caption">
+          <div class="note-v2-title">${esc(noteTitle(n))}</div>
+          <button type="button" class="note-v2-more" data-rich-note-action="${esc(n.id)}" aria-label="Acties voor ${esc(noteTitle(n))}">⋯</button>
         </div>
-        <div class="note-v2-meta"><span class="note-folder-badge">${esc(folderName(n.folderId))}</span><span>${esc(formatDate(n.updatedAt))}</span>${n.files?.length?'<span>'+n.files.length+' bijlage(n)</span>':''}</div>
-      </div>
-    `).join(''):`<div class="empty-state">${needle?'Geen notities gevonden. Probeer een ander zoekwoord.':'Nog geen notities in deze map.'}</div>`;
+        <div class="note-v2-meta">
+          <span>${esc(formatDate(n.updatedAt))}</span>
+          ${n.pinned?'<span>Vastgezet</span>':''}
+          ${n.files?.length?'<span> · '+n.files.length+' bijlage(n)</span>':''}
+        </div>
+      </article>
+    `).join(''):`<div class="empty-state">${needle?'Geen notities gevonden.':'Dit notitieboek is nog leeg. Tik op + Nieuw om iets toe te voegen.'}</div>`;
   }
 
   function folderOptions(selected=null) {
@@ -745,7 +795,9 @@
     if(!name){toast('Geef de map een naam.');return null;}
     if(data.folders.some(f=>f.name.toLowerCase()===name.toLowerCase())){toast('Die map bestaat al.');return null;}
     const folder={id:uid('folder'),name,createdAt:Date.now()};
-    data.folders.push(folder);saveData();renderFolderManager();renderFolderStrip();return folder;
+    data.folders.push(folder);
+    if(!saveData()){data.folders.pop();toast('Notitieboek kon niet worden opgeslagen.');return null;}
+    renderFolderManager();renderFolderStrip();return folder;
   }
 
   function execCommand(cmd,value=null) {
@@ -775,8 +827,16 @@
   }
 
   document.addEventListener('click',e=>{
+    const book=e.target.closest('[data-notebook-open]');
+    if(book){openNotebook(book.dataset.notebookOpen);return;}
+    if(e.target.closest('#notesBackToBooks')){backToNotebooks();return;}
+    if(e.target.closest('#notesBooksSearchButton')){
+      openNotebook(ALL);
+      document.getElementById('notesSearchInput')?.focus();
+      return;
+    }
     const filter=e.target.closest('[data-note-folder-filter]');
-    if(filter){activeFolder=filter.dataset.noteFolderFilter;renderNotes();return;}
+    if(filter){openNotebook(filter.dataset.noteFolderFilter);return;}
 
     if(e.target.closest('#notesSearchClear')){
       searchQuery='';
