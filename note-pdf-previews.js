@@ -111,8 +111,11 @@
       observer=new IntersectionObserver(entries=>{
         for(const entry of entries){
           if(entry.isIntersecting){
+            // Het img-element begint met hidden=true en kan daardoor NOOIT
+            // zelf intersecteren. Observeer juist zijn zichtbare documenttegel.
             observer?.unobserve(entry.target);
-            enqueue(entry.target,files.get(entry.target.dataset.pdfPreviewId));
+            const img=entry.target.querySelector('img[data-pdf-preview-id]');
+            if(img)enqueue(img,files.get(img.dataset.pdfPreviewId));
           }
         }
       },{rootMargin:'180px 0px'});
@@ -121,7 +124,8 @@
       const file=files.get(img.dataset.pdfPreviewId);
       const existing=file&&previews.get(file.id);
       if(existing){show(img,existing);continue;}
-      if(observer)observer.observe(img);
+      const cover=img.closest('.note-v2-cover');
+      if(observer&&cover)observer.observe(cover);
       else enqueue(img,file);
     }
   }
