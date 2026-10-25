@@ -12,6 +12,8 @@
   let activeFolder = ALL;
   let booksHome = true;
   let searchQuery = '';
+  let quickPickerFolder = null;
+  let addingQuickFile = false;
   let editingId = null;
   let actionNoteId = null;
 
@@ -147,6 +149,19 @@
       .notes-book-bar{display:flex;align-items:center;justify-content:space-between;gap:9px;margin:0 0 15px}
       .notes-book-back{border:0;background:var(--surface-soft);color:var(--accent-strong);font-weight:850;border-radius:14px;min-height:50px;padding:9px 13px}
       .notes-book-add{border:0;background:var(--accent);color:#fff;font-weight:900;min-height:50px;border-radius:14px;padding:9px 17px}
+      /* Eén grote plusknop met keuzemenu, zonder direct het notitieformulier te openen. */
+      .note-create-backdrop{position:fixed;inset:0;background:rgba(24,28,25,.35);z-index:70}
+      .note-create-backdrop[hidden],.note-create-menu[hidden]{display:none!important}
+      .note-create-fab{position:fixed;right:max(18px,calc((100vw - 680px)/2 + 18px));bottom:calc(90px + env(safe-area-inset-bottom));width:72px;height:72px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:43px;font-weight:500;line-height:1;box-shadow:0 5px 17px rgba(20,35,25,.27);z-index:72;cursor:pointer}
+      .note-create-fab[aria-expanded="true"]{background:#303b32;transform:rotate(45deg)}
+      .note-create-menu{position:fixed;right:max(18px,calc((100vw - 680px)/2 + 18px));bottom:calc(178px + env(safe-area-inset-bottom));width:min(344px,calc(100vw - 36px));max-height:min(440px,60dvh);overflow-y:auto;z-index:71;border-radius:24px;background:#28302b;color:white;box-shadow:0 15px 40px rgba(0,0,0,.32);padding:20px 17px 17px}
+      .note-create-menu h3{font-size:17px;font-weight:850;margin:0 0 18px;color:#fff}
+      .note-create-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 8px}
+      .note-create-choice{min-width:0;min-height:96px;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0 2px;background:transparent;border:0;color:#fff;font-size:13px;font-weight:650;cursor:pointer}
+      .note-create-icon{display:grid;place-items:center;border-radius:50%;width:61px;height:61px;background:#101612;color:#fff;font-size:28px;font-weight:800}
+      .note-create-icon.file{font-size:15px;letter-spacing:-.02em}
+      .note-create-choice:focus-visible,.note-create-fab:focus-visible{outline:3px solid #a5c3ac;outline-offset:3px}
+      @media(max-height:610px){.note-create-fab{bottom:calc(22px + env(safe-area-inset-bottom))}.note-create-menu{bottom:calc(105px + env(safe-area-inset-bottom))}}
       .notes-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
       @media(min-width:640px){.notes-books-grid{grid-template-columns:repeat(3,minmax(0,1fr));}.notes-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
       #notesBooksHome[hidden],#notesBookContents[hidden]{display:none!important}
@@ -274,7 +289,6 @@
         <div id="notesBookContents" hidden>
           <div class="notes-book-bar">
             <button type="button" class="notes-book-back" id="notesBackToBooks">← Notitieboeken</button>
-            <button type="button" class="notes-book-add" id="newRichNoteButton">+ Nieuw</button>
           </div>
           <div class="notes-search">
             <input type="search" id="notesSearchInput" aria-label="Notities zoeken" placeholder="Zoek in notities…" autocomplete="off" />
@@ -285,6 +299,31 @@
             <span class="small-muted" id="noteV2Counter">0</span>
           </div>
           <div class="notes-grid" id="noteV2List"></div>
+          <div class="note-create-backdrop" id="noteCreateBackdrop" hidden></div>
+          <div class="note-create-menu" id="noteCreateMenu" role="dialog" aria-label="Toevoegen aan dit notitieboek" hidden>
+            <h3>Wat wil je toevoegen?</h3>
+            <div class="note-create-choices">
+              <button type="button" class="note-create-choice" data-note-quick="write">
+                <span class="note-create-icon">✎</span><span>Schrijven</span>
+              </button>
+              <button type="button" class="note-create-choice" data-note-quick="checklist">
+                <span class="note-create-icon">☑</span><span>Checklist</span>
+              </button>
+              <button type="button" class="note-create-choice" data-note-quick="camera">
+                <span class="note-create-icon">⌾</span><span>Camera</span>
+              </button>
+              <button type="button" class="note-create-choice" data-note-quick="photo">
+                <span class="note-create-icon">▧</span><span>Foto kiezen</span>
+              </button>
+              <button type="button" class="note-create-choice" data-note-quick="pdf">
+                <span class="note-create-icon file">PDF</span><span>Document</span>
+              </button>
+            </div>
+          </div>
+          <button type="button" class="note-create-fab" id="noteCreateFab" aria-label="Toevoegen" aria-expanded="false" aria-controls="noteCreateMenu">+</button>
+          <input type="file" id="noteQuickCameraInput" accept="image/*" capture="environment" style="display:none" />
+          <input type="file" id="noteQuickPhotoInput" accept="image/*" style="display:none" />
+          <input type="file" id="noteQuickPdfInput" accept="application/pdf,.pdf" style="display:none" />
         </div>
       </div>
     `;
@@ -393,7 +432,18 @@
       filePanel.style.display='none';
   }
 
+  function toggleCreateMenu(open){
+    const panel=document.getElementById('noteCreateMenu');
+    const backdrop=document.getElementById('noteCreateBackdrop');
+    const fab=document.getElementById('noteCreateFab');
+    if(!panel||!backdrop||!fab)return;
+    const show=Boolean(open&&!booksHome);
+    panel.hidden=!show;
+    backdrop.hidden=!show;
+    fab.setAttribute('aria-expanded',String(show));
+  }
   function openNotebook(id){
+    toggleCreateMenu(false);
     // Gebruik de bestaande map-ID's: geen migratie of duplicatie van gegevens.
     if(id!==ALL && id!==GENERAL && !data.folders.some(f=>f.id===id))return;
     activeFolder=id;
@@ -404,6 +454,7 @@
     renderNotes();
   }
   function backToNotebooks(){
+    toggleCreateMenu(false);
     booksHome=true;
     activeFolder=ALL;
     searchQuery='';
@@ -643,6 +694,53 @@
       }
     }
   }
+  async function addQuickFile(file,folderId){
+    if(!file||addingQuickFile)return;
+    addingQuickFile=true;
+    const validFolder=folderId && data.folders.some(f=>f.id===folderId)?folderId:null;
+    let attachment=null,persistedBlob=false,committed=false;
+    try{
+      attachment=await prepareNoteFile(file);
+      if(attachment.storage==='indexeddb'){
+        await window.MijnDagNoteBlobStorage.put(attachment.id,attachment.blob);
+        delete attachment.blob;
+        persistedBlob=true;
+      }
+      const now=Date.now();
+      const note=normalizeNote({
+        id:uid('note'),createdAt:now,updatedAt:now,
+        title:(file.name||'Bijlage').replace(/\.[^.]+$/,'')||'Bijlage',
+        html:'',plainText:'',folderId:validFolder,pinned:false,files:[attachment]
+      });
+      data.notes.push(note);
+      if(!saveData()){
+        data.notes=data.notes.filter(n=>n.id!==note.id);
+        throw new Error('Opslaan mislukt. Er is niets toegevoegd.');
+      }
+      committed=true;
+      renderNotes();
+      toast('Toegevoegd aan je notitieboek.');
+    }catch(e){toast(e?.message||'Bestand toevoegen is mislukt.');}
+    finally{
+      if(persistedBlob&&!committed)try{await window.MijnDagNoteBlobStorage.remove(attachment.id);}catch{}
+      addingQuickFile=false;
+    }
+  }
+
+  function runQuickAction(action){
+    toggleCreateMenu(false);
+    if(action==='write'){openEditor();return;}
+    if(action==='checklist'){openEditor(null,{checklist:true});return;}
+    const inputId=action==='camera'?'noteQuickCameraInput':
+      action==='photo'?'noteQuickPhotoInput':
+      action==='pdf'?'noteQuickPdfInput':null;
+    if(!inputId)return;
+    // De gekozen map onthouden voordat Android de camera/bestandskiezer opent.
+    quickPickerFolder=activeFolder!==ALL&&activeFolder!==GENERAL?activeFolder:null;
+    const input=document.getElementById(inputId);
+    if(input){input.value='';input.click();}
+  }
+
   async function openNoteFile(id){
     const note=data.notes.find(n=>n.id===editingId),file=note?.files?.find(f=>f.id===id);
     if(!file)return;
@@ -693,7 +791,7 @@
       window.MijnDagNoteBlobStorage?.remove(id).catch(()=>{});
     }
   }
-  function openEditor(id=null) {
+  function openEditor(id=null,options={}) {
     replaceNotesView();
     editingId=id;
     const note=id?data.notes.find(n=>n.id===id):null;
@@ -711,8 +809,11 @@
     document.getElementById('noteEditorModal').classList.add('open');
     const sheet=document.querySelector('#noteEditorModal .note-editor-sheet');
     if(sheet)sheet.scrollTop=0;
-    setTimeout(()=>{
-      const field=document.getElementById(note?'noteRichEditor':'noteEditorTitle');
+    if(options.checklist){
+      document.getElementById('noteRichEditor').textContent='☐ ';
+    }
+    if(options.focus!==false)setTimeout(()=>{
+      const field=document.getElementById(options.checklist?'noteRichEditor':(note?'noteRichEditor':'noteEditorTitle'));
       try{field?.focus({preventScroll:true});}catch{field?.focus();}
       if(sheet)sheet.scrollTop=0;
     },80);
@@ -851,6 +952,14 @@
       if(input){input.value='';input.focus();}
       renderNotes();return;
     }
+    if(e.target.closest('#noteCreateFab')){
+      const fab=document.getElementById('noteCreateFab');
+      toggleCreateMenu(fab?.getAttribute('aria-expanded')!=='true');
+      return;
+    }
+    if(e.target.closest('#noteCreateBackdrop')){toggleCreateMenu(false);return;}
+    const quick=e.target.closest('[data-note-quick]');
+    if(quick){runQuickAction(quick.dataset.noteQuick);return;}
     if(e.target.closest('#newRichNoteButton')){openEditor();return;}
     if(e.target.closest('#quickNewFolderButton')){openFolders();return;}
     if(e.target.closest('#openFoldersButton')){openFolders();return;}
@@ -934,6 +1043,9 @@
   });
 
   document.addEventListener('keydown',e=>{
+    if(e.key==='Escape' && document.getElementById('noteCreateFab')?.getAttribute('aria-expanded')==='true'){
+      toggleCreateMenu(false);return;
+    }
     if(e.key==='Escape' && actionNoteId){closeNoteAction();return;}
     if(e.target?.id==='newFolderName'&&e.key==='Enter'){e.preventDefault();document.getElementById('createFolderButton')?.click();}
   });
@@ -949,6 +1061,11 @@
   });
   document.addEventListener('change',e=>{
     if(e.target?.id==='noteFileInput'||e.target?.id==='noteCameraInput')addNoteFile(e.target.files?.[0]);
+    if(['noteQuickCameraInput','noteQuickPhotoInput','noteQuickPdfInput'].includes(e.target?.id)){
+      const file=e.target.files?.[0],folder=quickPickerFolder;
+      if(file)void addQuickFile(file,folder);
+      e.target.value='';
+    }
   });
   document.addEventListener('paste',e=>{
     if(e.target?.id!=='noteRichEditor')return;
