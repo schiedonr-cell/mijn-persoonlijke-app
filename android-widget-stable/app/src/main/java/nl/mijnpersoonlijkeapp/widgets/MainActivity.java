@@ -461,7 +461,7 @@ public class MainActivity extends Activity {
             "if(window.__mijnDagNotesV2Loaded){try{window.MijnDagNotes&&window.MijnDagNotes.refresh&&window.MijnDagNotes.refresh();}catch(_){ }return;}" +
             "var old=document.getElementById('mijnDagNotesV2Script');if(old)old.remove();" +
             "var sc=document.createElement('script');sc.id='mijnDagNotesV2Script';" +
-            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=55';" +
+            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=58';" +
             "sc.async=false;document.head.appendChild(sc);" +
             "})();";
         try { webView.evaluateJavascript(js, null); } catch (Exception ignored) {}
@@ -801,7 +801,9 @@ public class MainActivity extends Activity {
                     Intent samsung=new Intent(view);
                     samsung.setPackage("com.sec.android.gallery3d");
                     startActivity(samsung);
-                }catch(android.content.ActivityNotFoundException notFound){
+                }catch(RuntimeException notFound){
+                    // Sommige Samsung-versies laten externe content-URI's niet
+                    // rechtstreeks in Gallery toe. Dan standaard foto-app.
                     startActivity(view);
                 }
             }catch(Exception error){
