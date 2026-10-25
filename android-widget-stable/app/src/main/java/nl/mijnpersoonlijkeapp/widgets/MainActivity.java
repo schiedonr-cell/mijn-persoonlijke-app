@@ -301,10 +301,24 @@ public class MainActivity extends Activity {
                         camera.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                         startActivityForResult(camera, NOTE_FILE_CHOOSER);
                     } else {
+                        // Kies alleen typen die door de aangeklikte webknop worden ondersteund.
+                        StringBuilder accepts=new StringBuilder();
+                        if(params.getAcceptTypes()!=null)for(String type:params.getAcceptTypes()){
+                            if(type!=null)accepts.append(",").append(type.toLowerCase(java.util.Locale.ROOT));
+                        }
+                        String requested=accepts.toString();
+                        ArrayList<String> types=new ArrayList<>();
+                        if(requested.contains("image/"))types.add("image/*");
+                        if(requested.contains("pdf"))types.add("application/pdf");
+                        if(requested.contains("wordprocessingml")||requested.contains(".docx"))
+                            types.add("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+                        if(requested.contains("msword")||requested.contains(".doc"))
+                            types.add("application/msword");
+                        if(types.isEmpty())types.add("application/pdf");
                         Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                         pick.addCategory(Intent.CATEGORY_OPENABLE);
-                        pick.setType("*/*");
-                        pick.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "application/pdf"});
+                        pick.setType(types.size()==1?types.get(0):"*/*");
+                        if(types.size()>1)pick.putExtra(Intent.EXTRA_MIME_TYPES,types.toArray(new String[0]));
                         startActivityForResult(pick, NOTE_FILE_CHOOSER);
                     }
                 } catch (Exception ex) {
@@ -447,7 +461,7 @@ public class MainActivity extends Activity {
             "if(window.__mijnDagNotesV2Loaded){try{window.MijnDagNotes&&window.MijnDagNotes.refresh&&window.MijnDagNotes.refresh();}catch(_){ }return;}" +
             "var old=document.getElementById('mijnDagNotesV2Script');if(old)old.remove();" +
             "var sc=document.createElement('script');sc.id='mijnDagNotesV2Script';" +
-            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=51';" +
+            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=55';" +
             "sc.async=false;document.head.appendChild(sc);" +
             "})();";
         try { webView.evaluateJavascript(js, null); } catch (Exception ignored) {}
@@ -611,6 +625,39 @@ public class MainActivity extends Activity {
             });
         }
 
+        private static final String DOCX_MIME=
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        private static final String DOC_MIME="application/msword";
+        private StringBuilder noteDocumentParts;
+        private int expectedNoteDocumentLength;
+        @JavascriptInterface public synchronized boolean beginNoteDocument(int length) {
+            if(length<1||length>11200000){noteDocumentParts=null;return false;}
+            expectedNoteDocumentLength=length;
+            noteDocumentParts=new StringBuilder(length);
+            return true;
+        }
+        @JavascriptInterface public synchronized boolean addNoteDocumentPart(String part) {
+            if(noteDocumentParts==null||part==null||part.length()>32768||
+               noteDocumentParts.length()+part.length()>expectedNoteDocumentLength){
+                noteDocumentParts=null;return false;
+            }
+            noteDocumentParts.append(part);
+            return true;
+        }
+        @JavascriptInterface public boolean finishNoteDocument(String name,String mime) {
+            if(!DOCX_MIME.equals(mime)&&!DOC_MIME.equals(mime))return false;
+            final String value;
+            synchronized(this){
+                if(noteDocumentParts==null||noteDocumentParts.length()!=expectedNoteDocumentLength){
+                    noteDocumentParts=null;return false;
+                }
+                value=noteDocumentParts.toString();
+                noteDocumentParts=null;
+            }
+            runOnUiThread(()->showWordDocument(value,mime));
+            return true;
+        }
+
         private StringBuilder notePdfParts;
         private int expectedNotePdfLength;
         @JavascriptInterface public synchronized boolean beginNotePdf(int length) {
@@ -696,6 +743,33 @@ public class MainActivity extends Activity {
                 } catch (Exception ex) {
                     Toast.makeText(MainActivity.this, "PDF openen lukt niet. Controleer of je een PDF-lezer hebt.", Toast.LENGTH_LONG).show();
                 }
+        }
+        private void showWordDocument(String base64,String mime){
+            try{
+                if(base64==null||base64.length()>11200000)throw new java.io.IOException("Document te groot");
+                byte[] bytes=Base64.decode(base64,Base64.DEFAULT);
+                if(bytes.length<8||bytes.length>8*1024*1024)throw new java.io.IOException("Document te groot");
+                boolean docx=DOCX_MIME.equals(mime);
+                boolean isZip=(bytes[0]&255)==0x50&&(bytes[1]&255)==0x4b;
+                boolean isDoc=(bytes[0]&255)==0xd0&&(bytes[1]&255)==0xcf&&
+                   (bytes[2]&255)==0x11&&(bytes[3]&255)==0xe0;
+                if(!(docx?isZip:isDoc))throw new java.io.IOException("Geen geldig Word-document");
+                File dir=new File(getCacheDir(),"note-files");
+                if(!dir.exists()&&!dir.mkdirs())throw new java.io.IOException("Kan opslag niet openen");
+                File output=File.createTempFile("notitie-",docx?".docx":".doc",dir);
+                try(FileOutputStream out=new FileOutputStream(output)){out.write(bytes);}
+                Uri uri=FileProvider.getUriForFile(MainActivity.this,
+                    getPackageName()+".notesfiles",output);
+                Intent open=new Intent(Intent.ACTION_VIEW);
+                open.setDataAndType(uri,mime);
+                open.setClipData(ClipData.newRawUri("Word-document",uri));
+                open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(Intent.createChooser(open,"Word-document openen"));
+            }catch(Exception ex){
+                Toast.makeText(MainActivity.this,
+                    "Document openen lukt niet. Controleer of een Word-lezer beschikbaar is.",
+                    Toast.LENGTH_LONG).show();
+            }
         }
         @JavascriptInterface public void openNotePdf(String base64, String name) {
             if(base64==null || base64.length()>2100000)return;
