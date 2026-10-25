@@ -1105,7 +1105,7 @@
        String.fromCharCode(...signature.slice(8,12))==='WEBP';
     const gif=String.fromCharCode(...signature.slice(0,3))==='GIF';
     const hint=String(file.type||'').startsWith('image/') ||
-       /\\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(file.name||'');
+       /\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(file.name||'');
     if(!(jpeg||png||webp||gif||hint))
       throw new Error('Kies een foto (JPG, PNG of een andere afbeelding).');
     const url=URL.createObjectURL(file);
@@ -1128,7 +1128,7 @@
         ctx.drawImage(img,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
         for(const quality of [.77,.62,.46,.34]){
           const cover=canvas.toDataURL('image/jpeg',quality);
-          if(/^data:image\\/jpeg;base64,/.test(cover)&&cover.length<=105000)return cover;
+          if(/^data:image\/jpeg;base64,/.test(cover)&&cover.length<=105000)return cover;
         }
       }
       throw new Error('De foto is te groot voor een omslag. Kies een kleinere foto.');
