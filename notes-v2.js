@@ -124,7 +124,7 @@
       .notes-search input:focus{outline:2px solid var(--accent);outline-offset:1px}
       .notes-search button{min-height:48px;border:0;border-radius:13px;padding:8px 13px;background:var(--surface-soft);color:var(--accent-strong);font-weight:850}
       /* Nieuw eerste scherm: echte notitieboeken, geen extra navigatiemenu's. */
-      .notes-books-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:3px 0 17px}
+      .notes-books-top{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:3px 0 17px}
       .notes-books-top strong{font-size:16px}
       .notes-books-top button{min-height:45px;border:1px solid var(--line);background:var(--surface);border-radius:13px;padding:8px 13px;font-weight:800;color:var(--accent-strong)}
       .notes-books-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 17px;padding:4px 0 20px}
@@ -258,7 +258,6 @@
 
         <div id="notesBooksHome">
           <div class="notes-books-top">
-            <strong>Mijn notitieboeken</strong>
             <button type="button" id="notesBooksSearchButton">Zoeken</button>
           </div>
           <div class="notes-books-grid" id="notesBooksGrid"></div>
@@ -433,7 +432,7 @@
     const caption=document.getElementById('notesScreenCaption');
     if(caption)caption.textContent=booksHome?'Kies een boek om je notities te bekijken.':'Foto\'s, PDF\'s, lijstjes en tekst bij elkaar.';
     const listTitle=document.getElementById('notesListTitle');
-    if(listTitle)listTitle.textContent=title;
+    if(listTitle)listTitle.textContent=searchQuery?'Zoekresultaten':'Inhoud';
     const home=document.getElementById('notesBooksHome');
     const contents=document.getElementById('notesBookContents');
     if(home)home.hidden=!booksHome;
@@ -911,10 +910,17 @@
     if(del){
       const f=data.folders.find(x=>x.id===del.dataset.folderDelete);if(!f)return;
       if(!confirm('Map “'+f.name+'” verwijderen? De notities gaan naar Algemeen.'))return;
+      const beforeNotes=data.notes.map(n=>n.folderId);
+      const beforeFolders=data.folders;
       data.notes.forEach(n=>{if(n.folderId===f.id)n.folderId=null;});
       data.folders=data.folders.filter(x=>x.id!==f.id);
-      if(activeFolder===f.id)activeFolder=GENERAL;
-      saveData();renderFolderManager();renderNotes();toast('Map verwijderd.');
+      if(!saveData()){
+        data.folders=beforeFolders;
+        data.notes.forEach((n,i)=>{n.folderId=beforeNotes[i];});
+        toast('Notitieboek kon niet worden verwijderd.');return;
+      }
+      if(activeFolder===f.id){activeFolder=ALL;booksHome=true;}
+      renderFolderManager();renderNotes();toast('Notitieboek verwijderd. De notities staan bij Losse notities.');
       return;
     }
   });
