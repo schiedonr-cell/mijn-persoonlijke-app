@@ -625,7 +625,8 @@
         if(bytesInUse+file.size>10*1024*1024)
           throw new Error('Bijlagenopslag vol (10 MB). Maak eerst een back-up en ruim op.');
         return {id:uid('file'),name:name||(isPdf?'Document.pdf':'Document.docx'),mime,
-          size:file.size,storage:'indexeddb',src:'',blob:file};
+          size:file.size,storage:'indexeddb',src:'',
+          blob:file.type===mime?file:new Blob([file],{type:mime})};
       }
       const raw=await readFileAsDataURL(file);
       return {id:uid('file'),name:name||'Document.pdf',mime,size:file.size,
