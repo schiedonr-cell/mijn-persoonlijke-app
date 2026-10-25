@@ -447,7 +447,7 @@ public class MainActivity extends Activity {
             "if(window.__mijnDagNotesV2Loaded){try{window.MijnDagNotes&&window.MijnDagNotes.refresh&&window.MijnDagNotes.refresh();}catch(_){ }return;}" +
             "var old=document.getElementById('mijnDagNotesV2Script');if(old)old.remove();" +
             "var sc=document.createElement('script');sc.id='mijnDagNotesV2Script';" +
-            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=49';" +
+            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=51';" +
             "sc.async=false;document.head.appendChild(sc);" +
             "})();";
         try { webView.evaluateJavascript(js, null); } catch (Exception ignored) {}
