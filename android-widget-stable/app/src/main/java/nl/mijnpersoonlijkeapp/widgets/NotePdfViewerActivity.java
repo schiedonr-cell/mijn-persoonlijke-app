@@ -107,7 +107,7 @@ public final class NotePdfViewerActivity extends Activity {
         pageImage.setContentDescription("PDF-pagina");
         vertical.addView(pageImage,new ScrollView.LayoutParams(dp(300),dp(400)));
         horizontal.addView(vertical,new HorizontalScrollView.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
+            ViewGroup.LayoutParams.WRAP_CONTENT,ViewGroup.LayoutParams.MATCH_PARENT));
         root.addView(horizontal,new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,0,1));
 
@@ -154,7 +154,8 @@ public final class NotePdfViewerActivity extends Activity {
                 float w=page.getWidth(),h=page.getHeight();
                 float screenWidth=Math.max(280,getResources().getDisplayMetrics().widthPixels-dp(18));
                 int width=Math.min(2200,Math.round(screenWidth*requestedZoom));
-                int height=Math.min(3200,Math.max(1,Math.round(width*h/w)));
+                int height=Math.max(1,Math.round(width*h/w));
+                if(height>3200){width=Math.max(1,Math.round(width*3200f/height));height=3200;}
                 output=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);
                 output.eraseColor(Color.WHITE);
                 page.render(output,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
