@@ -1340,41 +1340,20 @@
       if(folder){inp.value='';toast('Map aangemaakt.');}
       return;
     }
-    const rename=e.target.closest('[data-folder-rename]');
-    if(rename){
-      const f=data.folders.find(x=>x.id===rename.dataset.folderRename);if(!f)return;
-      const next=prompt('Nieuwe naam voor de map:',f.name);
-      if(next&&next.trim()){f.name=next.trim();saveData();renderFolderManager();renderNotes();toast('Map hernoemd.');}
-      return;
-    }
-    const del=e.target.closest('[data-folder-delete]');
-    if(del){
-      const f=data.folders.find(x=>x.id===del.dataset.folderDelete);if(!f)return;
-      if(!confirm('Map “'+f.name+'” verwijderen? De notities gaan naar Algemeen.'))return;
-      const beforeNotes=data.notes.map(n=>n.folderId);
-      const beforeFolders=data.folders;
-      data.notes.forEach(n=>{if(n.folderId===f.id)n.folderId=null;});
-      data.folders=data.folders.filter(x=>x.id!==f.id);
-      if(!saveData()){
-        data.folders=beforeFolders;
-        data.notes.forEach((n,i)=>{n.folderId=beforeNotes[i];});
-        toast('Notitieboek kon niet worden verwijderd.');return;
-      }
-      if(activeFolder===f.id){activeFolder=ALL;booksHome=true;}
-      renderFolderManager();renderNotes();toast('Notitieboek verwijderd. De notities staan bij Losse notities.');
-      return;
-    }
   });
 
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape' && document.getElementById('noteCreateFab')?.getAttribute('aria-expanded')==='true'){
       toggleCreateMenu(false);return;
     }
+    if(e.key==='Escape' && editingNotebookId){closeNotebookEdit();return;}
     if(e.key==='Escape' && actionNoteId){closeNoteAction();return;}
     if(e.target?.id==='newFolderName'&&e.key==='Enter'){e.preventDefault();document.getElementById('createFolderButton')?.click();}
+    if(e.target?.id==='noteBookEditName'&&e.key==='Enter'){e.preventDefault();renameNotebook();}
   });
   document.addEventListener('click',e=>{
     if(e.target?.id==='noteActionModal')closeNoteAction();
+    if(e.target?.id==='noteBookEditModal')closeNotebookEdit();
   });
 
   document.addEventListener('input',e=>{
@@ -1384,6 +1363,13 @@
     }
   });
   document.addEventListener('change',e=>{
+    if(e.target?.id==='noteBookCoverInput'){
+      const chosen=e.target.files?.[0],folder=choosingNotebookCoverId;
+      if(chosen&&folder)void saveNotebookCover(chosen,folder);
+      choosingNotebookCoverId=null;
+      e.target.value='';
+      return;
+    }
     if(e.target?.id==='noteFileInput'||e.target?.id==='noteCameraInput')addNoteFile(e.target.files?.[0]);
     if(['noteQuickCameraInput','noteQuickPhotoInput','noteQuickPdfInput'].includes(e.target?.id)){
       const file=e.target.files?.[0],folder=quickPickerFolder,kind=quickPickerType;
