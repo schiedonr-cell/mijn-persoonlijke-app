@@ -646,6 +646,13 @@
     const next={...data,notes:data.notes.filter(n=>n.id!==id)};
     if(!saveData(next)){toast('Verwijderen is niet opgeslagen. Probeer het opnieuw.');return;}
     data=next;
+    // Na succesvolle verwijdering mogen ook de bijbehorende binaire
+    // bestanden weg. Bij mislukken van bewaren blijft alles behouden.
+    for(const file of note.files||[]){
+      if(file.storage==='indexeddb'){
+        window.MijnDagNoteBlobStorage?.remove(file.id).catch(()=>{});
+      }
+    }
     if(editingId===id)closeEditor();
     if(actionNoteId===id)closeNoteAction();
     renderNotes();
