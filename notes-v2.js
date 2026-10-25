@@ -155,6 +155,10 @@
       .note-v2-cover{height:auto;aspect-ratio:1;overflow:hidden;border-radius:9px;background:#f7edbc;box-shadow:0 2px 7px rgba(26,30,26,.13);position:relative;text-align:left}
       .note-v2-cover.note-cover-pdf{background:#c8442c;color:#fff;display:flex;flex-direction:column;justify-content:space-between;padding:13px}
       .note-v2-cover.note-cover-pdf strong{font-size:16px;overflow-wrap:anywhere;line-height:1.3;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+      .note-v2-cover.note-cover-pdf.has-preview{background:#e7e8e4;padding:0}
+      .note-v2-cover.note-cover-pdf.has-preview strong,.note-v2-cover.note-cover-pdf.has-preview .note-pdf-mark{display:none}
+      .note-pdf-page{display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#ebeeeb}
+      .note-pdf-page[hidden]{display:none!important}
       .note-pdf-mark{font-size:38px;font-weight:950;align-self:center;line-height:1.1;margin:auto}
       .note-v2-cover.note-cover-photo img{display:block;width:100%;height:100%;object-fit:cover}
       .note-v2-cover.note-cover-text{background:#faedac;padding:13px 11px;overflow:hidden}
@@ -448,6 +452,8 @@
     const pdf=files.find(f=>f.mime==='application/pdf');
     if(pdf)return `<div class="note-v2-cover note-cover-pdf">
       <strong>${esc(pdf.name)}</strong><span class="note-pdf-mark">PDF</span>
+      <img class="note-pdf-page" data-pdf-preview-id="${esc(pdf.id)}"
+        alt="Eerste pagina van ${esc(pdf.name)}" loading="lazy" hidden />
     </div>`;
     return `<div class="note-v2-cover note-cover-text">
       <div class="note-cover-text-title">${esc(noteTitle(note))}</div>
@@ -487,6 +493,8 @@
         </div>
       </article>
     `).join(''):`<div class="empty-state">${needle?'Geen notities gevonden.':'Dit notitieboek is nog leeg. Tik op + Nieuw om iets toe te voegen.'}</div>`;
+    // Alleen zichtbare PDF-tegels; ook bestaande inline PDF's blijven intact.
+    window.MijnDagPdfPreviews?.scan(notes);
   }
 
   function folderOptions(selected=null) {
