@@ -10,6 +10,7 @@
 
   let data = loadData();
   let activeFolder = ALL;
+  let searchQuery = '';
   let editingId = null;
   let actionNoteId = null;
 
@@ -113,6 +114,10 @@
       .notes-folder-tools{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:3px 0 11px}
       .notes-folder-tools span{font-size:12px;color:var(--muted)}
       .notes-folder-tools button{border:0;background:transparent;color:var(--accent-strong);font-weight:850;padding:7px}
+      .notes-search{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+      .notes-search input{width:100%;min-width:0;min-height:52px;border:1px solid var(--line);border-radius:15px;padding:10px 13px;background:#fff;color:var(--text);font-size:16px}
+      .notes-search input:focus{outline:2px solid var(--accent);outline-offset:1px}
+      .notes-search button{min-height:48px;border:0;border-radius:13px;padding:8px 13px;background:var(--surface-soft);color:var(--accent-strong);font-weight:850}
       .notes-grid{display:grid;gap:10px}
       .note-v2-card{border:1px solid var(--line);border-radius:19px;background:#fff;padding:13px;box-shadow:0 4px 14px rgba(34,42,34,.04)}
       .note-v2-card.pinned{border-color:rgba(69,98,77,.34);background:linear-gradient(180deg,#fff,#fbfcf8)}
@@ -122,6 +127,7 @@
       .note-v2-preview{font-size:14px;line-height:1.5;color:var(--text);max-height:96px;overflow:hidden;word-break:break-word}
       .note-v2-preview ul,.note-v2-preview ol{padding-left:21px;margin:4px 0}
       .note-v2-preview p,.note-v2-preview div{margin:2px 0}
+      .note-v2-preview h3{font-size:16px;font-weight:900;margin:5px 0}
       .note-v2-tools{display:flex;align-items:flex-start;gap:6px}
       .note-v2-pin,.note-v2-more{width:42px;height:42px;flex:0 0 42px;border:0;border-radius:12px;background:var(--surface-soft);color:var(--accent-strong);font-size:20px;cursor:pointer}
       .note-v2-more{font-size:25px;font-weight:850;line-height:1}
@@ -142,6 +148,10 @@
       .note-rich-editor:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(69,98,77,.10)}
       .note-rich-editor:empty:before{content:'Schrijf je notitie…';color:var(--muted)}
       .note-rich-editor ul,.note-rich-editor ol{padding-left:24px}
+      .note-rich-editor h3{font-size:21px;font-weight:900;line-height:1.3;margin:12px 0 6px}
+      .note-rich-editor p{margin:7px 0}
+      #noteEditorModal{padding-top:max(18px, env(safe-area-inset-top))}
+      #noteEditorModal .note-editor-sheet{max-height:calc(100dvh - 70px);overscroll-behavior:contain}
       .note-editor-options{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
       .note-pin-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:15px;padding:11px 12px;background:var(--surface-soft);font-weight:800}
       .note-editor-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:13px}
@@ -203,7 +213,11 @@
             <button class="primary-button" id="newRichNoteButton">+ Nieuwe notitie</button>
             <button class="secondary-button" id="openFoldersButton" style="width:auto;padding:0 16px;">Mappen</button>
           </div>
-          <div class="notes-folder-strip" id="notesFolderStrip"></div>
+          <div class="notes-search">
+             <input type="search" id="notesSearchInput" aria-label="Notities zoeken" placeholder="Zoek in je notities…" autocomplete="off" />
+             <button type="button" id="notesSearchClear" hidden>Wissen</button>
+           </div>
+           <div class="notes-folder-strip" id="notesFolderStrip"></div>
           <div class="notes-folder-tools"><span id="notesFolderSummary"></span><button id="quickNewFolderButton">+ Nieuwe map</button></div>
         </div>
 
@@ -238,7 +252,9 @@
             </div>
 
             <div class="note-rich-toolbar" aria-label="Tekstopmaak">
-              <button class="note-format-button" data-note-command="insertUnorderedList" title="Opsomming">• Lijst</button>
+              <button class="note-format-button" data-note-block="h3" title="Kopje">Kop</button>
+               <button class="note-format-button" data-note-block="p" title="Gewone tekst">Tekst</button>
+               <button class="note-format-button" data-note-command="insertUnorderedList" title="Opsomming">• Lijst</button>
               <button class="note-format-button" data-note-command="insertOrderedList" title="Nummering">1. Lijst</button>
               <button class="note-format-button" id="noteChecklistButton" title="Checklist">☐ Check</button>
               <button class="note-format-button" data-note-command="bold" title="Vet"><b>B</b></button>
@@ -341,8 +357,14 @@
     let notes=data.notes.slice();
     if(activeFolder===GENERAL) notes=notes.filter(n=>!n.folderId);
     else if(activeFolder!==ALL) notes=notes.filter(n=>n.folderId===activeFolder);
+    const needle=searchQuery.trim().toLocaleLowerCase('nl');
+    if(needle)notes=notes.filter(n=>[
+      n.title,n.plainText,folderName(n.folderId),...(n.files||[]).map(f=>f.name)
+    ].some(v=>String(v||'').toLocaleLowerCase('nl').includes(needle)));
     notes.sort((a,b)=>(Number(b.pinned)-Number(a.pinned)) || (b.updatedAt-a.updatedAt));
     if(counter) counter.textContent=String(notes.length);
+    const clear=document.getElementById('notesSearchClear');
+    if(clear)clear.hidden=!searchQuery;
     list.innerHTML=notes.length?notes.map(n=>`
       <div class="note-v2-card ${n.pinned?'pinned':''}">
         <div class="note-v2-top">
@@ -357,7 +379,7 @@
         </div>
         <div class="note-v2-meta"><span class="note-folder-badge">${esc(folderName(n.folderId))}</span><span>${esc(formatDate(n.updatedAt))}</span>${n.files?.length?'<span>'+n.files.length+' bijlage(n)</span>':''}</div>
       </div>
-    `).join(''):`<div class="empty-state">Nog geen notities in deze map.</div>`;
+    `).join(''):`<div class="empty-state">${needle?'Geen notities gevonden. Probeer een ander zoekwoord.':'Nog geen notities in deze map.'}</div>`;
   }
 
   function folderOptions(selected=null) {
@@ -515,15 +537,22 @@
     document.getElementById('noteEditorHeading').textContent=note?'Notitie bewerken':'Nieuwe notitie';
     document.getElementById('noteEditorTitle').value=note?.title||'';
     const select=document.getElementById('noteEditorFolder');
-    select.innerHTML=folderOptions(note?.folderId||null);
-    select.value=note?.folderId||'';
+    const chosenFolder=note?.folderId||(id?null:(activeFolder!==ALL&&activeFolder!==GENERAL?activeFolder:null));
+    select.innerHTML=folderOptions(chosenFolder);
+    select.value=chosenFolder||'';
     document.getElementById('noteEditorPinned').checked=Boolean(note?.pinned);
     document.getElementById('noteRichEditor').innerHTML=note?.html||'';
     renderFileList(note);
     document.getElementById('deleteRichNoteButton').style.display=note?'block':'none';
     document.getElementById('noteEditorActions').classList.toggle('has-delete',Boolean(note));
     document.getElementById('noteEditorModal').classList.add('open');
-    setTimeout(()=>document.getElementById(note?'noteRichEditor':'noteEditorTitle')?.focus(),80);
+    const sheet=document.querySelector('#noteEditorModal .note-editor-sheet');
+    if(sheet)sheet.scrollTop=0;
+    setTimeout(()=>{
+      const field=document.getElementById(note?'noteRichEditor':'noteEditorTitle');
+      try{field?.focus({preventScroll:true});}catch{field?.focus();}
+      if(sheet)sheet.scrollTop=0;
+    },80);
   }
   function closeEditor() {
     editingId=null;
@@ -636,6 +665,12 @@
     const filter=e.target.closest('[data-note-folder-filter]');
     if(filter){activeFolder=filter.dataset.noteFolderFilter;renderNotes();return;}
 
+    if(e.target.closest('#notesSearchClear')){
+      searchQuery='';
+      const input=document.getElementById('notesSearchInput');
+      if(input){input.value='';input.focus();}
+      renderNotes();return;
+    }
     if(e.target.closest('#newRichNoteButton')){openEditor();return;}
     if(e.target.closest('#quickNewFolderButton')){openFolders();return;}
     if(e.target.closest('#openFoldersButton')){openFolders();return;}
@@ -678,6 +713,8 @@
     const pin=e.target.closest('[data-rich-note-pin]');
     if(pin){const n=data.notes.find(x=>x.id===pin.dataset.richNotePin);if(n){const prev=n.pinned;n.pinned=!n.pinned;n.updatedAt=Date.now();if(!saveData()){n.pinned=prev;toast('Niet opgeslagen. Probeer opnieuw.');return;}renderNotes();}return;}
 
+    const heading=e.target.closest('[data-note-block]');
+    if(heading){execCommand('formatBlock',heading.dataset.noteBlock);return;}
     const cmd=e.target.closest('[data-note-command]');
     if(cmd){execCommand(cmd.dataset.noteCommand);return;}
     const color=e.target.closest('[data-note-color]');
@@ -717,6 +754,12 @@
     if(e.target?.id==='noteActionModal')closeNoteAction();
   });
 
+  document.addEventListener('input',e=>{
+    if(e.target?.id==='notesSearchInput'){
+      searchQuery=String(e.target.value||'');
+      renderNotes();
+    }
+  });
   document.addEventListener('change',e=>{
     if(e.target?.id==='noteFileInput'||e.target?.id==='noteCameraInput')addNoteFile(e.target.files?.[0]);
   });
