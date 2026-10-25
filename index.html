@@ -6696,8 +6696,18 @@
       }
       if(!entries[STORAGE_KEY])return showToast('Geen appgegevens gevonden voor back-up.');
       const backup=JSON.stringify({version:2,exportedAt:Date.now(),entries});
-      if(window.AndroidWidgetBridge?.saveBackup){
-        window.AndroidWidgetBridge.saveBackup(backup);
+      const native=window.AndroidWidgetBridge;
+      if(native?.beginBackup && native?.addBackupPart && native?.finishBackup){
+        // Grote bijlagen mogen Android niet als één gigantische brugaanroep bereiken.
+        try{
+          let ok=native.beginBackup(backup.length);
+          for(let i=0;ok&&i<backup.length;i+=32768)ok=native.addBackupPart(backup.slice(i,i+32768));
+          if(ok)ok=native.finishBackup();
+          if(!ok)showToast('Back-up kon niet worden gestart. Probeer opnieuw.');
+        }catch(_){showToast('Back-up mislukt. Je gegevens zijn niet gewijzigd.');}
+      }else if(native?.saveBackup){
+        if(backup.length>500000)return showToast('Deze back-up bevat bestanden. Werk eerst de Mijn dag-app bij.');
+        native.saveBackup(backup);
       }else{
         const blob=new Blob([backup],{type:'application/json'}),url=URL.createObjectURL(blob);
         const a=document.createElement('a');a.href=url;a.download='mijn-dag-backup.json';
