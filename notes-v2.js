@@ -40,9 +40,13 @@
       plainText:text,
       folderId:n?.folderId||null,
       pinned:Boolean(n?.pinned),
-      files:Array.isArray(n?.files)?n.files.filter(f=>f && typeof f.src==='string' && /^data:(?:image\/jpeg|image\/png|image\/webp|application\/pdf);base64,/.test(f.src)).map(f=>({
+      files:Array.isArray(n?.files)?n.files.filter(f=>f && (
+        (typeof f.src==='string' && /^data:(?:image\/jpeg|image\/png|image\/webp|application\/pdf);base64,/.test(f.src)) ||
+        (f.storage==='indexeddb' && f.mime==='application/pdf' && Number(f.size)>0)
+      )).map(f=>({
         id:String(f.id||uid('file')),name:String(f.name||'Bijlage'),
-        mime:String(f.mime||''),src:f.src,size:Number(f.size)||0
+        mime:String(f.mime||''),src:typeof f.src==='string'?f.src:'',
+        storage:f.storage==='indexeddb'?'indexeddb':'inline',size:Number(f.size)||0
       })):[],
       createdAt:Number(n?.createdAt||Date.now()),
       updatedAt:Number(n?.updatedAt||n?.createdAt||Date.now())
@@ -277,7 +281,7 @@
               <input type="file" id="noteFileInput" accept="image/*,application/pdf,.pdf" style="display:none" />
               <input type="file" id="noteCameraInput" accept="image/*" capture="environment" style="display:none" />
               <div class="note-file-list" id="noteFileList"></div>
-              <p class="note-file-hint">Proefversie voor kleine bestanden. Bijlagen worden opgeslagen bij je notitie en meegenomen in de back-up.</p>
+              <p class="note-file-hint">Foto's en PDF's bij je notitie. Grotere PDF's worden apart opgeslagen en komen mee in de back-up.</p>
             </div>
 
             <div class="note-editor-actions" id="noteEditorActions">
@@ -414,7 +418,24 @@
   async function prepareNoteFile(file){
     const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
     if(isPdf){
-      if(file.size>1200000)throw new Error('PDF te groot voor deze proefversie (maximaal 1,2 MB).');
+      if(!file.size||file.size>8*1024*1024)throw new Error('PDF te groot (maximaal 8 MB per bestand).');
+      const signature=new Uint8Array(await file.slice(0,5).arrayBuffer());
+      if(String.fromCharCode(...signature)!=='%PDF-')throw new Error('Dit bestand is geen geldige PDF.');
+      // In de huidige Android-app blijven PDF's t/m 1,2 MB werken zoals eerst.
+      // Grotere PDF's wachten op de eenmalige Android-update met IndexedDB-koppeling.
+      const binaryStorage=file.size>1200000 ||
+        (file.size>300000 && (!window.AndroidWidgetBridge ||
+          typeof window.AndroidWidgetBridge.beginNotePdf==='function'));
+      if(binaryStorage){
+        if(!window.MijnDagNoteBlobStorage)throw new Error('Bestandsopslag is nog niet beschikbaar.');
+        if(window.AndroidWidgetBridge && typeof window.AndroidWidgetBridge.beginNotePdf!=='function')
+          throw new Error('Voor grotere PDF\'s is eerst de volgende Mijn dag-update nodig.');
+        const bytesInUse=data.notes.reduce((total,n)=>total+(n.files||[])
+          .filter(f=>f.storage==='indexeddb').reduce((sum,f)=>sum+Number(f.size||0),0),0);
+        if(bytesInUse+file.size>10*1024*1024)throw new Error('Bijlagenopslag vol (10 MB). Bewaar eerst een back-up.');
+        return {id:uid('file'),name:file.name||'Document.pdf',mime:'application/pdf',
+          size:file.size,storage:'indexeddb',src:'',blob:file};
+      }
       const raw=await readFileAsDataURL(file);
       return {id:uid('file'),name:file.name||'Document.pdf',mime:'application/pdf',size:file.size,src:'data:application/pdf;base64,'+raw.split(',')[1]};
     }
@@ -448,6 +469,14 @@
     try{
       const attachment=await prepareNoteFile(file);
       if(editingId!==startedWith)return;
+      let persistedBlob=false,committed=false;
+      try{
+        if(attachment.storage==='indexeddb'){
+          await window.MijnDagNoteBlobStorage.put(attachment.id,attachment.blob);
+          delete attachment.blob;
+          persistedBlob=true;
+          if(editingId!==startedWith)return;
+        }
       let note=existing;
       if(!note){
         // Een bijlage bij een nieuwe notitie mag direct; geen extra bewaren/openen.
@@ -486,7 +515,13 @@
           return;
         }
       }
+      committed=true;
       renderFileList(note);renderNotes();toast('Bestand toegevoegd aan de notitie.');
+      }finally{
+        if(persistedBlob&&!committed){
+          try{await window.MijnDagNoteBlobStorage.remove(attachment.id);}catch{}
+        }
+      }
     }catch(error){toast(error?.message||'Bestand toevoegen is mislukt.');}
     finally{
       addingNoteFile=false;
@@ -497,22 +532,36 @@
       }
     }
   }
-  function openNoteFile(id){
+  async function openNoteFile(id){
     const note=data.notes.find(n=>n.id===editingId),file=note?.files?.find(f=>f.id===id);
     if(!file)return;
     if(file.mime==='application/pdf'){
-      const base64=file.src.split(',')[1];
-      if(window.AndroidWidgetBridge){
-        if(typeof window.AndroidWidgetBridge.openNotePdf==='function')window.AndroidWidgetBridge.openNotePdf(base64,file.name);
-        else toast('PDF bekijken vereist een bijgewerkte Android-app.');
-        return;
-      }
       try{
+        let src=file.src;
+        if(file.storage==='indexeddb'){
+          const blob=await window.MijnDagNoteBlobStorage.get(file.id);
+          if(!blob || blob.size!==file.size)throw new Error('PDF ontbreekt. Controleer je back-up.');
+          src=await readFileAsDataURL(blob);
+        }
+        const base64=src.split(',')[1];
+        if(window.AndroidWidgetBridge){
+          const native=window.AndroidWidgetBridge;
+          if(file.storage==='indexeddb'){
+            if(!native.beginNotePdf || !native.addNotePdfPart || !native.finishNotePdf)
+              throw new Error('Deze Mijn dag-versie kan grotere PDF\'s nog niet openen.');
+            if(!native.beginNotePdf(base64.length))throw new Error('PDF openen mislukt.');
+            let ok=true;
+            for(let i=0;ok&&i<base64.length;i+=32768)ok=native.addNotePdfPart(base64.slice(i,i+32768));
+            if(!ok || !native.finishNotePdf(file.name))throw new Error('PDF openen mislukt.');
+          }else if(typeof native.openNotePdf==='function')native.openNotePdf(base64,file.name);
+          else throw new Error('PDF bekijken vereist een bijgewerkte Android-app.');
+          return;
+        }
         const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
         const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
         const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();
         setTimeout(()=>URL.revokeObjectURL(url),120000);
-      }catch{toast('PDF openen lukte niet.');}
+      }catch(e){toast(e?.message||'PDF openen lukte niet.');}
       return;
     }
     imageZoom=1;
@@ -529,6 +578,9 @@
     note.files=updated;note.updatedAt=Date.now();
     if(!saveData()){note.files=original;note.updatedAt=prevTime;toast('Verwijderen kon niet worden opgeslagen.');return;}
     renderFileList(note);renderNotes();toast('Bijlage verwijderd.');
+    if(original.some(f=>f.id===id&&f.storage==='indexeddb')){
+      window.MijnDagNoteBlobStorage?.remove(id).catch(()=>{});
+    }
   }
   function openEditor(id=null) {
     replaceNotesView();
@@ -599,6 +651,13 @@
     const next={...data,notes:data.notes.filter(n=>n.id!==id)};
     if(!saveData(next)){toast('Verwijderen is niet opgeslagen. Probeer het opnieuw.');return;}
     data=next;
+    // Na succesvolle verwijdering mogen ook de bijbehorende binaire
+    // bestanden weg. Bij mislukken van bewaren blijft alles behouden.
+    for(const file of note.files||[]){
+      if(file.storage==='indexeddb'){
+        window.MijnDagNoteBlobStorage?.remove(file.id).catch(()=>{});
+      }
+    }
     if(editingId===id)closeEditor();
     if(actionNoteId===id)closeNoteAction();
     renderNotes();

@@ -6695,7 +6695,21 @@
         if(value!==null)entries[key]=value;
       }
       if(!entries[STORAGE_KEY])return showToast('Geen appgegevens gevonden voor back-up.');
-      const backup=JSON.stringify({version:2,exportedAt:Date.now(),entries});
+      // Binaire bijlagen apart verzamelen. Nooit een onvolledige back-up aanbieden.
+      const writeBackup=async()=>{
+        try{
+          const notes=JSON.parse(entries.mijnPersoonlijkeAppNotesV1||'{"notes":[]}').notes||[];
+          const files=notes.flatMap(n=>(n.files||[]).filter(f=>f.storage==='indexeddb'));
+          if(files.length){
+            if(!window.MijnDagNoteBlobStorage)throw new Error('Bijlagenopslag niet geladen.');
+            entries.mijnPersoonlijkeAppNoteBlobsV1=await window.MijnDagNoteBlobStorage.exportPayload(notes);
+          }
+          const backup=JSON.stringify({version:3,exportedAt:Date.now(),entries});
+          if(backup.length>15_500_000)throw new Error('Back-up te groot voor deze versie (maximaal circa 15 MB).');
+          savePreparedBackup(backup);
+        }catch(error){showToast('Back-up niet gemaakt: '+(error?.message||'onbekende fout'));}
+      };
+      const savePreparedBackup=backup=>{
       const native=window.AndroidWidgetBridge;
       if(native?.beginBackup && native?.addBackupPart && native?.finishBackup){
         // Grote bijlagen mogen Android niet als één gigantische brugaanroep bereiken.
@@ -6713,6 +6727,8 @@
         const a=document.createElement('a');a.href=url;a.download='mijn-dag-backup.json';
         document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
       }
+      };
+      void writeBackup();
       return;
     }
     if(e.target.closest('[data-myday-focus]')){showView('today');return setDailyTab('focus');}
@@ -7250,6 +7266,7 @@
   if(repairedQuickInsertion)showToast('Volgorde hersteld: Lijn 19 staat na lijnen tekenen.');
 })();
 </script>
-  <script src="./notes-v2.js?v=50"></script>
+  <script src="./note-blob-storage.js"></script>
+  <script src="./notes-v2.js?v=51"></script>
 </body>
 </html>
