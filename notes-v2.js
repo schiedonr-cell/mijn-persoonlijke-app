@@ -1043,11 +1043,146 @@
     if(editingId)deleteNote(editingId);
   }
 
+  function updateNotebookEditPreview(folder){
+    const preview=document.getElementById('noteBookEditPreview');
+    if(!preview || !folder)return;
+    preview.innerHTML=folder.cover ?
+      `<img src="${esc(folder.cover)}" alt="Omslag van ${esc(folder.name)}" />` :
+      '<span>Standaard</span>';
+    const reset=document.getElementById('noteBookResetCover');
+    if(reset)reset.disabled=!folder.cover;
+  }
+  function openNotebookEdit(id){
+    const folder=data.folders.find(f=>f.id===id);
+    if(!folder)return;
+    editingNotebookId=id;
+    const inp=document.getElementById('noteBookEditName');
+    if(inp)inp.value=folder.name;
+    updateNotebookEditPreview(folder);
+    document.getElementById('noteBookEditModal')?.classList.add('open');
+  }
+  function closeNotebookEdit(){
+    editingNotebookId=null;
+    choosingNotebookCoverId=null;
+    document.getElementById('noteBookEditModal')?.classList.remove('open');
+  }
+  function renameNotebook(){
+    const folder=data.folders.find(f=>f.id===editingNotebookId);
+    if(!folder)return;
+    const name=String(document.getElementById('noteBookEditName')?.value||'').trim();
+    if(!name || name.length>70){toast('Geef je notitieboek een naam van maximaal 70 tekens.');return;}
+    if(data.folders.some(f=>f.id!==folder.id && f.name.toLocaleLowerCase('nl')===name.toLocaleLowerCase('nl'))){
+      toast('Er bestaat al een notitieboek met die naam.');return;
+    }
+    const previous=folder.name;
+    folder.name=name;
+    if(!saveData()){
+      folder.name=previous;
+      toast('Naam wijzigen lukte niet. Je notitieboek is onveranderd.');return;
+    }
+    closeNotebookEdit();renderNotes();renderFolderManager();toast('Naam gewijzigd.');
+  }
+  function resetNotebookCover(){
+    const folder=data.folders.find(f=>f.id===editingNotebookId);
+    if(!folder)return;
+    if(!folder.cover)return;
+    const old=folder.cover;
+    folder.cover='';
+    if(!saveData()){
+      folder.cover=old;
+      toast('Standaardomslag kon niet worden opgeslagen.');return;
+    }
+    updateNotebookEditPreview(folder);renderNotes();toast('Standaardomslag hersteld.');
+  }
+  async function prepareNotebookCover(file){
+    if(!file)throw new Error('Geen foto gekozen.');
+    if(!file.size || file.size>30*1024*1024)
+      throw new Error('Kies een foto kleiner dan 30 MB.');
+    const signature=new Uint8Array(await file.slice(0,12).arrayBuffer());
+    const jpeg=signature[0]===255&&signature[1]===216&&signature[2]===255;
+    const png=signature[0]===137&&String.fromCharCode(...signature.slice(1,4))==='PNG';
+    const webp=String.fromCharCode(...signature.slice(0,4))==='RIFF'&&
+       String.fromCharCode(...signature.slice(8,12))==='WEBP';
+    const gif=String.fromCharCode(...signature.slice(0,3))==='GIF';
+    const hint=String(file.type||'').startsWith('image/') ||
+       /\\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(file.name||'');
+    if(!(jpeg||png||webp||gif||hint))
+      throw new Error('Kies een foto (JPG, PNG of een andere afbeelding).');
+    const url=URL.createObjectURL(file);
+    try{
+      const img=new Image();
+      await new Promise((resolve,reject)=>{
+        img.onload=resolve;
+        img.onerror=()=>reject(new Error('Deze foto kan niet geopend worden. Probeer JPG of PNG.'));
+        img.src=url;
+      });
+      if(!img.naturalWidth||!img.naturalHeight)throw new Error('Ongeldige foto.');
+      const canvas=document.createElement('canvas');
+      const ctx=canvas.getContext('2d');
+      if(!ctx)throw new Error('Foto verwerken lukt niet op dit toestel.');
+      for(const width of [420,340,280,220]){
+        canvas.width=width;canvas.height=Math.round(width/.88);
+        const ratio=Math.max(canvas.width/img.naturalWidth,canvas.height/img.naturalHeight);
+        const w=img.naturalWidth*ratio,h=img.naturalHeight*ratio;
+        ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
+        for(const quality of [.77,.62,.46,.34]){
+          const cover=canvas.toDataURL('image/jpeg',quality);
+          if(/^data:image\\/jpeg;base64,/.test(cover)&&cover.length<=105000)return cover;
+        }
+      }
+      throw new Error('De foto is te groot voor een omslag. Kies een kleinere foto.');
+    }finally{URL.revokeObjectURL(url);}
+  }
+  async function saveNotebookCover(file,id){
+    if(!file||savingNotebookCover)return;
+    savingNotebookCover=true;
+    const choose=document.getElementById('noteBookChooseCover');
+    if(choose)choose.disabled=true;
+    try{
+      const cover=await prepareNotebookCover(file);
+      const folder=data.folders.find(f=>f.id===id);
+      if(!folder){toast('Dit notitieboek bestaat niet meer.');return;}
+      const previous=folder.cover||'';
+      folder.cover=cover;
+      if(!saveData()){
+        folder.cover=previous;
+        toast('Opslag vol. De bestaande omslag blijft behouden.');return;
+      }
+      if(editingNotebookId===id)updateNotebookEditPreview(folder);
+      renderNotes();
+      toast('Foto als omslag ingesteld.');
+    }catch(error){toast(error?.message||'Foto instellen is mislukt.');}
+    finally{
+      savingNotebookCover=false;
+      if(choose)choose.disabled=false;
+      const input=document.getElementById('noteBookCoverInput');
+      if(input)input.value='';
+    }
+  }
+  function deleteNotebook(){
+    const folder=data.folders.find(f=>f.id===editingNotebookId);
+    if(!folder)return;
+    if(!confirm('Notitieboek “'+folder.name+'” verwijderen? Alle notities blijven bewaard bij Losse notities.'))return;
+    const beforeNotes=data.notes.map(n=>n.folderId);
+    const beforeFolders=data.folders;
+    data.notes.forEach(n=>{if(n.folderId===folder.id)n.folderId=null;});
+    data.folders=data.folders.filter(f=>f.id!==folder.id);
+    if(!saveData()){
+      data.folders=beforeFolders;
+      data.notes.forEach((n,i)=>{n.folderId=beforeNotes[i];});
+      toast('Notitieboek verwijderen lukte niet. Alles is behouden.');return;
+    }
+    if(activeFolder===folder.id){activeFolder=ALL;booksHome=true;}
+    closeNotebookEdit();renderFolderManager();renderNotes();
+    toast('Notitieboek verwijderd. De notities staan bij Losse notities.');
+  }
+
   function openFolders() {
     replaceNotesView();
     renderFolderManager();
     document.getElementById('noteFoldersModal').classList.add('open');
-    setTimeout(()=>document.getElementById('newFolderName')?.focus(),60);
+    // Beheren toont eerst het overzicht; geen ongevraagd toetsenbord.
   }
   function closeFolders() {
     document.getElementById('noteFoldersModal')?.classList.remove('open');
@@ -1100,6 +1235,8 @@
   document.addEventListener('click',e=>{
     const book=e.target.closest('[data-notebook-open]');
     if(book){openNotebook(book.dataset.notebookOpen);return;}
+    const editBook=e.target.closest('[data-notebook-edit]');
+    if(editBook){openNotebookEdit(editBook.dataset.notebookEdit);return;}
     if(e.target.closest('#notesBackToBooks')){backToNotebooks();return;}
     if(e.target.closest('#notesBooksSearchButton')){
       openNotebook(ALL);
@@ -1124,9 +1261,26 @@
     const quick=e.target.closest('[data-note-quick]');
     if(quick){runQuickAction(quick.dataset.noteQuick);return;}
     if(e.target.closest('#newRichNoteButton')){openEditor();return;}
-    if(e.target.closest('#quickNewFolderButton')){openFolders();return;}
+    if(e.target.closest('#quickNewFolderButton')){
+      openFolders();
+      setTimeout(()=>document.getElementById('newFolderName')?.focus(),60);
+      return;
+    }
     if(e.target.closest('#openFoldersButton')){openFolders();return;}
     if(e.target.closest('#closeFoldersModal')){closeFolders();return;}
+    if(e.target.closest('#closeNoteBookEdit')){closeNotebookEdit();return;}
+    if(e.target.closest('#noteBookSaveName')){renameNotebook();return;}
+    if(e.target.closest('#noteBookResetCover')){resetNotebookCover();return;}
+    if(e.target.closest('#noteBookDelete')){deleteNotebook();return;}
+    if(e.target.closest('#noteBookChooseCover')){
+      const folder=data.folders.find(f=>f.id===editingNotebookId);
+      if(folder&&!savingNotebookCover){
+        choosingNotebookCoverId=folder.id;
+        const input=document.getElementById('noteBookCoverInput');
+        if(input){input.value='';input.click();}
+      }
+      return;
+    }
     if(e.target.closest('#closeNoteEditor')){closeEditor();return;}
     if(e.target.closest('#saveRichNoteButton')){saveEditor();return;}
     if(e.target.closest('#noteAddFileButton')){document.getElementById('noteFileInput')?.click();return;}
