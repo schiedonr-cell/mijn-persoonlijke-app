@@ -39,6 +39,10 @@
       plainText:text,
       folderId:n?.folderId||null,
       pinned:Boolean(n?.pinned),
+      files:Array.isArray(n?.files)?n.files.filter(f=>f && typeof f.src==='string' && /^data:(?:image\/jpeg|image\/png|image\/webp|application\/pdf);base64,/.test(f.src)).map(f=>({
+        id:String(f.id||uid('file')),name:String(f.name||'Bijlage'),
+        mime:String(f.mime||''),src:f.src,size:Number(f.size)||0
+      })):[],
       createdAt:Number(n?.createdAt||Date.now()),
       updatedAt:Number(n?.updatedAt||n?.createdAt||Date.now())
     };
@@ -149,6 +153,19 @@
       .folder-manage-row button{border:0;border-radius:10px;background:#fff;min-height:36px;padding:6px 9px;font-weight:800;color:var(--accent-strong)}
       .folder-manage-row button.danger{color:var(--danger)}
       .folder-create-row{display:grid;grid-template-columns:1fr auto;gap:8px}
+      .note-files-panel{border-top:1px solid var(--line);margin-top:15px;padding-top:13px}
+      .note-files-head{display:flex;justify-content:space-between;align-items:center;gap:9px}
+      .note-file-add{min-height:46px;padding:8px 14px;border:0;border-radius:13px;background:var(--accent-soft);color:var(--accent-strong);font-weight:800}
+      .note-file-list{display:grid;gap:8px;margin-top:11px}
+      .note-file-row{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:8px;align-items:center;border:1px solid var(--line);padding:7px;border-radius:13px}
+      .note-file-open{border:0;background:transparent;text-align:left;display:flex;align-items:center;gap:9px;min-height:48px;min-width:0;color:var(--text);font-weight:750}
+      .note-file-thumb{width:44px;height:44px;flex:none;border-radius:9px;object-fit:cover;background:var(--surface-soft)}
+      .note-file-remove{width:40px;height:40px;border:0;border-radius:10px;background:#fff1ef;color:var(--danger)}
+      .note-file-hint{color:var(--muted);font-size:12px;line-height:1.5;margin:7px 0 0}
+      .note-image-viewport{max-height:67vh;overflow:auto;text-align:center;background:#171d1a;border-radius:12px;margin-top:12px}
+      .note-image-viewport img{display:block;margin:auto;height:auto;min-width:0}
+      .note-image-zoom{display:flex;gap:10px;margin-top:12px}
+      .note-image-zoom button{min-height:48px;flex:1;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft)}
       .notes-mini-toast{position:fixed;left:50%;bottom:105px;transform:translate(-50%,14px);z-index:100000;background:#253028;color:#fff;border-radius:999px;padding:10px 14px;font-size:13px;font-weight:800;opacity:0;pointer-events:none;transition:.16s}
       .notes-mini-toast.show{opacity:1;transform:translate(-50%,0)}
     `;
@@ -234,6 +251,14 @@
             </div>
 
             <div id="noteRichEditor" class="note-rich-editor" contenteditable="true" spellcheck="true"></div>
+            <div class="note-files-panel">
+              <div class="note-files-head"><strong>Foto's en PDF's</strong>
+                <button type="button" class="note-file-add" id="noteAddFileButton">+ Toevoegen</button>
+              </div>
+              <input type="file" id="noteFileInput" accept="image/*,application/pdf,.pdf" style="display:none" />
+              <div class="note-file-list" id="noteFileList"></div>
+              <p class="note-file-hint">Proefversie voor kleine bestanden. Bijlagen worden opgeslagen bij je notitie en meegenomen in de back-up.</p>
+            </div>
 
             <div class="note-editor-actions" id="noteEditorActions">
               <button class="primary-button" id="saveRichNoteButton">Notitie bewaren</button>
@@ -242,6 +267,13 @@
           </div>
         </div>
 
+        <div class="modal-backdrop" id="noteImageModal" role="dialog" aria-modal="true" aria-label="Foto bekijken">
+          <div class="sheet">
+            <div class="sheet-head"><h3>Foto bekijken</h3><button class="close-button" id="closeNoteImage" aria-label="Sluiten">×</button></div>
+            <div class="note-image-viewport" id="noteImageViewport"><img id="noteImagePreview" alt="Bijlage" /></div>
+            <div class="note-image-zoom"><button id="noteZoomOut" type="button">− Kleiner</button><button id="noteZoomIn" type="button">+ Groter</button></div>
+          </div>
+        </div>
         <div class="modal-backdrop" id="noteActionModal" role="dialog" aria-modal="true" aria-labelledby="noteActionHeading">
           <div class="sheet">
             <div class="sheet-head">
@@ -314,7 +346,7 @@
             <button class="note-v2-more" data-rich-note-action="${esc(n.id)}" aria-label="Acties voor ${esc(noteTitle(n))}">⋯</button>
           </div>
         </div>
-        <div class="note-v2-meta"><span class="note-folder-badge">${esc(folderName(n.folderId))}</span><span>${esc(formatDate(n.updatedAt))}</span></div>
+        <div class="note-v2-meta"><span class="note-folder-badge">${esc(folderName(n.folderId))}</span><span>${esc(formatDate(n.updatedAt))}</span>${n.files?.length?'<span>'+n.files.length+' bijlage(n)</span>':''}</div>
       </div>
     `).join(''):`<div class="empty-state">Nog geen notities in deze map.</div>`;
   }
@@ -323,6 +355,110 @@
     return `<option value="">Algemeen</option>`+data.folders.map(f=>`<option value="${esc(f.id)}" ${selected===f.id?'selected':''}>${esc(f.name)}</option>`).join('');
   }
 
+
+  let imageZoom=1;
+  function renderFileList(note){
+    const list=document.getElementById('noteFileList');
+    if(!list)return;
+    const files=note?.files||[];
+    list.innerHTML=files.map(f=>`
+      <div class="note-file-row">
+        <button type="button" class="note-file-open" data-note-file-open="${esc(f.id)}">
+          ${f.mime==='application/pdf'?'<span class="note-file-thumb" style="display:grid;place-items:center;font-size:12px;font-weight:900">PDF</span>':`<img class="note-file-thumb" alt="" src="${f.src}">`}
+          <span style="overflow-wrap:anywhere">${esc(f.name)}</span>
+        </button>
+        <button type="button" class="note-file-remove" data-note-file-remove="${esc(f.id)}" aria-label="Bestand verwijderen">×</button>
+      </div>`).join('');
+    if(!note)list.innerHTML='<p class="note-file-hint">Bewaar de nieuwe notitie eerst. Open haar daarna om bestanden toe te voegen.</p>';
+    else if(!files.length)list.innerHTML='<p class="note-file-hint">Nog geen bestanden bij deze notitie.</p>';
+  }
+  function readFileAsDataURL(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result||''));
+      reader.onerror=()=>reject(new Error('Bestand lezen mislukt'));
+      reader.readAsDataURL(file);
+    });
+  }
+  async function prepareNoteFile(file){
+    const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
+    if(isPdf){
+      if(file.size>1200000)throw new Error('PDF te groot voor deze proefversie (maximaal 1,2 MB).');
+      const raw=await readFileAsDataURL(file);
+      return {id:uid('file'),name:file.name||'Document.pdf',mime:'application/pdf',size:file.size,src:'data:application/pdf;base64,'+raw.split(',')[1]};
+    }
+    if(!file.type.startsWith('image/'))throw new Error('Kies een foto of PDF.');
+    if(file.size>20000000)throw new Error('Deze foto is te groot.');
+    const url=URL.createObjectURL(file);
+    try{
+      const img=new Image();
+      await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('Deze foto kan niet geopend worden.'));img.src=url;});
+      const canvas=document.createElement('canvas');
+      const scale=Math.min(1,1280/Math.max(img.naturalWidth,img.naturalHeight));
+      canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+      canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      let src=canvas.toDataURL('image/jpeg',.72);
+      if(src.length>850000)src=canvas.toDataURL('image/jpeg',.52);
+      if(src.length>850000)throw new Error('Foto te groot, probeer een kleinere afbeelding.');
+      return {id:uid('file'),name:file.name||'Foto.jpg',mime:'image/jpeg',size:Math.round(src.length*.75),src};
+    }finally{URL.revokeObjectURL(url);}
+  }
+  async function addNoteFile(file){
+    if(!file)return;
+    const note=data.notes.find(n=>n.id===editingId);
+    if(!note){toast('Bewaar eerst je notitie, open haar daarna opnieuw.');return;}
+    if((note.files||[]).length>=12){toast('Maximaal 12 bestanden in deze proefversie.');return;}
+    const button=document.getElementById('noteAddFileButton');
+    if(button)button.disabled=true;
+    try{
+      const attachment=await prepareNoteFile(file);
+      if(!data.notes.includes(note)||editingId!==note.id)return;
+      note.files||=[];
+      note.files.push(attachment);
+      note.updatedAt=Date.now();
+      if(!saveData()){
+        note.files.pop();
+        toast('Opslag vol: bestand niet toegevoegd. Je bestaande notitie blijft bewaard.');
+        return;
+      }
+      renderFileList(note);renderNotes();toast('Bestand toegevoegd aan de notitie.');
+    }catch(error){toast(error?.message||'Bestand toevoegen is mislukt.');}
+    finally{if(button)button.disabled=false;const input=document.getElementById('noteFileInput');if(input)input.value='';}
+  }
+  function openNoteFile(id){
+    const note=data.notes.find(n=>n.id===editingId),file=note?.files?.find(f=>f.id===id);
+    if(!file)return;
+    if(file.mime==='application/pdf'){
+      const base64=file.src.split(',')[1];
+      if(window.AndroidWidgetBridge){
+        if(typeof window.AndroidWidgetBridge.openNotePdf==='function')window.AndroidWidgetBridge.openNotePdf(base64,file.name);
+        else toast('PDF bekijken vereist een bijgewerkte Android-app.');
+        return;
+      }
+      try{
+        const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
+        const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+        const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),120000);
+      }catch{toast('PDF openen lukte niet.');}
+      return;
+    }
+    imageZoom=1;
+    const img=document.getElementById('noteImagePreview');
+    img.src=file.src;img.style.width='100%';
+    document.getElementById('noteImageViewport').scrollTop=0;
+    document.getElementById('noteImageModal').classList.add('open');
+  }
+  function removeNoteFile(id){
+    const note=data.notes.find(n=>n.id===editingId);
+    if(!note?.files?.some(f=>f.id===id))return;
+    if(!confirm('Dit bestand uit de notitie verwijderen?'))return;
+    const original=note.files,updated=original.filter(f=>f.id!==id),prevTime=note.updatedAt;
+    note.files=updated;note.updatedAt=Date.now();
+    if(!saveData()){note.files=original;note.updatedAt=prevTime;toast('Verwijderen kon niet worden opgeslagen.');return;}
+    renderFileList(note);renderNotes();toast('Bijlage verwijderd.');
+  }
   function openEditor(id=null) {
     replaceNotesView();
     editingId=id;
@@ -334,6 +470,7 @@
     select.value=note?.folderId||'';
     document.getElementById('noteEditorPinned').checked=Boolean(note?.pinned);
     document.getElementById('noteRichEditor').innerHTML=note?.html||'';
+    renderFileList(note);
     document.getElementById('deleteRichNoteButton').style.display=note?'block':'none';
     document.getElementById('noteEditorActions').classList.toggle('has-delete',Boolean(note));
     document.getElementById('noteEditorModal').classList.add('open');
@@ -347,7 +484,7 @@
     const title=document.getElementById('noteEditorTitle').value.trim();
     const editor=document.getElementById('noteRichEditor');
     const plain=(editor.innerText||'').trim();
-    if(!title&&!plain){toast('Schrijf eerst iets in je notitie.');return;}
+    if(!title&&!plain&&!(editingId&&data.notes.find(n=>n.id===editingId)?.files?.length)){toast('Schrijf eerst iets in je notitie.');return;}
     const now=Date.now();
     const existing=editingId?data.notes.find(n=>n.id===editingId):null;
     const previous=existing?{...existing}:null;
@@ -456,6 +593,17 @@
     if(e.target.closest('#closeFoldersModal')){closeFolders();return;}
     if(e.target.closest('#closeNoteEditor')){closeEditor();return;}
     if(e.target.closest('#saveRichNoteButton')){saveEditor();return;}
+    if(e.target.closest('#noteAddFileButton')){document.getElementById('noteFileInput')?.click();return;}
+    const fileOpen=e.target.closest('[data-note-file-open]');
+    if(fileOpen){openNoteFile(fileOpen.dataset.noteFileOpen);return;}
+    const fileRemove=e.target.closest('[data-note-file-remove]');
+    if(fileRemove){removeNoteFile(fileRemove.dataset.noteFileRemove);return;}
+    if(e.target.closest('#closeNoteImage')||e.target.id==='noteImageModal'){document.getElementById('noteImageModal').classList.remove('open');return;}
+    if(e.target.closest('#noteZoomOut,#noteZoomIn')){
+      imageZoom=Math.min(4,Math.max(1,imageZoom+(e.target.closest('#noteZoomIn')?.id==='noteZoomIn'?.5:-.5)));
+      document.getElementById('noteImagePreview').style.width=Math.round(imageZoom*100)+'%';
+      return;
+    }
     if(e.target.closest('#deleteRichNoteButton')){deleteEditorNote();return;}
     const action=e.target.closest('[data-rich-note-action]');
     if(action){openNoteAction(action.dataset.richNoteAction);return;}
@@ -519,6 +667,9 @@
     if(e.target?.id==='noteActionModal')closeNoteAction();
   });
 
+  document.addEventListener('change',e=>{
+    if(e.target?.id==='noteFileInput')addNoteFile(e.target.files?.[0]);
+  });
   document.addEventListener('paste',e=>{
     if(e.target?.id!=='noteRichEditor')return;
     e.preventDefault();
