@@ -62,6 +62,8 @@ public class MainActivity extends Activity {
     private String pendingBackupJson = null;
     private ValueCallback<Uri[]> pendingNoteFile;
     private Uri cameraPhotoUri;
+    private List<String[]> importBlobsPairs;
+    private int importBlobsIndex=-1;
 
     private final Runnable syncLoop = new Runnable() {
         @Override public void run() {
@@ -367,6 +369,8 @@ public class MainActivity extends Activity {
     private void failImport() {
         // Het originele bestand niet wissen als slechts een deel is teruggezet.
         importing = false;
+        importBlobsPairs = null;
+        importBlobsIndex = -1;
         Toast.makeText(this,
                 "Herstellen is niet gelukt. Je back-upbestand is bewaard; verwijder geen gegevens.",
                 Toast.LENGTH_LONG).show();
@@ -392,16 +396,34 @@ public class MainActivity extends Activity {
         String[] pair = pairs.get(i);
         String key = pair[0], value = pair[1];
         if (offset >= value.length()) {
-            String js =
-                    "(function(){try{var v=window.__mijnDagImportBuffer||'';" +
-                    "localStorage.setItem(" + JSONObject.quote(key) + ",v);" +
-                    "var ok=localStorage.getItem(" + JSONObject.quote(key) + ")===v;" +
-                    "delete window.__mijnDagImportBuffer;return ok;}" +
-                    "catch(e){delete window.__mijnDagImportBuffer;return false;}})();";
-            webView.evaluateJavascript(js, result -> {
-                if ("true".equals(result)) injectNext(pairs, i + 1);
-                else failImport();
-            });
+            if ("mijnPersoonlijkeAppNoteBlobsV1".equals(key)) {
+                // Binaire bijlagen horen in IndexedDB, nooit in localStorage.
+                importBlobsPairs=pairs;
+                importBlobsIndex=i;
+                String js =
+                        "(function(){try{var v=window.__mijnDagImportBuffer||'';" +
+                        "delete window.__mijnDagImportBuffer;" +
+                        "if(!window.MijnDagNoteBlobStorage)return false;" +
+                        "window.MijnDagNoteBlobStorage.importPayload(v)" +
+                        ".then(function(){AndroidWidgetBridge.noteBlobsImported(true);}," +
+                        "function(){AndroidWidgetBridge.noteBlobsImported(false);});" +
+                        "return true;}" +
+                        "catch(e){delete window.__mijnDagImportBuffer;return false;}})();";
+                webView.evaluateJavascript(js, result -> {
+                    if (!"true".equals(result)) failImport();
+                });
+            } else {
+                String js =
+                        "(function(){try{var v=window.__mijnDagImportBuffer||'';" +
+                        "localStorage.setItem(" + JSONObject.quote(key) + ",v);" +
+                        "var ok=localStorage.getItem(" + JSONObject.quote(key) + ")===v;" +
+                        "delete window.__mijnDagImportBuffer;return ok;}" +
+                        "catch(e){delete window.__mijnDagImportBuffer;return false;}})();";
+                webView.evaluateJavascript(js, result -> {
+                    if ("true".equals(result)) injectNext(pairs, i + 1);
+                    else failImport();
+                });
+            }
             return;
         }
         final int end = Math.min(offset + 32768, value.length());
@@ -578,6 +600,44 @@ public class MainActivity extends Activity {
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
 
     private final class Bridge {
+        @JavascriptInterface public void noteBlobsImported(boolean ok) {
+            runOnUiThread(() -> {
+                if(!importing || importBlobsPairs==null || importBlobsIndex<0)return;
+                List<String[]> saved=importBlobsPairs;
+                int next=importBlobsIndex+1;
+                importBlobsPairs=null;importBlobsIndex=-1;
+                if(ok)injectNext(saved,next);
+                else failImport();
+            });
+        }
+
+        private StringBuilder notePdfParts;
+        private int expectedNotePdfLength;
+        @JavascriptInterface public synchronized boolean beginNotePdf(int length) {
+            if(length<1 || length>11200000){notePdfParts=null;return false;}
+            expectedNotePdfLength=length;
+            notePdfParts=new StringBuilder(length);
+            return true;
+        }
+        @JavascriptInterface public synchronized boolean addNotePdfPart(String part){
+            if(notePdfParts==null||part==null||part.length()>32768||
+                notePdfParts.length()+part.length()>expectedNotePdfLength){notePdfParts=null;return false;}
+            notePdfParts.append(part);
+            return true;
+        }
+        @JavascriptInterface public boolean finishNotePdf(String name){
+            final String value;
+            synchronized(this){
+                if(notePdfParts==null || notePdfParts.length()!=expectedNotePdfLength){
+                    notePdfParts=null;return false;
+                }
+                value=notePdfParts.toString();
+                notePdfParts=null;
+            }
+            runOnUiThread(()->showNotePdf(value,name));
+            return true;
+        }
+
         private StringBuilder backupParts;
         private int expectedBackupLength;
 
@@ -615,10 +675,9 @@ public class MainActivity extends Activity {
             return true;
         }
 
-        @JavascriptInterface public void openNotePdf(String base64, String name) {
-            runOnUiThread(() -> {
+        private void showNotePdf(String base64, String name) {
                 try {
-                    if (base64 == null || base64.length() > 2100000) throw new java.io.IOException("PDF te groot");
+                    if (base64 == null || base64.length() > 11200000) throw new java.io.IOException("PDF te groot");
                     byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
                     if (bytes.length < 5 || bytes[0] != '%' || bytes[1] != 'P' ||
                             bytes[2] != 'D' || bytes[3] != 'F' || bytes[4] != '-')
@@ -637,7 +696,10 @@ public class MainActivity extends Activity {
                 } catch (Exception ex) {
                     Toast.makeText(MainActivity.this, "PDF openen lukt niet. Controleer of je een PDF-lezer hebt.", Toast.LENGTH_LONG).show();
                 }
-            });
+        }
+        @JavascriptInterface public void openNotePdf(String base64, String name) {
+            if(base64==null || base64.length()>2100000)return;
+            runOnUiThread(()->showNotePdf(base64,name));
         }
         @JavascriptInterface public void saveBackup(String backupJson) {
             runOnUiThread(() -> createBackup(backupJson));
