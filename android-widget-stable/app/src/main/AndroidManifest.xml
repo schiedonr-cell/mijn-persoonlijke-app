@@ -1,201 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.READ_CALENDAR" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-
     <application
-        android:label="Mijn dag"
+        android:label="Mijn dag - notitiesproef"
         android:icon="@drawable/app_icon"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false"
         android:hardwareAccelerated="true">
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTask">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="application/json" />
-                <data android:mimeType="text/plain" />
-            </intent-filter>
         </activity>
 
-        <activity
-            android:name=".WidgetConfigActivity"
-            android:exported="true"
-            android:excludeFromRecents="true" />
-
-        <receiver
-            android:name=".ReminderReceiver"
-            android:exported="false" />
-
-        <service
-            android:name=".AlarmSoundService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
-
-        <receiver
-            android:name=".BootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.TIME_SET" />
-                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
-            </intent-filter>
-        </receiver>
-
-        <receiver
-            android:name=".SmallWidgetProvider"
-            android:label="Mijn dag – klein"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_small_info" />
-        </receiver>
-        <receiver
-            android:name=".MediumWidgetProvider"
-            android:label="Mijn dag – middel"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_medium_info" />
-        </receiver>
-        <receiver
-            android:name=".LargeWidgetProvider"
-            android:label="Mijn dag – groot"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_large_info" />
-        </receiver>
-        <receiver
-            android:name=".TodayWidgetProvider"
-            android:label="Vandaag"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info" />
-        </receiver>
-        <!-- Alleen interne ontvanger voor ingebouwde Vandaag/Morgen-tabjes.
-             Geen apart homescreen-widgettype meer. -->
-        <receiver
-            android:name=".DayTabsWidgetProvider"
-            android:exported="false" />
-        <receiver
-            android:name=".TodayGridWidgetProvider"
-            android:label="Vandaag – 4 vakken"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_grid_info" />
-        </receiver>
-        <receiver
-            android:name=".TodayTimelineWidgetProvider"
-            android:label="Vandaag – tijdlijn"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_timeline_info" />
-        </receiver>
-        <receiver
-            android:name=".AgendaWidgetProvider"
-            android:label="Agenda"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_agenda_info" />
-        </receiver>
-        <receiver
-            android:name=".TodayTasksWidgetProvider"
-            android:label="Taken – vandaag"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_tasks_info" />
-        </receiver>
-        <receiver
-            android:name=".RoutinesWidgetProvider"
-            android:label="Routines"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_routines_info" />
-        </receiver>
-        <receiver
-            android:name=".HouseholdWidgetProvider"
-            android:label="Huishouden"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_household_info" />
-        </receiver>
-        <receiver
-            android:name=".FocusWidgetProvider"
-            android:label="Focus"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_focus_info" />
-        </receiver>
-        <receiver
-            android:name=".FoodWidgetProvider"
-            android:label="Eten"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_food_info" />
-        </receiver>
-        <receiver
-            android:name=".NotesWidgetProvider"
-            android:label="Notities"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_notes_info" />
-        </receiver>
-        <receiver
-            android:name=".DumpWidgetProvider"
-            android:label="Inbox"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_dump_info" />
-        </receiver>
-        <receiver
-            android:name=".TasksWidgetProvider"
-            android:label="Taken"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_tasks_info" />
-        </receiver>
-        <receiver
-            android:name=".ProjectsWidgetProvider"
-            android:label="Projecten"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_projects_info" />
-        </receiver>
-        <receiver
-            android:name=".NewNoteWidgetProvider"
-            android:label="Nieuwe notitie"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_new_note_info" />
-        </receiver>
-        <receiver
-            android:name=".ShortcutRowWidgetProvider"
-            android:label="Focus · Eten · Notitie"
-            android:exported="true">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_shortcut_row_info" />
-        </receiver>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.notesfiles"
             android:exported="false"
             android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/note_file_paths" />
         </provider>
     </application>
