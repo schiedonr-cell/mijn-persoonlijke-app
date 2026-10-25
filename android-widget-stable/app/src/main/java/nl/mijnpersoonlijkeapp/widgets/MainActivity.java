@@ -13,6 +13,10 @@ import android.os.Looper;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebChromeClient;
+import android.webkit.ValueCallback;
+import android.provider.MediaStore;
+import android.util.Base64;
+import androidx.core.content.FileProvider;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
@@ -49,12 +53,15 @@ public class MainActivity extends Activity {
     private static final int NOTIFICATION_PERMISSION = 79;
     private static final int SPEECH_REQUEST = 80;
     private static final int BACKUP_CREATE_DOCUMENT = 81;
+    private static final int NOTE_FILE_CHOOSER = 82;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WebView webView;
     private String target = "today";
     private boolean importing = false;
     private String pendingBackupJson = null;
+    private ValueCallback<Uri[]> pendingNoteFile;
+    private Uri cameraPhotoUri;
 
     private final Runnable syncLoop = new Runnable() {
         @Override public void run() {
@@ -176,6 +183,18 @@ public class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == NOTE_FILE_CHOOSER) {
+            Uri[] chosen = null;
+            if (resultCode == RESULT_OK) {
+                if (data != null) chosen = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+                if ((chosen == null || chosen.length == 0) && cameraPhotoUri != null)
+                    chosen = new Uri[]{cameraPhotoUri};
+            }
+            if (pendingNoteFile != null) pendingNoteFile.onReceiveValue(chosen);
+            pendingNoteFile = null;
+            cameraPhotoUri = null;
+            return;
+        }
         if (requestCode == PICK_FILE && resultCode == RESULT_OK && data != null && data.getData() != null) {
             if (saveTransfer(readUri(data.getData()))) openApp();
             else Toast.makeText(this, "Dit bestand bevat geen geldige appgegevens.", Toast.LENGTH_LONG).show();
@@ -257,7 +276,39 @@ public class MainActivity extends Activity {
         s.setCacheMode(WebSettings.LOAD_NO_CACHE);
         webView.clearCache(true);
         webView.addJavascriptInterface(new Bridge(), "AndroidWidgetBridge");
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (pendingNoteFile != null) pendingNoteFile.onReceiveValue(null);
+                pendingNoteFile = callback;
+                cameraPhotoUri = null;
+                try {
+                    if (params.isCaptureEnabled()) {
+                        File dir = new File(getCacheDir(), "note-files");
+                        if (!dir.exists() && !dir.mkdirs()) throw new java.io.IOException("Kan fotomap niet maken");
+                        File photo = File.createTempFile("camera-", ".jpg", dir);
+                        cameraPhotoUri = FileProvider.getUriForFile(MainActivity.this,
+                                getPackageName() + ".notesfiles", photo);
+                        Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                        camera.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
+                        camera.setClipData(ClipData.newRawUri("foto", cameraPhotoUri));
+                        camera.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                        startActivityForResult(camera, NOTE_FILE_CHOOSER);
+                    } else {
+                        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                        pick.addCategory(Intent.CATEGORY_OPENABLE);
+                        pick.setType("*/*");
+                        pick.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "application/pdf"});
+                        startActivityForResult(pick, NOTE_FILE_CHOOSER);
+                    }
+                } catch (Exception ex) {
+                    if (pendingNoteFile != null) pendingNoteFile.onReceiveValue(null);
+                    pendingNoteFile = null;
+                    cameraPhotoUri = null;
+                    Toast.makeText(MainActivity.this, "Bestand kiezen lukte niet.", Toast.LENGTH_LONG).show();
+                }
+                return true;
+            }
+        });
         webView.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
                 Uri u = request.getUrl();
@@ -286,7 +337,7 @@ public class MainActivity extends Activity {
             }
         });
         setContentView(webView);
-        webView.loadUrl(BASE + "?open=" + Uri.encode(target) + "&nativev=46");
+        webView.loadUrl(BASE + "?open=" + Uri.encode(target) + "&nativev=47");
     }
 
     private void importIntoWebView() {
@@ -328,7 +379,7 @@ public class MainActivity extends Activity {
             "if(window.__mijnDagNotesV2Loaded){try{window.MijnDagNotes&&window.MijnDagNotes.refresh&&window.MijnDagNotes.refresh();}catch(_){ }return;}" +
             "var old=document.getElementById('mijnDagNotesV2Script');if(old)old.remove();" +
             "var sc=document.createElement('script');sc.id='mijnDagNotesV2Script';" +
-            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=46';" +
+            "sc.src='https://schiedonr-cell.github.io/mijn-persoonlijke-app/notes-v2.js?v=48';" +
             "sc.async=false;document.head.appendChild(sc);" +
             "})();";
         try { webView.evaluateJavascript(js, null); } catch (Exception ignored) {}
@@ -481,6 +532,30 @@ public class MainActivity extends Activity {
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
 
     private final class Bridge {
+        @JavascriptInterface public void openNotePdf(String base64, String name) {
+            runOnUiThread(() -> {
+                try {
+                    if (base64 == null || base64.length() > 2100000) throw new java.io.IOException("PDF te groot");
+                    byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
+                    if (bytes.length < 5 || bytes[0] != '%' || bytes[1] != 'P' ||
+                            bytes[2] != 'D' || bytes[3] != 'F' || bytes[4] != '-')
+                        throw new java.io.IOException("Geen geldige PDF");
+                    File dir = new File(getCacheDir(), "note-files");
+                    if (!dir.exists() && !dir.mkdirs()) throw new java.io.IOException("Kan PDF-map niet maken");
+                    File pdf = File.createTempFile("notitie-", ".pdf", dir);
+                    try (FileOutputStream out = new FileOutputStream(pdf)) { out.write(bytes); }
+                    Uri uri = FileProvider.getUriForFile(MainActivity.this,
+                            getPackageName() + ".notesfiles", pdf);
+                    Intent open = new Intent(Intent.ACTION_VIEW);
+                    open.setDataAndType(uri, "application/pdf");
+                    open.setClipData(ClipData.newRawUri("PDF", uri));
+                    open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(Intent.createChooser(open, "PDF bekijken"));
+                } catch (Exception ex) {
+                    Toast.makeText(MainActivity.this, "PDF openen lukt niet. Controleer of je een PDF-lezer hebt.", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
         @JavascriptInterface public void saveBackup(String backupJson) {
             runOnUiThread(() -> createBackup(backupJson));
         }
