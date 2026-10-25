@@ -6690,7 +6690,7 @@
     if(e.target.closest('[data-myday-backup]')){
       // Back-up is alleen een kopie. Nooit bestaande taken of instellingen wijzigen.
       const entries={};
-      for(const key of [STORAGE_KEY,REMINDER_SETTINGS_KEY,'mijnPersoonlijkeAppCalendarEventsV1']){
+      for(const key of [STORAGE_KEY,REMINDER_SETTINGS_KEY,'mijnPersoonlijkeAppCalendarEventsV1','mijnPersoonlijkeAppNotesV1']){
         const value=localStorage.getItem(key);
         if(value!==null)entries[key]=value;
       }
