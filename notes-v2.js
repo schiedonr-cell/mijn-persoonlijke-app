@@ -243,10 +243,15 @@
       .note-file-thumb{width:44px;height:44px;flex:none;border-radius:9px;object-fit:cover;background:var(--surface-soft)}
       .note-file-remove{width:40px;height:40px;border:0;border-radius:10px;background:#fff1ef;color:var(--danger)}
       .note-file-hint{color:var(--muted);font-size:12px;line-height:1.5;margin:7px 0 0}
-      .note-image-viewport{max-height:67vh;overflow:auto;text-align:center;background:#171d1a;border-radius:12px;margin-top:12px}
-      .note-image-viewport img{display:block;margin:auto;height:auto;min-width:0}
-      .note-image-zoom{display:flex;gap:10px;margin-top:12px}
-      .note-image-zoom button{min-height:48px;flex:1;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft)}
+      /* Fallback-galerij: normale fullscreen foto op donkere achtergrond. */
+      #noteImageModal{background:#101310;align-items:stretch;padding:0;z-index:180}
+      #noteImageModal .note-photo-sheet{width:100%;height:100dvh;max-width:none;max-height:none;display:flex;flex-direction:column;padding:0;background:#101310;border-radius:0}
+      #noteImageModal .sheet-head{padding:calc(12px + env(safe-area-inset-top)) 16px 12px;color:#fff}
+      #noteImageModal .sheet-head h3{color:#fff}
+      #noteImageModal .close-button{color:#fff;background:#303a32}
+      .note-image-viewport{height:auto;flex:1;overflow:auto;text-align:center;background:#101310;margin:0;display:flex;align-items:center;justify-content:center}
+      .note-image-viewport img{display:block;max-width:100%;max-height:100%;height:auto;width:auto!important;object-fit:contain}
+      .note-image-zoom{display:none}
       .notes-mini-toast{position:fixed;left:50%;bottom:105px;transform:translate(-50%,14px);z-index:100000;background:#253028;color:#fff;border-radius:999px;padding:10px 14px;font-size:13px;font-weight:800;opacity:0;pointer-events:none;transition:.16s}
       .notes-mini-toast.show{opacity:1;transform:translate(-50%,0)}
     `;
@@ -395,7 +400,7 @@
         </div>
 
         <div class="modal-backdrop" id="noteImageModal" role="dialog" aria-modal="true" aria-label="Foto bekijken">
-          <div class="sheet">
+          <div class="sheet note-photo-sheet">
             <div class="sheet-head"><h3>Foto bekijken</h3><button class="close-button" id="closeNoteImage" aria-label="Sluiten">×</button></div>
             <div class="note-image-viewport" id="noteImageViewport"><img id="noteImagePreview" alt="Bijlage" /></div>
             <div class="note-image-zoom"><button id="noteZoomOut" type="button">− Kleiner</button><button id="noteZoomIn" type="button">+ Groter</button></div>
@@ -822,6 +827,25 @@
       }catch(e){toast(e?.message||'Document openen lukte niet.');}
       return;
     }
+    // Samsung: foto direct openen in Galerij, geen handmatige zoomknoppen.
+    const native=window.AndroidWidgetBridge;
+    if(native?.beginNoteImage && native?.addNoteImagePart && native?.finishNoteImage){
+      try{
+        const src=String(file.src||'');
+        const comma=src.indexOf(',');
+        const mime=src.slice(5,src.indexOf(';'));
+        if(comma<0 || !['image/jpeg','image/png','image/webp'].includes(mime) ||
+           src.slice(src.indexOf(';'),comma)!==';base64')
+          throw new Error('Onbekend fotoformaat.');
+        const base64=src.slice(comma+1);
+        if(!native.beginNoteImage(base64.length))throw new Error('Foto openen mislukt.');
+        let ok=true;
+        for(let i=0;ok&&i<base64.length;i+=32768)ok=native.addNoteImagePart(base64.slice(i,i+32768));
+        if(!ok||!native.finishNoteImage(mime))throw new Error('Foto openen mislukt.');
+        return;
+      }catch(error){toast(error?.message||'Foto openen mislukt.');return;}
+    }
+    // Web en eerdere Android-versies tonen een eenvoudige fullscreen foto.
     imageZoom=1;
     const img=document.getElementById('noteImagePreview');
     img.src=file.src;img.style.width='100%';
