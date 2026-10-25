@@ -15,11 +15,11 @@ android {
     }
 
     defaultConfig {
-        applicationId 'nl.mijnpersoonlijkeapp.widgettest'
+        applicationId 'nl.mijnpersoonlijkeapp.notitieproef'
         minSdk 26
         targetSdk 35
-        versionCode 84
-        versionName 'mijn-dag-6.26-notitie-bijlagen-proef'
+        versionCode 1
+        versionName 'notities-proef-1.0'
     }
 
     buildTypes {
