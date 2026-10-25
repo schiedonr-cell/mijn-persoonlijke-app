@@ -13,6 +13,7 @@
   let booksHome = true;
   let searchQuery = '';
   let quickPickerFolder = null;
+  let quickPickerType = null;
   let addingQuickFile = false;
   let editingId = null;
   let actionNoteId = null;
@@ -605,8 +606,8 @@
     // Drive geeft een PDF soms een leeg/generiek MIME-type.
     // Controleer de bestandshandtekening in plaats van alleen de naam.
     let signature;
-    try{signature=new Uint8Array(await file.slice(0,8).arrayBuffer());}
-    catch{throw new Error('Bestand uit Drive niet leesbaar. Download het eerst als PDF of Word.');}
+    try{signature=new Uint8Array(await file.slice(0,32).arrayBuffer());}
+    catch{throw new Error('Bestand uit Drive niet leesbaar. Download het eerst naar je telefoon.');}
     const pdf=String.fromCharCode(...signature.subarray(0,5))==='%PDF-';
     const zip=signature[0]===0x50&&signature[1]===0x4b;
     const oldDoc=signature[0]===0xd0&&signature[1]===0xcf&&signature[2]===0x11&&signature[3]===0xe0;
@@ -644,21 +645,52 @@
       return {id:uid('file'),name:name||'Document.pdf',mime,size:file.size,
         src:'data:application/pdf;base64,'+raw.split(',')[1]};
     }
-    if(!file.type.startsWith('image/'))throw new Error('Dit bestandstype wordt nog niet ondersteund. Kies een PDF, Word (.docx/.doc) of foto.');
-    if(file.size>20000000)throw new Error('Deze foto is te groot.');
+    // Google Drive levert foto's soms met een leeg of algemeen MIME-type
+    // (application/octet-stream). Controleer daarom ook de echte bytes.
+    const imageType=String(file.type||'').toLowerCase();
+    const jpeg=signature[0]===0xff && signature[1]===0xd8 && signature[2]===0xff;
+    const png=signature[0]===0x89 && String.fromCharCode(...signature.slice(1,4))==='PNG';
+    const gif=String.fromCharCode(...signature.slice(0,3))==='GIF';
+    const webp=String.fromCharCode(...signature.slice(0,4))==='RIFF' &&
+       String.fromCharCode(...signature.slice(8,12))==='WEBP';
+    const heif=String.fromCharCode(...signature.slice(4,8))==='ftyp' &&
+       /^(heic|heix|hevc|mif1|msf1|avif)/.test(String.fromCharCode(...signature.slice(8,12)));
+    const knownPhoto=jpeg||png||gif||webp||heif;
+    const photoHint=/\.(jpe?g|png|gif|webp|heic|heif|avif)$/i.test(name) ||
+       (/^image\/(jpeg|png|gif|webp|heic|heif|avif)$/.test(imageType));
+    if(!knownPhoto&&!photoHint)
+       throw new Error('Dit is geen leesbare foto. Kies een JPG, PNG of andere afbeelding uit Drive.');
+    if(!file.size)throw new Error('Deze foto uit Drive is leeg. Download haar eerst naar je telefoon.');
+    if(file.size>30000000)throw new Error('Foto te groot (maximaal 30 MB). Download een kleinere versie.');
     const url=URL.createObjectURL(file);
     try{
       const img=new Image();
-      await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('Deze foto kan niet geopend worden.'));img.src=url;});
+      await new Promise((resolve,reject)=>{
+        img.onload=resolve;
+        img.onerror=()=>reject(new Error('Drive leverde een afbeelding die dit toestel niet kan openen. Download of exporteer haar als JPG of PNG.'));
+        img.src=url;
+      });
       const canvas=document.createElement('canvas');
-      const scale=Math.min(1,1280/Math.max(img.naturalWidth,img.naturalHeight));
-      canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
-      canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
-      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-      let src=canvas.toDataURL('image/jpeg',.72);
-      if(src.length>850000)src=canvas.toDataURL('image/jpeg',.52);
-      if(src.length>850000)throw new Error('Foto te groot, probeer een kleinere afbeelding.');
-      return {id:uid('file'),name:file.name||'Foto.jpg',mime:'image/jpeg',size:Math.round(src.length*.75),src};
+      const ctx=canvas.getContext('2d');
+      if(!ctx)throw new Error('Fotobewerking is op dit toestel niet beschikbaar.');
+      let src='';
+      for(const maxSide of [1280,1080,900,720,560]){
+        const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+        canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+        canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+        ctx.fillStyle='#fff';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        for(const quality of [.72,.56,.42]){
+          src=canvas.toDataURL('image/jpeg',quality);
+          if(src.startsWith('data:image/jpeg;base64,') && src.length<=850000)break;
+        }
+        if(src.startsWith('data:image/jpeg;base64,') && src.length<=850000)break;
+      }
+      if(!src.startsWith('data:image/jpeg;base64,') || src.length>850000)
+        throw new Error('Foto uit Drive blijft te groot. Kies een kleinere afbeelding.');
+      return {id:uid('file'),name:name||'Foto.jpg',mime:'image/jpeg',
+        size:Math.round((src.length-src.indexOf(',')-1)*.75),src};
     }finally{URL.revokeObjectURL(url);}
   }
   let addingNoteFile=false;
@@ -737,13 +769,17 @@
       }
     }
   }
-  async function addQuickFile(file,folderId){
+  async function addQuickFile(file,folderId,kind){
     if(!file||addingQuickFile)return;
     addingQuickFile=true;
     const validFolder=folderId && data.folders.some(f=>f.id===folderId)?folderId:null;
     let attachment=null,persistedBlob=false,committed=false;
     try{
       attachment=await prepareNoteFile(file);
+      if((kind==='photo'||kind==='camera')&&!attachment.mime.startsWith('image/'))
+        throw new Error('Kies een foto uit Drive, geen PDF of ander document.');
+      if(kind==='pdf' && attachment.mime.startsWith('image/'))
+        throw new Error('Kies bij Document een PDF of Word-bestand.');
       if(attachment.storage==='indexeddb'){
         await window.MijnDagNoteBlobStorage.put(attachment.id,attachment.blob);
         delete attachment.blob;
@@ -780,6 +816,7 @@
     if(!inputId)return;
     // De gekozen map onthouden voordat Android de camera/bestandskiezer opent.
     quickPickerFolder=activeFolder!==ALL&&activeFolder!==GENERAL?activeFolder:null;
+    quickPickerType=action;
     const input=document.getElementById(inputId);
     if(input){input.value='';input.click();}
   }
@@ -1142,8 +1179,8 @@
   document.addEventListener('change',e=>{
     if(e.target?.id==='noteFileInput'||e.target?.id==='noteCameraInput')addNoteFile(e.target.files?.[0]);
     if(['noteQuickCameraInput','noteQuickPhotoInput','noteQuickPdfInput'].includes(e.target?.id)){
-      const file=e.target.files?.[0],folder=quickPickerFolder;
-      if(file)void addQuickFile(file,folder);
+      const file=e.target.files?.[0],folder=quickPickerFolder,kind=quickPickerType;
+      if(file)void addQuickFile(file,folder,kind);
       e.target.value='';
     }
   });
