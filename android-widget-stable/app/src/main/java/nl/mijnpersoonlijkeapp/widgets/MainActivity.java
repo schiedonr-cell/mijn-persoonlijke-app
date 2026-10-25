@@ -578,6 +578,43 @@ public class MainActivity extends Activity {
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
 
     private final class Bridge {
+        private StringBuilder backupParts;
+        private int expectedBackupLength;
+
+        @JavascriptInterface public synchronized boolean beginBackup(int length) {
+            if (length <= 0 || length > 16_000_000) {
+                backupParts = null;
+                return false;
+            }
+            expectedBackupLength = length;
+            backupParts = new StringBuilder(length);
+            return true;
+        }
+
+        @JavascriptInterface public synchronized boolean addBackupPart(String part) {
+            if (backupParts == null || part == null || part.length() > 32768 ||
+                    backupParts.length() + part.length() > expectedBackupLength) {
+                backupParts = null;
+                return false;
+            }
+            backupParts.append(part);
+            return true;
+        }
+
+        @JavascriptInterface public boolean finishBackup() {
+            final String complete;
+            synchronized (this) {
+                if (backupParts == null || backupParts.length() != expectedBackupLength) {
+                    backupParts = null;
+                    return false;
+                }
+                complete = backupParts.toString();
+                backupParts = null;
+            }
+            runOnUiThread(() -> createBackup(complete));
+            return true;
+        }
+
         @JavascriptInterface public void openNotePdf(String base64, String name) {
             runOnUiThread(() -> {
                 try {
