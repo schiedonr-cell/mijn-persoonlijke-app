@@ -17,6 +17,9 @@
   let addingQuickFile = false;
   let editingId = null;
   let actionNoteId = null;
+  let editingNotebookId = null;
+  let choosingNotebookCoverId = null;
+  let savingNotebookCover = false;
 
   function uid(prefix='note') {
     return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
@@ -31,7 +34,12 @@
     const d=document.createElement('div'); d.innerHTML=String(html||''); return (d.innerText||d.textContent||'').trim();
   }
   function normalizeFolder(f) {
-    return {id:f?.id||uid('folder'),name:String(f?.name||'Map').trim()||'Map',createdAt:Number(f?.createdAt||Date.now())};
+    // Bewaar een kleine cover in dezelfde bestaande notities-back-up.
+    // Onbekende velden of onveilige URLs nooit in een img-src overnemen.
+    const cover=typeof f?.cover==='string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(f.cover)
+      && f.cover.length<=135000 ? f.cover : '';
+    return {id:f?.id||uid('folder'),name:String(f?.name||'Map').trim()||'Map',
+      cover,createdAt:Number(f?.createdAt||Date.now())};
   }
   const DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const DOC_MIME='application/msword';
@@ -149,6 +157,23 @@
       .notes-book-cover.book-tone-5{background:linear-gradient(135deg,#d6be90,#f3eddc 55%,#d3b788);color:#63523e}
       .notes-book-title{display:block;font-size:17px;font-weight:850;line-height:1.3;overflow-wrap:anywhere}
       .notes-book-count{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+      .notes-book-item{position:relative}
+      .notes-book-more{position:absolute;right:3px;top:3px;width:46px;height:46px;border:0;border-radius:14px;background:rgba(255,255,255,.95);color:#20332a;font-size:27px;font-weight:850;line-height:1;z-index:4;box-shadow:0 2px 9px #0002}
+      .notes-book-cover.has-photo::after{display:none}
+      .notes-book-cover.has-photo .book-art{display:none}
+      .notes-book-cover-image{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
+      .folder-manage-row{grid-template-columns:1fr auto}
+      .folder-manage-row button{min-height:46px}
+      .notes-book-edit-preview{display:flex;align-items:center;gap:14px;margin:14px 0 16px}
+      .notes-book-edit-cover{width:112px;flex:0 0 112px;aspect-ratio:.88;border-radius:8px 13px 13px 8px;background:var(--surface-soft);overflow:hidden;display:grid;place-items:center;border:1px solid var(--line);font-size:15px;font-weight:800;color:var(--accent-strong)}
+      .notes-book-edit-cover img{height:100%;width:100%;object-fit:cover}
+      .notes-book-cover-buttons{display:grid;gap:8px;flex:1}
+      .notes-book-cover-buttons button{min-height:52px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--accent-strong);font-weight:850;padding:9px}
+      .notes-book-cover-buttons button:disabled{opacity:.5}
+      .notes-book-edit-actions{display:grid;gap:9px;margin-top:12px}
+      .notes-book-edit-actions .primary-button{min-height:55px}
+      .notes-book-delete{min-height:50px;border:1px solid #ead7d3;border-radius:14px;background:#fff7f5;color:var(--danger);font-weight:850}
+      .notes-book-edit-note{font-size:12px;line-height:1.5;color:var(--muted)}
       .notes-books-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:6px}
       .notes-books-actions button{min-height:52px;border:1px solid var(--line);background:var(--surface);border-radius:15px;color:var(--accent-strong);font-weight:850}
       .notes-book-bar{display:flex;align-items:center;justify-content:space-between;gap:9px;margin:0 0 15px}
@@ -420,6 +445,30 @@
             </div>
           </div>
         </div>
+        <div class="modal-backdrop" id="noteBookEditModal" role="dialog" aria-modal="true" aria-labelledby="noteBookEditHeading">
+          <div class="sheet">
+            <div class="sheet-head">
+              <div><h3 id="noteBookEditHeading">Notitieboek bewerken</h3>
+                <p class="small-muted" style="margin:5px 0 0;">Naam en voorpagina aanpassen.</p></div>
+              <button type="button" class="close-button" id="closeNoteBookEdit" aria-label="Sluiten">×</button>
+            </div>
+            <label for="noteBookEditName" class="field-label">Naam</label>
+            <input type="text" id="noteBookEditName" class="text-input" maxlength="70" />
+            <div class="notes-book-edit-preview">
+              <div class="notes-book-edit-cover" id="noteBookEditPreview" aria-label="Huidige omslag">Standaard</div>
+              <div class="notes-book-cover-buttons">
+                <button type="button" id="noteBookChooseCover">Foto kiezen</button>
+                <button type="button" id="noteBookResetCover">Standaardomslag</button>
+              </div>
+            </div>
+            <input type="file" id="noteBookCoverInput" accept="image/*" style="display:none" />
+            <p class="notes-book-edit-note">De foto wordt verkleind en meegenomen in je bestaande back-up.</p>
+            <div class="notes-book-edit-actions">
+              <button type="button" class="primary-button" id="noteBookSaveName">Naam bewaren</button>
+              <button type="button" class="notes-book-delete" id="noteBookDelete">Notitieboek verwijderen</button>
+            </div>
+          </div>
+        </div>
         <div class="modal-backdrop" id="noteFoldersModal" role="dialog" aria-modal="true" aria-labelledby="noteFoldersHeading">
           <div class="sheet">
             <div class="sheet-head">
@@ -480,18 +529,23 @@
     if(!books)return;
     // Losse notities krijgen altijd een eigen boek; niets raakt zoek of kwijt.
     const sources=[
-      ...data.folders.map(f=>({id:f.id,name:f.name})),
-      {id:GENERAL,name:'Losse notities'}
+      ...data.folders,
+      {id:GENERAL,name:'Losse notities',cover:''}
     ];
     books.innerHTML=sources.map((book,i)=>{
       const count=data.notes.filter(n=>book.id===GENERAL?!n.folderId:n.folderId===book.id).length;
       const mark=book.id===GENERAL?'N':book.name.trim().slice(0,3).toLocaleUpperCase('nl');
+      const image=book.cover ? `<img class="notes-book-cover-image" src="${esc(book.cover)}" alt="" />` : '';
       return `<div class="notes-book-item">
         <button type="button" class="notes-book-open" data-notebook-open="${esc(book.id)}" aria-label="${esc(book.name)} openen, ${count} notities">
-          <span class="notes-book-cover book-tone-${i%6}"><span class="book-art">${esc(mark)}</span></span>
+          <span class="notes-book-cover book-tone-${i%6}${image?' has-photo':''}">
+            ${image}<span class="book-art">${esc(mark)}</span>
+          </span>
           <span class="notes-book-title">${esc(book.name)}</span>
           <span class="notes-book-count">${count} ${count===1?'notitie':'notities'}</span>
         </button>
+        ${book.id===GENERAL?'':`<button type="button" class="notes-book-more"
+          data-notebook-edit="${esc(book.id)}" aria-label="${esc(book.name)} bewerken">⋯</button>`}
       </div>`;
     }).join('');
     const title=booksHome?'Notitieboeken':(activeFolder===ALL?'Alle notities':(activeFolder===GENERAL?'Losse notities':folderName(activeFolder)));
@@ -989,11 +1043,146 @@
     if(editingId)deleteNote(editingId);
   }
 
+  function updateNotebookEditPreview(folder){
+    const preview=document.getElementById('noteBookEditPreview');
+    if(!preview || !folder)return;
+    preview.innerHTML=folder.cover ?
+      `<img src="${esc(folder.cover)}" alt="Omslag van ${esc(folder.name)}" />` :
+      '<span>Standaard</span>';
+    const reset=document.getElementById('noteBookResetCover');
+    if(reset)reset.disabled=!folder.cover;
+  }
+  function openNotebookEdit(id){
+    const folder=data.folders.find(f=>f.id===id);
+    if(!folder)return;
+    editingNotebookId=id;
+    const inp=document.getElementById('noteBookEditName');
+    if(inp)inp.value=folder.name;
+    updateNotebookEditPreview(folder);
+    document.getElementById('noteBookEditModal')?.classList.add('open');
+  }
+  function closeNotebookEdit(){
+    editingNotebookId=null;
+    choosingNotebookCoverId=null;
+    document.getElementById('noteBookEditModal')?.classList.remove('open');
+  }
+  function renameNotebook(){
+    const folder=data.folders.find(f=>f.id===editingNotebookId);
+    if(!folder)return;
+    const name=String(document.getElementById('noteBookEditName')?.value||'').trim();
+    if(!name || name.length>70){toast('Geef je notitieboek een naam van maximaal 70 tekens.');return;}
+    if(data.folders.some(f=>f.id!==folder.id && f.name.toLocaleLowerCase('nl')===name.toLocaleLowerCase('nl'))){
+      toast('Er bestaat al een notitieboek met die naam.');return;
+    }
+    const previous=folder.name;
+    folder.name=name;
+    if(!saveData()){
+      folder.name=previous;
+      toast('Naam wijzigen lukte niet. Je notitieboek is onveranderd.');return;
+    }
+    closeNotebookEdit();renderNotes();renderFolderManager();toast('Naam gewijzigd.');
+  }
+  function resetNotebookCover(){
+    const folder=data.folders.find(f=>f.id===editingNotebookId);
+    if(!folder)return;
+    if(!folder.cover)return;
+    const old=folder.cover;
+    folder.cover='';
+    if(!saveData()){
+      folder.cover=old;
+      toast('Standaardomslag kon niet worden opgeslagen.');return;
+    }
+    updateNotebookEditPreview(folder);renderNotes();toast('Standaardomslag hersteld.');
+  }
+  async function prepareNotebookCover(file){
+    if(!file)throw new Error('Geen foto gekozen.');
+    if(!file.size || file.size>30*1024*1024)
+      throw new Error('Kies een foto kleiner dan 30 MB.');
+    const signature=new Uint8Array(await file.slice(0,12).arrayBuffer());
+    const jpeg=signature[0]===255&&signature[1]===216&&signature[2]===255;
+    const png=signature[0]===137&&String.fromCharCode(...signature.slice(1,4))==='PNG';
+    const webp=String.fromCharCode(...signature.slice(0,4))==='RIFF'&&
+       String.fromCharCode(...signature.slice(8,12))==='WEBP';
+    const gif=String.fromCharCode(...signature.slice(0,3))==='GIF';
+    const hint=String(file.type||'').startsWith('image/') ||
+       /\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(file.name||'');
+    if(!(jpeg||png||webp||gif||hint))
+      throw new Error('Kies een foto (JPG, PNG of een andere afbeelding).');
+    const url=URL.createObjectURL(file);
+    try{
+      const img=new Image();
+      await new Promise((resolve,reject)=>{
+        img.onload=resolve;
+        img.onerror=()=>reject(new Error('Deze foto kan niet geopend worden. Probeer JPG of PNG.'));
+        img.src=url;
+      });
+      if(!img.naturalWidth||!img.naturalHeight)throw new Error('Ongeldige foto.');
+      const canvas=document.createElement('canvas');
+      const ctx=canvas.getContext('2d');
+      if(!ctx)throw new Error('Foto verwerken lukt niet op dit toestel.');
+      for(const width of [420,340,280,220]){
+        canvas.width=width;canvas.height=Math.round(width/.88);
+        const ratio=Math.max(canvas.width/img.naturalWidth,canvas.height/img.naturalHeight);
+        const w=img.naturalWidth*ratio,h=img.naturalHeight*ratio;
+        ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
+        for(const quality of [.77,.62,.46,.34]){
+          const cover=canvas.toDataURL('image/jpeg',quality);
+          if(/^data:image\/jpeg;base64,/.test(cover)&&cover.length<=105000)return cover;
+        }
+      }
+      throw new Error('De foto is te groot voor een omslag. Kies een kleinere foto.');
+    }finally{URL.revokeObjectURL(url);}
+  }
+  async function saveNotebookCover(file,id){
+    if(!file||savingNotebookCover)return;
+    savingNotebookCover=true;
+    const choose=document.getElementById('noteBookChooseCover');
+    if(choose)choose.disabled=true;
+    try{
+      const cover=await prepareNotebookCover(file);
+      const folder=data.folders.find(f=>f.id===id);
+      if(!folder){toast('Dit notitieboek bestaat niet meer.');return;}
+      const previous=folder.cover||'';
+      folder.cover=cover;
+      if(!saveData()){
+        folder.cover=previous;
+        toast('Opslag vol. De bestaande omslag blijft behouden.');return;
+      }
+      if(editingNotebookId===id)updateNotebookEditPreview(folder);
+      renderNotes();
+      toast('Foto als omslag ingesteld.');
+    }catch(error){toast(error?.message||'Foto instellen is mislukt.');}
+    finally{
+      savingNotebookCover=false;
+      if(choose)choose.disabled=false;
+      const input=document.getElementById('noteBookCoverInput');
+      if(input)input.value='';
+    }
+  }
+  function deleteNotebook(){
+    const folder=data.folders.find(f=>f.id===editingNotebookId);
+    if(!folder)return;
+    if(!confirm('Notitieboek “'+folder.name+'” verwijderen? Alle notities blijven bewaard bij Losse notities.'))return;
+    const beforeNotes=data.notes.map(n=>n.folderId);
+    const beforeFolders=data.folders;
+    data.notes.forEach(n=>{if(n.folderId===folder.id)n.folderId=null;});
+    data.folders=data.folders.filter(f=>f.id!==folder.id);
+    if(!saveData()){
+      data.folders=beforeFolders;
+      data.notes.forEach((n,i)=>{n.folderId=beforeNotes[i];});
+      toast('Notitieboek verwijderen lukte niet. Alles is behouden.');return;
+    }
+    if(activeFolder===folder.id){activeFolder=ALL;booksHome=true;}
+    closeNotebookEdit();renderFolderManager();renderNotes();
+    toast('Notitieboek verwijderd. De notities staan bij Losse notities.');
+  }
+
   function openFolders() {
     replaceNotesView();
     renderFolderManager();
     document.getElementById('noteFoldersModal').classList.add('open');
-    setTimeout(()=>document.getElementById('newFolderName')?.focus(),60);
+    // Beheren toont eerst het overzicht; geen ongevraagd toetsenbord.
   }
   function closeFolders() {
     document.getElementById('noteFoldersModal')?.classList.remove('open');
@@ -1003,10 +1192,9 @@
     list.innerHTML=data.folders.length?data.folders.map(f=>`
       <div class="folder-manage-row">
         <strong>${esc(f.name)}</strong>
-        <button data-folder-rename="${esc(f.id)}">Naam</button>
-        <button class="danger" data-folder-delete="${esc(f.id)}">Wis</button>
+        <button type="button" data-notebook-edit="${esc(f.id)}">Bewerken</button>
       </div>
-    `).join(''):`<div class="empty-state">Je hebt nog geen eigen mappen.</div>`;
+    `).join(''):`<div class="empty-state">Je hebt nog geen eigen notitieboeken.</div>`;
   }
   function createFolder(name) {
     name=String(name||'').trim();
@@ -1047,6 +1235,8 @@
   document.addEventListener('click',e=>{
     const book=e.target.closest('[data-notebook-open]');
     if(book){openNotebook(book.dataset.notebookOpen);return;}
+    const editBook=e.target.closest('[data-notebook-edit]');
+    if(editBook){openNotebookEdit(editBook.dataset.notebookEdit);return;}
     if(e.target.closest('#notesBackToBooks')){backToNotebooks();return;}
     if(e.target.closest('#notesBooksSearchButton')){
       openNotebook(ALL);
@@ -1071,9 +1261,26 @@
     const quick=e.target.closest('[data-note-quick]');
     if(quick){runQuickAction(quick.dataset.noteQuick);return;}
     if(e.target.closest('#newRichNoteButton')){openEditor();return;}
-    if(e.target.closest('#quickNewFolderButton')){openFolders();return;}
+    if(e.target.closest('#quickNewFolderButton')){
+      openFolders();
+      setTimeout(()=>document.getElementById('newFolderName')?.focus(),60);
+      return;
+    }
     if(e.target.closest('#openFoldersButton')){openFolders();return;}
     if(e.target.closest('#closeFoldersModal')){closeFolders();return;}
+    if(e.target.closest('#closeNoteBookEdit')){closeNotebookEdit();return;}
+    if(e.target.closest('#noteBookSaveName')){renameNotebook();return;}
+    if(e.target.closest('#noteBookResetCover')){resetNotebookCover();return;}
+    if(e.target.closest('#noteBookDelete')){deleteNotebook();return;}
+    if(e.target.closest('#noteBookChooseCover')){
+      const folder=data.folders.find(f=>f.id===editingNotebookId);
+      if(folder&&!savingNotebookCover){
+        choosingNotebookCoverId=folder.id;
+        const input=document.getElementById('noteBookCoverInput');
+        if(input){input.value='';input.click();}
+      }
+      return;
+    }
     if(e.target.closest('#closeNoteEditor')){closeEditor();return;}
     if(e.target.closest('#saveRichNoteButton')){saveEditor();return;}
     if(e.target.closest('#noteAddFileButton')){document.getElementById('noteFileInput')?.click();return;}
@@ -1133,41 +1340,20 @@
       if(folder){inp.value='';toast('Map aangemaakt.');}
       return;
     }
-    const rename=e.target.closest('[data-folder-rename]');
-    if(rename){
-      const f=data.folders.find(x=>x.id===rename.dataset.folderRename);if(!f)return;
-      const next=prompt('Nieuwe naam voor de map:',f.name);
-      if(next&&next.trim()){f.name=next.trim();saveData();renderFolderManager();renderNotes();toast('Map hernoemd.');}
-      return;
-    }
-    const del=e.target.closest('[data-folder-delete]');
-    if(del){
-      const f=data.folders.find(x=>x.id===del.dataset.folderDelete);if(!f)return;
-      if(!confirm('Map “'+f.name+'” verwijderen? De notities gaan naar Algemeen.'))return;
-      const beforeNotes=data.notes.map(n=>n.folderId);
-      const beforeFolders=data.folders;
-      data.notes.forEach(n=>{if(n.folderId===f.id)n.folderId=null;});
-      data.folders=data.folders.filter(x=>x.id!==f.id);
-      if(!saveData()){
-        data.folders=beforeFolders;
-        data.notes.forEach((n,i)=>{n.folderId=beforeNotes[i];});
-        toast('Notitieboek kon niet worden verwijderd.');return;
-      }
-      if(activeFolder===f.id){activeFolder=ALL;booksHome=true;}
-      renderFolderManager();renderNotes();toast('Notitieboek verwijderd. De notities staan bij Losse notities.');
-      return;
-    }
   });
 
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape' && document.getElementById('noteCreateFab')?.getAttribute('aria-expanded')==='true'){
       toggleCreateMenu(false);return;
     }
+    if(e.key==='Escape' && editingNotebookId){closeNotebookEdit();return;}
     if(e.key==='Escape' && actionNoteId){closeNoteAction();return;}
     if(e.target?.id==='newFolderName'&&e.key==='Enter'){e.preventDefault();document.getElementById('createFolderButton')?.click();}
+    if(e.target?.id==='noteBookEditName'&&e.key==='Enter'){e.preventDefault();renameNotebook();}
   });
   document.addEventListener('click',e=>{
     if(e.target?.id==='noteActionModal')closeNoteAction();
+    if(e.target?.id==='noteBookEditModal')closeNotebookEdit();
   });
 
   document.addEventListener('input',e=>{
@@ -1177,6 +1363,13 @@
     }
   });
   document.addEventListener('change',e=>{
+    if(e.target?.id==='noteBookCoverInput'){
+      const chosen=e.target.files?.[0],folder=choosingNotebookCoverId;
+      if(chosen&&folder)void saveNotebookCover(chosen,folder);
+      choosingNotebookCoverId=null;
+      e.target.value='';
+      return;
+    }
     if(e.target?.id==='noteFileInput'||e.target?.id==='noteCameraInput')addNoteFile(e.target.files?.[0]);
     if(['noteQuickCameraInput','noteQuickPhotoInput','noteQuickPdfInput'].includes(e.target?.id)){
       const file=e.target.files?.[0],folder=quickPickerFolder,kind=quickPickerType;
