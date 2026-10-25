@@ -22,7 +22,7 @@
     const status=document.getElementById('status'),share=document.getElementById('share'),download=document.getElementById('download');
     function payload(){
       const entries={};
-      const keep=['mijnPersoonlijkeAppV1','mijnPersoonlijkeAppRemindersV1','mijnPersoonlijkeAppCalendarEventsV1'];
+      const keep=['mijnPersoonlijkeAppV1','mijnPersoonlijkeAppRemindersV1','mijnPersoonlijkeAppCalendarEventsV1','mijnPersoonlijkeAppNotesV1'];
       for(const key of keep){
         const value=localStorage.getItem(key);
         if(value!=null) entries[key]=value;

@@ -350,6 +350,7 @@
     if(!title&&!plain){toast('Schrijf eerst iets in je notitie.');return;}
     const now=Date.now();
     const existing=editingId?data.notes.find(n=>n.id===editingId):null;
+    const previous=existing?{...existing}:null;
     const note=existing||{id:uid('note'),createdAt:now};
     note.title=title;
     note.html=editor.innerHTML.trim();
@@ -358,7 +359,13 @@
     note.pinned=document.getElementById('noteEditorPinned').checked;
     note.updatedAt=now;
     if(!existing)data.notes.push(note);
-    saveData(); closeEditor(); renderNotes(); toast(existing?'Notitie bijgewerkt.':'Notitie bewaard.');
+    if(!saveData()){
+      if(existing)Object.assign(existing,previous);
+      else data.notes=data.notes.filter(n=>n.id!==note.id);
+      toast('Opslaan mislukt. De notitie staat nog open; probeer opnieuw.');
+      return;
+    }
+    closeEditor(); renderNotes(); toast(existing?'Notitie bijgewerkt.':'Notitie bewaard.');
   }
   function openNoteAction(id) {
     const note=data.notes.find(n=>n.id===id);if(!note)return;
@@ -544,8 +551,14 @@
     addFromInbox(text){
       text=String(text||'').trim();if(!text)return false;
       const now=Date.now();
-      data.notes.push(normalizeNote({id:uid('note'),title:'',body:text,folderId:null,pinned:false,createdAt:now,updatedAt:now}));
-      saveData();renderNotes();return true;
+      const note=normalizeNote({id:uid('note'),title:'',body:text,folderId:null,pinned:false,createdAt:now,updatedAt:now});
+      data.notes.push(note);
+      if(!saveData()){
+        data.notes=data.notes.filter(n=>n.id!==note.id);
+        toast('Notitie kon niet worden opgeslagen.');
+        return false;
+      }
+      renderNotes();return true;
     }
   };
 })();
