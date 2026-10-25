@@ -774,33 +774,44 @@
   async function openNoteFile(id){
     const note=data.notes.find(n=>n.id===editingId),file=note?.files?.find(f=>f.id===id);
     if(!file)return;
-    if(file.mime==='application/pdf'){
+    if(isDocumentMime(file.mime)){
       try{
         let src=file.src;
         if(file.storage==='indexeddb'){
           const blob=await window.MijnDagNoteBlobStorage.get(file.id);
-          if(!blob || blob.size!==file.size)throw new Error('PDF ontbreekt. Controleer je back-up.');
+          if(!blob || blob.size!==file.size)throw new Error('Document ontbreekt. Controleer je back-up.');
           src=await readFileAsDataURL(blob);
         }
         const base64=src.split(',')[1];
+        if(!base64)throw new Error('Document kon niet worden gelezen.');
         if(window.AndroidWidgetBridge){
           const native=window.AndroidWidgetBridge;
-          if(file.storage==='indexeddb'){
-            if(!native.beginNotePdf || !native.addNotePdfPart || !native.finishNotePdf)
+          if(isWordMime(file.mime)){
+            if(!native.beginNoteDocument||!native.addNoteDocumentPart||!native.finishNoteDocument)
+              throw new Error('Word-bestanden openen vereist de volgende Mijn dag-update.');
+            if(!native.beginNoteDocument(base64.length))throw new Error('Document openen mislukt.');
+            let ok=true;
+            for(let i=0;ok&&i<base64.length;i+=32768)ok=native.addNoteDocumentPart(base64.slice(i,i+32768));
+            if(!ok || !native.finishNoteDocument(file.name,file.mime))throw new Error('Document openen mislukt.');
+          }else if(file.storage==='indexeddb'){
+            if(!native.beginNotePdf||!native.addNotePdfPart||!native.finishNotePdf)
               throw new Error('Deze Mijn dag-versie kan grotere PDF\'s nog niet openen.');
             if(!native.beginNotePdf(base64.length))throw new Error('PDF openen mislukt.');
             let ok=true;
             for(let i=0;ok&&i<base64.length;i+=32768)ok=native.addNotePdfPart(base64.slice(i,i+32768));
-            if(!ok || !native.finishNotePdf(file.name))throw new Error('PDF openen mislukt.');
+            if(!ok||!native.finishNotePdf(file.name))throw new Error('PDF openen mislukt.');
           }else if(typeof native.openNotePdf==='function')native.openNotePdf(base64,file.name);
           else throw new Error('PDF bekijken vereist een bijgewerkte Android-app.');
           return;
         }
         const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
-        const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
-        const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();
+        const url=URL.createObjectURL(new Blob([bytes],{type:file.mime}));
+        const a=document.createElement('a');a.href=url;
+        if(isWordMime(file.mime))a.download=file.name;
+        else{a.target='_blank';a.rel='noopener';}
+        document.body.appendChild(a);a.click();a.remove();
         setTimeout(()=>URL.revokeObjectURL(url),120000);
-      }catch(e){toast(e?.message||'PDF openen lukte niet.');}
+      }catch(e){toast(e?.message||'Document openen lukte niet.');}
       return;
     }
     imageZoom=1;
