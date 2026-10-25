@@ -309,6 +309,11 @@
 
     const homeNotes=document.querySelector('.home-card.notes-card span');
     if(homeNotes) homeNotes.textContent='Notities en mappen';
+    // Oude Android-wrappers hebben nog geen bestandskiezer. Laat hun bestaande
+    // notitiebediening ongemoeid totdat de nieuwe variant beschikbaar is.
+    const filePanel=document.querySelector('.note-files-panel');
+    if(filePanel && window.AndroidWidgetBridge && typeof window.AndroidWidgetBridge.openNotePdf!=='function')
+      filePanel.style.display='none';
   }
 
   function renderFolderStrip() {
