@@ -253,9 +253,13 @@
             <div id="noteRichEditor" class="note-rich-editor" contenteditable="true" spellcheck="true"></div>
             <div class="note-files-panel">
               <div class="note-files-head"><strong>Foto's en PDF's</strong>
-                <button type="button" class="note-file-add" id="noteAddFileButton">+ Toevoegen</button>
+                <div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:end">
+                  <button type="button" class="note-file-add" id="noteCameraButton">Camera</button>
+                  <button type="button" class="note-file-add" id="noteAddFileButton">+ Kiezen</button>
+                </div>
               </div>
               <input type="file" id="noteFileInput" accept="image/*,application/pdf,.pdf" style="display:none" />
+              <input type="file" id="noteCameraInput" accept="image/*" capture="environment" style="display:none" />
               <div class="note-file-list" id="noteFileList"></div>
               <p class="note-file-hint">Proefversie voor kleine bestanden. Bijlagen worden opgeslagen bij je notitie en meegenomen in de back-up.</p>
             </div>
@@ -424,7 +428,7 @@
       }
       renderFileList(note);renderNotes();toast('Bestand toegevoegd aan de notitie.');
     }catch(error){toast(error?.message||'Bestand toevoegen is mislukt.');}
-    finally{if(button)button.disabled=false;const input=document.getElementById('noteFileInput');if(input)input.value='';}
+    finally{if(button)button.disabled=false;for(const id of ['noteFileInput','noteCameraInput']){const input=document.getElementById(id);if(input)input.value='';}}
   }
   function openNoteFile(id){
     const note=data.notes.find(n=>n.id===editingId),file=note?.files?.find(f=>f.id===id);
@@ -594,6 +598,7 @@
     if(e.target.closest('#closeNoteEditor')){closeEditor();return;}
     if(e.target.closest('#saveRichNoteButton')){saveEditor();return;}
     if(e.target.closest('#noteAddFileButton')){document.getElementById('noteFileInput')?.click();return;}
+    if(e.target.closest('#noteCameraButton')){document.getElementById('noteCameraInput')?.click();return;}
     const fileOpen=e.target.closest('[data-note-file-open]');
     if(fileOpen){openNoteFile(fileOpen.dataset.noteFileOpen);return;}
     const fileRemove=e.target.closest('[data-note-file-remove]');
@@ -668,7 +673,7 @@
   });
 
   document.addEventListener('change',e=>{
-    if(e.target?.id==='noteFileInput')addNoteFile(e.target.files?.[0]);
+    if(e.target?.id==='noteFileInput'||e.target?.id==='noteCameraInput')addNoteFile(e.target.files?.[0]);
   });
   document.addEventListener('paste',e=>{
     if(e.target?.id!=='noteRichEditor')return;
