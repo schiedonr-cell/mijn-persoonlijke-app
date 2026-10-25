@@ -421,7 +421,12 @@
       if(!file.size||file.size>8*1024*1024)throw new Error('PDF te groot (maximaal 8 MB per bestand).');
       const signature=new Uint8Array(await file.slice(0,5).arrayBuffer());
       if(String.fromCharCode(...signature)!=='%PDF-')throw new Error('Dit bestand is geen geldige PDF.');
-      if(file.size>300000){
+      // In de huidige Android-app blijven PDF's t/m 1,2 MB werken zoals eerst.
+      // Grotere PDF's wachten op de eenmalige Android-update met IndexedDB-koppeling.
+      const binaryStorage=file.size>1200000 ||
+        (file.size>300000 && (!window.AndroidWidgetBridge ||
+          typeof window.AndroidWidgetBridge.beginNotePdf==='function'));
+      if(binaryStorage){
         if(!window.MijnDagNoteBlobStorage)throw new Error('Bestandsopslag is nog niet beschikbaar.');
         if(window.AndroidWidgetBridge && typeof window.AndroidWidgetBridge.beginNotePdf!=='function')
           throw new Error('Voor grotere PDF\'s is eerst de volgende Mijn dag-update nodig.');
