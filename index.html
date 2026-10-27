@@ -6705,7 +6705,7 @@
             entries.mijnPersoonlijkeAppNoteBlobsV1=await window.MijnDagNoteBlobStorage.exportPayload(notes);
           }
           const backup=JSON.stringify({version:3,exportedAt:Date.now(),entries});
-          if(backup.length>15_500_000)throw new Error('Back-up te groot voor deze versie (maximaal circa 15 MB).');
+          if(backup.length>65_000_000)throw new Error('Back-up te groot voor deze versie (maximaal circa 65 MB).');
           savePreparedBackup(backup);
         }catch(error){showToast('Back-up niet gemaakt: '+(error?.message||'onbekende fout'));}
       };
@@ -7268,6 +7268,6 @@
 </script>
   <script src="./note-blob-storage.js"></script>
   <script src="./note-pdf-previews.js?v=2"></script>
-  <script src="./notes-v2.js?v=61"></script>
+  <script src="./notes-v2.js?v=62"></script>
 </body>
 </html>
