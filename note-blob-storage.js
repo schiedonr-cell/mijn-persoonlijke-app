@@ -76,7 +76,7 @@
   const DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const DOC_MIME='application/msword';
   function decode(item){
-    const types=['application/pdf',DOCX_MIME,DOC_MIME];
+    const types=['application/pdf',DOCX_MIME,DOC_MIME,'image/jpeg','image/png','image/webp'];
     if(!item || typeof item.id!=='string' || typeof item.src!=='string' ||
        !types.includes(item.mime) || item.size>8*1024*1024 || item.size<1 ||
        !item.src.startsWith('data:'+item.mime+';base64,'))
@@ -84,11 +84,16 @@
     const binary=atob(item.src.split(',')[1]);
     if(binary.length!==item.size)throw new Error('Een document in de back-up is beschadigd.');
     const pdf=binary.startsWith('%PDF-');
+    const jpeg=binary.charCodeAt(0)===0xff&&binary.charCodeAt(1)===0xd8&&binary.charCodeAt(2)===0xff;
+    const png=binary.charCodeAt(0)===0x89&&binary.slice(1,4)==='PNG';
+    const webp=binary.slice(0,4)==='RIFF'&&binary.slice(8,12)==='WEBP';
     const docx=binary.charCodeAt(0)===0x50&&binary.charCodeAt(1)===0x4b;
     const doc=binary.charCodeAt(0)===0xd0&&binary.charCodeAt(1)===0xcf&&
        binary.charCodeAt(2)===0x11&&binary.charCodeAt(3)===0xe0;
-    if(!(item.mime==='application/pdf'&&pdf || item.mime===DOCX_MIME&&docx || item.mime===DOC_MIME&&doc))
-      throw new Error('Een PDF of Word-document in de back-up is beschadigd.');
+    if(!(item.mime==='application/pdf'&&pdf || item.mime===DOCX_MIME&&docx ||
+      item.mime===DOC_MIME&&doc || item.mime==='image/jpeg'&&jpeg ||
+      item.mime==='image/png'&&png || item.mime==='image/webp'&&webp))
+      throw new Error('Een foto of document in de back-up is beschadigd.');
     const array=new Uint8Array(binary.length);
     for(let i=0;i<binary.length;i++)array[i]=binary.charCodeAt(i);
     return {id:item.id,blob:new Blob([array],{type:item.mime})};
