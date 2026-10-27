@@ -7,6 +7,9 @@ on:
       - '.github/workflows/build-stable-widget.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: stable-widget-build
   cancel-in-progress: true
@@ -53,6 +56,21 @@ jobs:
       - name: Build APK
         working-directory: android-widget-stable
         run: gradle :app:assembleDebug --no-daemon
+      # Eén directe APK-link voor installatie op Samsung (geen ZIP nodig).
+      - name: Publish direct APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK="android-widget-stable/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          if gh release view "mijn-dag-v90" >/dev/null 2>&1; then
+            gh release upload "mijn-dag-v90" "$APK#Mijn-Dag-v90.apk" --clobber
+          else
+            gh release create "mijn-dag-v90" "$APK#Mijn-Dag-v90.apk" \
+              --target "$GITHUB_SHA" \
+              --title "Mijn Dag v90 – foto's in Samsung Galerij" \
+              --notes "Android-update: foto's uit Notities openen rechtstreeks in Samsung Galerij. Installeer over de bestaande app heen."
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: mijn-dag-widget-v3-apk
