@@ -7,6 +7,8 @@
   const MAIN_KEY = 'mijnPersoonlijkeAppV1';
   const GENERAL = '__general__';
   const ALL = '__all__';
+  const PHOTO_MAX_BYTES = 8 * 1024 * 1024;
+  const NOTE_BINARY_LIMIT = 40 * 1024 * 1024;
 
   let data = loadData();
   let activeFolder = ALL;
@@ -46,6 +48,7 @@
   const DOC_MIME='application/msword';
   function isWordMime(mime){return mime===DOCX_MIME||mime===DOC_MIME;}
   function isDocumentMime(mime){return mime==='application/pdf'||isWordMime(mime);}
+  function isPhotoMime(mime){return ['image/jpeg','image/png','image/webp'].includes(mime);}
   function normalizeNote(n) {
     const fallback=String(n?.text ?? n?.body ?? '');
     const html=typeof n?.html==='string' ? n.html : (typeof n?.bodyHtml==='string' ? n.bodyHtml : plainToHtml(fallback));
@@ -59,7 +62,7 @@
       pinned:Boolean(n?.pinned),
       files:Array.isArray(n?.files)?n.files.filter(f=>f && (
         (typeof f.src==='string' && /^data:(?:image\/jpeg|image\/png|image\/webp|application\/pdf);base64,/.test(f.src)) ||
-        (f.storage==='indexeddb' && isDocumentMime(f.mime) && Number(f.size)>0)
+        (f.storage==='indexeddb' && (isDocumentMime(f.mime)||isPhotoMime(f.mime)) && Number(f.size)>0)
       )).map(f=>({
         id:String(f.id||uid('file')),name:String(f.name||'Bijlage'),
         mime:String(f.mime||''),src:typeof f.src==='string'?f.src:'',
@@ -669,6 +672,7 @@
 
 
   let imageZoom=1;
+  let activePhotoUrl=null;
   function renderFileList(note){
     const list=document.getElementById('noteFileList');
     if(!list)return;
@@ -691,6 +695,11 @@
       reader.onerror=()=>reject(new Error('Bestand lezen mislukt'));
       reader.readAsDataURL(file);
     });
+  }
+  function binaryBytesInUse(){
+    return data.notes.reduce((total,n)=>total+(n.files||[])
+      .filter(f=>f.storage==='indexeddb')
+      .reduce((sum,f)=>sum+Number(f.size||0),0),0);
   }
   async function prepareNoteFile(file){
     const name=String(file?.name||'').trim(),lower=name.toLowerCase();
@@ -724,10 +733,8 @@
           throw new Error('Voor grotere PDF\'s is eerst een Mijn dag-update nodig.');
         if(window.AndroidWidgetBridge && !isPdf && typeof window.AndroidWidgetBridge.beginNoteDocument!=='function')
           throw new Error('Voor Word-bestanden is eerst de Mijn dag-update nodig.');
-        const bytesInUse=data.notes.reduce((total,n)=>total+(n.files||[])
-          .filter(f=>f.storage==='indexeddb').reduce((sum,f)=>sum+Number(f.size||0),0),0);
-        if(bytesInUse+file.size>10*1024*1024)
-          throw new Error('Bijlagenopslag vol (10 MB). Maak eerst een back-up en ruim op.');
+        if(binaryBytesInUse()+file.size>NOTE_BINARY_LIMIT)
+          throw new Error('Bijlagenopslag vol (40 MB). Maak eerst een back-up en ruim op.');
         return {id:uid('file'),name:name||(isPdf?'Document.pdf':'Document.docx'),mime,
           size:file.size,storage:'indexeddb',src:'',
           blob:file.type===mime?file:new Blob([file],{type:mime})};
@@ -736,8 +743,7 @@
       return {id:uid('file'),name:name||'Document.pdf',mime,size:file.size,
         src:'data:application/pdf;base64,'+raw.split(',')[1]};
     }
-    // Google Drive levert foto's soms met een leeg of algemeen MIME-type
-    // (application/octet-stream). Controleer daarom ook de echte bytes.
+    // Drive kan foto's zonder MIME-type aanleveren: controleer ook de bytes.
     const imageType=String(file.type||'').toLowerCase();
     const jpeg=signature[0]===0xff && signature[1]===0xd8 && signature[2]===0xff;
     const png=signature[0]===0x89 && String.fromCharCode(...signature.slice(1,4))==='PNG';
@@ -746,42 +752,66 @@
        String.fromCharCode(...signature.slice(8,12))==='WEBP';
     const heif=String.fromCharCode(...signature.slice(4,8))==='ftyp' &&
        /^(heic|heix|hevc|mif1|msf1|avif)/.test(String.fromCharCode(...signature.slice(8,12)));
-    const knownPhoto=jpeg||png||gif||webp||heif;
     const photoHint=/\.(jpe?g|png|gif|webp|heic|heif|avif)$/i.test(name) ||
-       (/^image\/(jpeg|png|gif|webp|heic|heif|avif)$/.test(imageType));
-    if(!knownPhoto&&!photoHint)
-       throw new Error('Dit is geen leesbare foto. Kies een JPG, PNG of andere afbeelding uit Drive.');
+       /^image\/(jpeg|png|gif|webp|heic|heif|avif)$/.test(imageType);
+    if(!(jpeg||png||gif||webp||heif||photoHint))
+      throw new Error('Dit is geen leesbare foto. Kies een JPG, PNG of andere afbeelding uit Drive.');
     if(!file.size)throw new Error('Deze foto uit Drive is leeg. Download haar eerst naar je telefoon.');
     if(file.size>30000000)throw new Error('Foto te groot (maximaal 30 MB). Download een kleinere versie.');
+    if(!window.MijnDagNoteBlobStorage)
+      throw new Error('Foto-opslag is niet beschikbaar. Herstart de app en probeer opnieuw.');
     const url=URL.createObjectURL(file);
     try{
       const img=new Image();
       await new Promise((resolve,reject)=>{
         img.onload=resolve;
-        img.onerror=()=>reject(new Error('Drive leverde een afbeelding die dit toestel niet kan openen. Download of exporteer haar als JPG of PNG.'));
+        img.onerror=()=>reject(new Error('Deze foto kan niet worden geopend. Exporteer haar als JPG of PNG.'));
         img.src=url;
       });
-      const canvas=document.createElement('canvas');
-      const ctx=canvas.getContext('2d');
-      if(!ctx)throw new Error('Fotobewerking is op dit toestel niet beschikbaar.');
-      let src='';
-      for(const maxSide of [1280,1080,900,720,560]){
-        const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+      if(!img.naturalWidth||!img.naturalHeight)throw new Error('Ongeldige foto.');
+      const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+      if(!ctx)throw new Error('Foto verwerken lukt niet op dit toestel.');
+      const paint=side=>{
+        const scale=Math.min(1,side/Math.max(img.naturalWidth,img.naturalHeight));
         canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
         canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
         ctx.fillStyle='#fff';
         ctx.fillRect(0,0,canvas.width,canvas.height);
         ctx.drawImage(img,0,0,canvas.width,canvas.height);
-        for(const quality of [.72,.56,.42]){
-          src=canvas.toDataURL('image/jpeg',quality);
-          if(src.startsWith('data:image/jpeg;base64,') && src.length<=850000)break;
-        }
-        if(src.startsWith('data:image/jpeg;base64,') && src.length<=850000)break;
+      };
+      // In de notitie slechts een lichte miniatuur: het origineel blijft apart.
+      let preview='';
+      for(const side of [360,280,220,180]){
+        paint(side);
+        preview=canvas.toDataURL('image/jpeg',.65);
+        if(preview.startsWith('data:image/jpeg;base64,')&&preview.length<=90000)break;
       }
-      if(!src.startsWith('data:image/jpeg;base64,') || src.length>850000)
-        throw new Error('Foto uit Drive blijft te groot. Kies een kleinere afbeelding.');
-      return {id:uid('file'),name:name||'Foto.jpg',mime:'image/jpeg',
-        size:Math.round((src.length-src.indexOf(',')-1)*.75),src};
+      if(!preview.startsWith('data:image/jpeg;base64,')||preview.length>90000)
+        throw new Error('Voorbeeldfoto maken is mislukt.');
+      const originalMime=jpeg?'image/jpeg':png?'image/png':webp?'image/webp':'';
+      let blob=null,mime=originalMime;
+      // JPEG/PNG/WebP tot 8 MB exact bewaren, inclusief alle originele pixels.
+      if(originalMime&&file.size<=PHOTO_MAX_BYTES){
+        blob=file.type===originalMime?file:new Blob([file],{type:originalMime});
+      }else{
+        // Uitzonderlijk grote of andere formaten zorgvuldig omzetten,
+        // met veel meer detail dan de vorige 1280-pixelversie.
+        mime='image/jpeg';
+        for(const side of [4096,3600,3200,2800,2400,2000,1600]){
+          paint(side);
+          for(const quality of [.92,.86,.78,.7]){
+            const candidate=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+            if(!candidate)throw new Error('Foto omzetten is mislukt.');
+            if(candidate.size<=PHOTO_MAX_BYTES){blob=candidate;break;}
+          }
+          if(blob)break;
+        }
+      }
+      if(!blob)throw new Error('Foto blijft te groot. Kies een kleinere afbeelding.');
+      if(binaryBytesInUse()+blob.size>NOTE_BINARY_LIMIT)
+        throw new Error('Foto-opslag vol (40 MB). Maak eerst een back-up en ruim op.');
+      return {id:uid('file'),name:name||'Foto.jpg',mime,size:blob.size,
+        storage:'indexeddb',src:preview,blob};
     }finally{URL.revokeObjectURL(url);}
   }
   let addingNoteFile=false;
@@ -955,11 +985,20 @@
       }catch(e){toast(e?.message||'Document openen lukte niet.');}
       return;
     }
-    // Samsung: foto direct openen in Galerij, geen handmatige zoomknoppen.
+    // De miniatuur alleen voor het overzicht; open altijd de echte opgeslagen foto.
+    let fullPhoto=null;
+    if(file.storage==='indexeddb'){
+      try{
+        fullPhoto=await window.MijnDagNoteBlobStorage?.get(file.id);
+        if(!fullPhoto||fullPhoto.size!==file.size)
+          throw new Error('Originele foto ontbreekt. Controleer je back-up.');
+      }catch(error){toast(error?.message||'Foto ophalen is mislukt.');return;}
+    }
+    // Samsung: open de originele foto in Galerij.
     const native=window.AndroidWidgetBridge;
     if(native?.beginNoteImage && native?.addNoteImagePart && native?.finishNoteImage){
       try{
-        const src=String(file.src||'');
+        const src=fullPhoto?await readFileAsDataURL(fullPhoto):String(file.src||'');
         const comma=src.indexOf(',');
         const mime=src.slice(5,src.indexOf(';'));
         if(comma<0 || !['image/jpeg','image/png','image/webp'].includes(mime) ||
@@ -971,12 +1010,14 @@
         for(let i=0;ok&&i<base64.length;i+=32768)ok=native.addNoteImagePart(base64.slice(i,i+32768));
         if(!ok||!native.finishNoteImage(mime))throw new Error('Foto openen mislukt.');
         return;
-      }catch(error){toast(error?.message||'Foto openen mislukt.');return;}
+      }catch(error){toast('Galerij openen lukte niet. Foto wordt in de app getoond.');}
     }
-    // Web en eerdere Android-versies tonen een eenvoudige fullscreen foto.
+    // Web en eerdere Android-versies tonen de hoge resolutie binnen de app.
     imageZoom=1;
     const img=document.getElementById('noteImagePreview');
-    img.src=file.src;img.style.width='100%';
+    if(activePhotoUrl){URL.revokeObjectURL(activePhotoUrl);activePhotoUrl=null;}
+    activePhotoUrl=fullPhoto?URL.createObjectURL(fullPhoto):null;
+    img.src=activePhotoUrl||file.src;img.style.width='100%';
     document.getElementById('noteImageViewport').scrollTop=0;
     document.getElementById('noteImageModal').classList.add('open');
   }
@@ -1392,7 +1433,12 @@
     if(fileOpen){openNoteFile(fileOpen.dataset.noteFileOpen);return;}
     const fileRemove=e.target.closest('[data-note-file-remove]');
     if(fileRemove){removeNoteFile(fileRemove.dataset.noteFileRemove);return;}
-    if(e.target.closest('#closeNoteImage')||e.target.id==='noteImageModal'){document.getElementById('noteImageModal').classList.remove('open');return;}
+    if(e.target.closest('#closeNoteImage')||e.target.id==='noteImageModal'){
+      document.getElementById('noteImageModal').classList.remove('open');
+      document.getElementById('noteImagePreview').removeAttribute('src');
+      if(activePhotoUrl){URL.revokeObjectURL(activePhotoUrl);activePhotoUrl=null;}
+      return;
+    }
     if(e.target.closest('#noteZoomOut,#noteZoomIn')){
       imageZoom=Math.min(4,Math.max(1,imageZoom+(e.target.closest('#noteZoomIn')?.id==='noteZoomIn'?.5:-.5)));
       document.getElementById('noteImagePreview').style.width=Math.round(imageZoom*100)+'%';
