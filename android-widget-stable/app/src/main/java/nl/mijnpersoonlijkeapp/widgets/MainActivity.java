@@ -665,8 +665,12 @@ public class MainActivity extends Activity {
 
         private StringBuilder noteImageParts;
         private int expectedNoteImageLength;
+        // Hoge-resolutiefoto's uit Notities worden apart als bijlage bewaard (maximaal 8 MB).
+        // De Javascript-brug verstuurt base64 in blokken van 32 KB.
+        private static final int MAX_NOTE_IMAGE_BASE64_LENGTH = 11_200_000;
+        private static final int MAX_NOTE_IMAGE_BYTES = 8 * 1024 * 1024;
         @JavascriptInterface public synchronized boolean beginNoteImage(int length){
-            if(length<1||length>2500000){noteImageParts=null;return false;}
+            if(length<1||length>MAX_NOTE_IMAGE_BASE64_LENGTH){noteImageParts=null;return false;}
             expectedNoteImageLength=length;
             noteImageParts=new StringBuilder(length);
             return true;
@@ -779,9 +783,9 @@ public class MainActivity extends Activity {
         }
         private void showNoteImage(String base64,String mime){
             try{
-                if(base64==null||base64.length()>2500000)throw new java.io.IOException("Foto te groot");
+                if(base64==null||base64.length()>MAX_NOTE_IMAGE_BASE64_LENGTH)throw new java.io.IOException("Foto te groot");
                 byte[] bytes=Base64.decode(base64,Base64.DEFAULT);
-                if(bytes.length<6||bytes.length>1900000)throw new java.io.IOException("Foto te groot");
+                if(bytes.length<6||bytes.length>MAX_NOTE_IMAGE_BYTES)throw new java.io.IOException("Foto te groot");
                 boolean jpeg=(bytes[0]&255)==255&&(bytes[1]&255)==216;
                 boolean png=(bytes[0]&255)==137&&(bytes[1]&255)==80&&(bytes[2]&255)==78&&(bytes[3]&255)==71;
                 boolean webp=bytes.length>12&&bytes[0]=='R'&&bytes[1]=='I'&&
