@@ -1427,6 +1427,17 @@
                   <div class="daycal-edit-actions"><button type="button" id="daycalEditCancel">Annuleren</button><button type="submit">Opslaan</button></div>
                 </form>
               </div>
+              <div id="daycalAutoOverlay" class="daycal-edit-overlay" role="dialog" aria-modal="true" aria-labelledby="daycalAutoTitle" hidden>
+                <div class="daycal-edit-sheet">
+                  <h3 id="daycalAutoTitle">Huishoudklus</h3>
+                  <p class="small-muted">Deze klus staat automatisch bij Vandaag, zonder vaste tijd. Wat wil je ermee doen?</p>
+                  <button id="daycalAutoSchedule" class="daycal-edit-completion" type="button">Tijd kiezen of verplaatsen</button>
+                  <button id="daycalAutoTomorrow" class="daycal-edit-completion" type="button">Verplaatsen naar morgen</button>
+                  <button id="daycalAutoSkip" class="daycal-edit-delete" type="button">Vandaag overslaan</button>
+                  <div class="daycal-edit-actions"><button id="daycalAutoCancel" type="button">Annuleren</button></div>
+                  <p class="small-muted">Je terugkerende huishoudtaak en ingestelde herhaling blijven behouden.</p>
+                </div>
+              </div>
               <details class="day-calendar-options" id="dayCalendarOptions">
                 <summary>Meer opties en afgeronde activiteiten</summary>
                 <div id="dayPlanList" class="day-plan-list"></div>
@@ -2707,11 +2718,11 @@
   function householdSkipTodayState(){ const today=localDateKey(); if(!state.householdSkipToday||state.householdSkipToday.date!==today)state.householdSkipToday={date:today,taskIds:[]}; state.householdSkipToday.taskIds=Array.isArray(state.householdSkipToday.taskIds)?state.householdSkipToday.taskIds:[]; return state.householdSkipToday; }
   function householdVisibleToday(){
     const energy=dayLoadSuggestion().capacity,limit=householdLimit();
-    const fixed=state.householdTasks.filter(t=>t.fixedReminder&&(householdDoneToday(t)||householdIsDue(t)));
+    const choice=householdTodayChoiceState(), skipped=new Set(householdSkipTodayState().taskIds||[]);
+    const fixed=state.householdTasks.filter(t=>t.fixedReminder&&!skipped.has(t.id)&&(householdDoneToday(t)||householdIsDue(t)));
     const doneToday=state.householdTasks.filter(t=>!t.fixedReminder&&householdDoneToday(t));
     const byId=new Map(state.householdTasks.map(t=>[t.id,t]));
-    const choice=householdTodayChoiceState(), skipped=new Set(householdSkipTodayState().taskIds||[]);
-    const manual=choice.taskIds.map(id=>byId.get(id)).filter(t=>t&&!t.fixedReminder&&!householdDoneToday(t)&&!t.paused);
+    const manual=choice.taskIds.map(id=>byId.get(id)).filter(t=>t&&!t.fixedReminder&&!householdDoneToday(t)&&!t.paused&&!skipped.has(t.id));
     const manualIds=new Set(manual.map(t=>t.id));
     const openSlots=Math.max(0,limit-doneToday.length);
     const picked=manual; // Bewust voor Vandaag gekozen klusjes blijven staan, ook bij een drukke dag.
@@ -4459,6 +4470,14 @@
     if(!block||block.linkType==='agenda')return;
     if(!confirm('“'+block.text+'” alleen uit '+(dayCalendarSelected==='tomorrow'?'de planning voor morgen':'de dagplanning')+
       ' verwijderen? De oorspronkelijke taak, routine of huishoudtaak blijft bestaan.'))return;
+    // Anders zou een terugkerende huishoudklus direct opnieuw als
+    // automatisch, ongetimed dagblok verschijnen na het verwijderen.
+    if(plan.date===localDateKey()&&block.linkType==='household'&&block.linkId){
+      const skip=householdSkipTodayState();
+      skip.taskIds=[...new Set([...(skip.taskIds||[]),block.linkId])];
+      const choice=householdTodayChoiceState();
+      choice.taskIds=choice.taskIds.filter(id=>id!==block.linkId);
+    }
     if(state.dayTimelineFocus?.date===plan.date&&state.dayTimelineFocus.blockId===block.id)
       clearDayPlanFocus();
     try{window.AndroidWidgetBridge?.cancelReminder?.(dayPlanAlarmId(plan,block));}catch{}
@@ -4478,7 +4497,7 @@
     const card=e.target.closest?.('.day-calendar-event[data-daycal-id]');
     if(card&&!e.target.closest?.('[data-daycal-grip],[data-daycal-resize],[data-daycal-check],[data-task-check],[data-habit-check],[data-household-check],[data-recovery-log-for],[data-self-care-lunch]')){
       const preview=dayCalendarAutoBlocks(calendarPlan()).find(x=>x.id===card.dataset.daycalId);
-      if(preview)dayCalendarAutoTimePicker(preview);
+      if(preview)openDayCalendarAutoActions(preview);
       else openDayCalendarEditor(card.dataset.daycalId);
     }
   });
@@ -4828,6 +4847,58 @@
     select.value=key;document.getElementById('quickPlanStart').value=item.start;
     updateQuickPlanTaskName();
   }
+  let editingDayCalendarAutoId='';
+  function closeDayCalendarAutoActions(){
+    document.getElementById('daycalAutoOverlay').hidden=true;
+    editingDayCalendarAutoId='';
+  }
+  function openDayCalendarAutoActions(item){
+    if(!item?.autoPreview)return;
+    // Andere automatisch getoonde onderdelen behouden hun bestaande invoer.
+    if(item.linkType!=='household')return dayCalendarAutoTimePicker(item);
+    editingDayCalendarAutoId=item.id;
+    document.getElementById('daycalAutoTitle').textContent=item.text;
+    document.getElementById('daycalAutoOverlay').hidden=false;
+  }
+  function selectedDayCalendarAutoHousehold(){
+    const item=dayCalendarAutoBlocks(calendarPlan()).find(x=>x.id===editingDayCalendarAutoId);
+    return item?.linkType==='household'?item:null;
+  }
+  document.getElementById('daycalAutoOverlay').addEventListener('click',e=>{
+    if(e.target.id==='daycalAutoOverlay'||e.target.id==='daycalAutoCancel')
+      closeDayCalendarAutoActions();
+  });
+  document.getElementById('daycalAutoSchedule').addEventListener('click',()=>{
+    const item=selectedDayCalendarAutoHousehold();
+    closeDayCalendarAutoActions();
+    if(item)dayCalendarAutoTimePicker(item);
+  });
+  document.getElementById('daycalAutoTomorrow').addEventListener('click',()=>{
+    const item=selectedDayCalendarAutoHousehold();
+    if(!item)return closeDayCalendarAutoActions();
+    const household=state.householdTasks.find(x=>x.id===item.linkId);
+    if(!household)return closeDayCalendarAutoActions();
+    household.deferUntil=addDaysKey(1);
+    household.paused=false;
+    const choice=householdTodayChoiceState();
+    choice.taskIds=choice.taskIds.filter(id=>id!==household.id);
+    const skip=householdSkipTodayState();
+    skip.taskIds=skip.taskIds.filter(id=>id!==household.id);
+    closeDayCalendarAutoActions();
+    saveState();renderToday();renderHouseholdManage();
+    showToast('Huishoudklus verplaatst naar morgen. De herhaling blijft bestaan.');
+  });
+  document.getElementById('daycalAutoSkip').addEventListener('click',()=>{
+    const item=selectedDayCalendarAutoHousehold();
+    if(!item)return closeDayCalendarAutoActions();
+    const skip=householdSkipTodayState();
+    skip.taskIds=[...new Set([...(skip.taskIds||[]),item.linkId])];
+    const choice=householdTodayChoiceState();
+    choice.taskIds=choice.taskIds.filter(id=>id!==item.linkId);
+    closeDayCalendarAutoActions();
+    saveState();renderToday();renderHouseholdManage();
+    showToast('Vandaag overgeslagen. De terugkerende klus blijft bestaan.');
+  });
   function renderDayCalendar(){
     const root=document.getElementById('dayCalendarView');
     if(!root)return;
@@ -5056,7 +5127,7 @@
     if(!d.moved){
       // Een korte tik op een sleepgreep of rand opent gewoon Bewerken.
       // Eerder werd de tik opgeslokt door de sleepbediening.
-      if(d.autoBlock)dayCalendarAutoTimePicker(d.autoBlock);
+      if(d.autoBlock)openDayCalendarAutoActions(d.autoBlock);
       else openDayCalendarEditor(d.id);
       return;
     }
