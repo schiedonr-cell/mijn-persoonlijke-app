@@ -132,11 +132,10 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         }
         if(intent!=null&&ACTION_QUICK.equals(intent.getAction())){
             String date=intent.getStringExtra("date"),type=intent.getStringExtra("itemType"),itemId=intent.getStringExtra("itemId");
-            if(date!=null&&type!=null&&itemId!=null&&SnapshotStore.toggleQuick(context,date,type,itemId)){
-                // Bij tik op het homescreen opent de app meteen bij het passende voorstel.
-                Intent open=new Intent(context,MainActivity.class);
-                open.putExtra("target","today");open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                try{context.startActivity(open);}catch(Exception ignored){}
+            if(date!=null&&type!=null&&itemId!=null){
+                // Meteen afvinken zonder de app te openen: SnapshotStore werkt
+                // de widget bij en geeft het vinkje later door aan de WebView.
+                SnapshotStore.toggleQuick(context,date,type,itemId);
             }
             return;
         }
@@ -253,6 +252,11 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             v.setTextViewText(TIME_IDS[i], usingDayPlan ? (clock.isEmpty() ? "—" : clock) : "");
             boolean completed=row.optBoolean("done",false);
             v.setTextViewText(TEXT_IDS[i], row.optString("text",""));
+            // De hele regel is een groot aanraakvlak. De kop blijft de
+            // aparte snelkoppeling om de app te openen.
+            PendingIntent rowClick=WidgetLinks.open(context, targetFor(kind), 540+i);
+            boolean laundry="household".equals(row.optString("itemType",""))
+                    && row.optString("text","").trim().toLowerCase(Locale.ROOT).startsWith("was doen");
             if(!tomorrow && "Agenda".equals(kind)){
                 String agendaKey=agendaCheckKey(row);
                 v.setViewVisibility(CHECK_IDS[i],View.VISIBLE);
@@ -266,6 +270,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
                 PendingIntent pi=PendingIntent.getBroadcast(context,7000+i+id*100,toggle,
                         PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
                 v.setOnClickPendingIntent(CHECK_IDS[i],pi);
+                rowClick=pi;
             }else if(!tomorrow && usingDayPlan && !"agenda".equals(row.optString("linkType")) && !row.optString("blockId").isEmpty()){
                 v.setViewVisibility(CHECK_IDS[i], View.VISIBLE);
                 v.setTextViewText(CHECK_IDS[i], completed ? "☑" : "□");
@@ -277,20 +282,29 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
                 PendingIntent pi=PendingIntent.getBroadcast(context, 3000+i+id*100, toggle,
                         PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
                 v.setOnClickPendingIntent(CHECK_IDS[i],pi);
+                rowClick=pi;
             }else if(!tomorrow&&!usingDayPlan&&!row.optString("itemType","").isEmpty()&&!row.optString("itemId","").isEmpty()){
-                v.setViewVisibility(CHECK_IDS[i],View.VISIBLE);
-                v.setTextViewText(CHECK_IDS[i],"□");
-                Intent quick=new Intent(context,TodayTimelineWidgetProvider.class);
-                quick.setAction(ACTION_QUICK);
-                quick.setData(android.net.Uri.parse("mijndag://mixed/"+android.net.Uri.encode(row.optString("itemType"))+"/"+android.net.Uri.encode(row.optString("itemId"))));
-                quick.putExtra("date",snapshot.optString("date"));
-                quick.putExtra("itemType",row.optString("itemType"));
-                quick.putExtra("itemId",row.optString("itemId"));
-                PendingIntent pi=PendingIntent.getBroadcast(context,5000+i+id*100,quick,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-                v.setOnClickPendingIntent(CHECK_IDS[i],pi);
+                if(laundry){
+                    // Een was heeft drie eigen stappen: de widget mag niet
+                    // met één tik de complete was als afgerond opslaan.
+                    v.setViewVisibility(CHECK_IDS[i],View.GONE);
+                    rowClick=WidgetLinks.open(context,"today-household", 540+i);
+                }else{
+                    v.setViewVisibility(CHECK_IDS[i],View.VISIBLE);
+                    v.setTextViewText(CHECK_IDS[i],"□");
+                    Intent quick=new Intent(context,TodayTimelineWidgetProvider.class);
+                    quick.setAction(ACTION_QUICK);
+                    quick.setData(android.net.Uri.parse("mijndag://mixed/"+android.net.Uri.encode(row.optString("itemType"))+"/"+android.net.Uri.encode(row.optString("itemId"))));
+                    quick.putExtra("date",snapshot.optString("date"));
+                    quick.putExtra("itemType",row.optString("itemType"));
+                    quick.putExtra("itemId",row.optString("itemId"));
+                    PendingIntent pi=PendingIntent.getBroadcast(context,5000+i+id*100,quick,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+                    v.setOnClickPendingIntent(CHECK_IDS[i],pi);
+                    rowClick=pi;
+                }
             }else v.setViewVisibility(CHECK_IDS[i],usingDayPlan?View.INVISIBLE:View.GONE);
             v.setViewVisibility(ROW_BOX_IDS[i], View.VISIBLE);
-            v.setOnClickPendingIntent(ROW_BOX_IDS[i], WidgetLinks.open(context, targetFor(kind), 540+i));
+            v.setOnClickPendingIntent(ROW_BOX_IDS[i], rowClick);
         }
 
         if (items.isEmpty()) {
@@ -342,7 +356,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         try {
             Bundle o=manager.getAppWidgetOptions(id);
             int h=o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 300);
-            return Math.max(3, Math.min(24, (h-76)/28));
+            return Math.max(3, Math.min(24, (h-76)/36));
         } catch(Exception ignored) { return 8; }
     }
 
