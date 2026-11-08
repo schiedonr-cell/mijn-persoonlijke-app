@@ -65,13 +65,17 @@ jobs:
         run: |
           APK="android-widget-stable/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
+          # De oude ondertekeningssleutel was in november niet meer
+          # beschikbaar. Deze APK is daarom alleen een testversie.
+          NOTICE="TESTVERSIE – NIET installeren over de bestaande Mijn Dag-app. De oude signing key is niet teruggevonden. Verwijder de huidige app NIET: gegevens kunnen verloren gaan. De code voor de ruimere vinkregels is wel gebouwd."
           if gh release view "mijn-dag-v91" >/dev/null 2>&1; then
             gh release upload "mijn-dag-v91" "$APK#Mijn-Dag-v91.apk" --clobber
+            gh release edit "mijn-dag-v91" --title "Mijn Dag v91 – TEST, niet installeren" --notes "$NOTICE" --prerelease
           else
             gh release create "mijn-dag-v91" "$APK#Mijn-Dag-v91.apk" \
-              --target "$GITHUB_SHA" \
-              --title "Mijn Dag v91 – widget makkelijker afvinken" \
-              --notes "Vandaag-widget: grotere aanraakregels en direct afvinken zonder ongevraagd de app te openen. Installeer over de bestaande app." 
+              --target "$GITHUB_SHA" --prerelease \
+              --title "Mijn Dag v91 – TEST, niet installeren" \
+              --notes "$NOTICE"
           fi
       - uses: actions/upload-artifact@v4
         with:
