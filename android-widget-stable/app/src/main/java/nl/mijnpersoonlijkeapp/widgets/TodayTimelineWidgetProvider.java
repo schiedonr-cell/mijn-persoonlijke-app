@@ -303,6 +303,9 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
                     rowClick=pi;
                 }
             }else v.setViewVisibility(CHECK_IDS[i],usingDayPlan?View.INVISIBLE:View.GONE);
+            // De complete regel werkt al als afvinkknop; een apart vakje
+            // neemt alleen ruimte in en maakt de tekst op smalle widgets korter.
+            v.setViewVisibility(CHECK_IDS[i], View.GONE);
             v.setViewVisibility(ROW_BOX_IDS[i], View.VISIBLE);
             v.setOnClickPendingIntent(ROW_BOX_IDS[i], rowClick);
         }
