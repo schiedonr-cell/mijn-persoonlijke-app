@@ -2855,7 +2855,7 @@
     const picked=[...manual];
     for(const task of activeLaundry)if(!picked.some(t=>t.id===task.id))picked.unshift(task);
     const pickedIds=new Set(picked.map(t=>t.id));
-    const due=valid.filter(t=>!t.fixedReminder&&householdIsDue(t)&&Number(t.effort||1)<=energy&&!pickedIds.has(t.id)&&!skipped.has(t.id))
+    const due=valid.filter(t=>!t.fixedReminder&&householdIsDue(t)&&(energy>1||Number(t.effort||1)===1)&&!pickedIds.has(t.id)&&!skipped.has(t.id))
       .sort((a,b)=>householdPriority(b)-householdPriority(a)||Number(a.effort)-Number(b.effort));
     const slots=dayHasLongCommitment()?0:Math.max(0,limit-doneToday.length-picked.length);
     const proposed=[],hasBig=()=>[...doneToday,...picked,...proposed].some(householdLarge);
