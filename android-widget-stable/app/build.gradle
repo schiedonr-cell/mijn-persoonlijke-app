@@ -15,11 +15,11 @@ android {
     }
 
     defaultConfig {
-        applicationId 'nl.mijnpersoonlijkeapp.widgettest'
+        applicationId 'nl.mijnpersoonlijkeapp.widgetveilig'
         minSdk 26
         targetSdk 35
-        versionCode 91
-        versionName 'mijn-dag-6.33-widget-aanvinken'
+        versionCode 1
+        versionName 'mijn-dag-veilige-overstap-1'
     }
 
     buildTypes {
