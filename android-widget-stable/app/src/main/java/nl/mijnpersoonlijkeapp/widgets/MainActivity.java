@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
         NativeAlarmScheduler.rescheduleAll(this);
         readTarget(getIntent());
         if (acceptSharedTransfer(getIntent()) || imported() || importFile().exists()) openApp();
-        else showTransferChoice(true);
+        else showTransferChoice(false);
     }
 
     @Override protected void onNewIntent(Intent intent) {
@@ -124,7 +124,7 @@ public class MainActivity extends Activity {
         root.addView(title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView info = new TextView(this);
-        info.setText("Daarna gebruikt Mijn dag dezelfde gegevens als de Vandaag-widget.");
+        info.setText("Je huidige Mijn dag blijft bestaan. Maak daar eerst via Start een back-up en kies hier dat bestand. Daarna kun je de vernieuwde widget uitproberen.");
         info.setTextSize(16);
         info.setTextColor(Color.rgb(107,113,104));
         info.setGravity(Gravity.CENTER);
@@ -133,13 +133,13 @@ public class MainActivity extends Activity {
         root.addView(info, ip);
 
         Button transfer = new Button(this);
-        transfer.setText("Gegevens overzetten");
+        transfer.setText("Uitleg openen");
         transfer.setAllCaps(false);
         transfer.setOnClickListener(v -> openTransferPage());
         root.addView(transfer, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(58)));
 
         Button choose = new Button(this);
-        choose.setText("Overdrachtsbestand kiezen");
+        choose.setText("Mijn Dag back-upbestand kiezen");
         choose.setAllCaps(false);
         choose.setOnClickListener(v -> pickFile());
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(54));
@@ -253,7 +253,7 @@ public class MainActivity extends Activity {
             while ((n = r.read(b)) > 0) {
                 // Een back-up kan foto's en kleine PDF's bevatten.
                 // Nooit een afgekapt JSON-bestand proberen terug te zetten.
-                if (out.length() + n > 16_000_000) return "";
+                if (out.length() + n > 70_000_000) return "";
                 out.append(b, 0, n);
             }
         } catch (Exception ignored) {}
