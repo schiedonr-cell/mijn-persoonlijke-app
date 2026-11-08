@@ -56,20 +56,22 @@ jobs:
       - name: Build APK
         working-directory: android-widget-stable
         run: gradle :app:assembleDebug --no-daemon
-      # Eén directe APK-link voor installatie op Samsung (geen ZIP nodig).
+      # Een testbranch mag nooit de bestaande installatieversie overschrijven.
+      # Alleen de stabiele widget-branch publiceert een nieuwe APK-versie.
       - name: Publish direct APK
+        if: github.ref == 'refs/heads/widget-vandaag-side-test'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           APK="android-widget-stable/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          if gh release view "mijn-dag-v90" >/dev/null 2>&1; then
-            gh release upload "mijn-dag-v90" "$APK#Mijn-Dag-v90.apk" --clobber
+          if gh release view "mijn-dag-v91" >/dev/null 2>&1; then
+            gh release upload "mijn-dag-v91" "$APK#Mijn-Dag-v91.apk" --clobber
           else
-            gh release create "mijn-dag-v90" "$APK#Mijn-Dag-v90.apk" \
+            gh release create "mijn-dag-v91" "$APK#Mijn-Dag-v91.apk" \
               --target "$GITHUB_SHA" \
-              --title "Mijn Dag v90 – foto's in Samsung Galerij" \
-              --notes "Android-update: foto's uit Notities openen rechtstreeks in Samsung Galerij. Installeer over de bestaande app heen."
+              --title "Mijn Dag v91 – widget makkelijker afvinken" \
+              --notes "Vandaag-widget: grotere aanraakregels en direct afvinken zonder ongevraagd de app te openen. Installeer over de bestaande app." 
           fi
       - uses: actions/upload-artifact@v4
         with:
