@@ -1,8 +1,11 @@
 name: Controle huishoudplanning
 on:
   push:
-    branches:
-      - feature/huishouden-wassen-20261108
+    paths:
+      - index.html
+      - .github/tests/housekeeping.test.cjs
+      - .github/workflows/check-housekeeping.yml
+  pull_request:
     paths:
       - index.html
       - .github/tests/housekeeping.test.cjs
