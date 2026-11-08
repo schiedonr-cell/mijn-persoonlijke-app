@@ -101,16 +101,16 @@
             android:id="@+id/timeline_row_box_1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_1"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -140,16 +140,16 @@
             android:id="@+id/timeline_row_box_2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_2"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -179,16 +179,16 @@
             android:id="@+id/timeline_row_box_3"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_3"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -218,16 +218,16 @@
             android:id="@+id/timeline_row_box_4"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_4"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -257,16 +257,16 @@
             android:id="@+id/timeline_row_box_5"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_5"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -296,16 +296,16 @@
             android:id="@+id/timeline_row_box_6"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_6"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -335,16 +335,16 @@
             android:id="@+id/timeline_row_box_7"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_7"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -374,16 +374,16 @@
             android:id="@+id/timeline_row_box_8"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_8"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -413,16 +413,16 @@
             android:id="@+id/timeline_row_box_9"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_9"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -452,16 +452,16 @@
             android:id="@+id/timeline_row_box_10"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_10"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -491,16 +491,16 @@
             android:id="@+id/timeline_row_box_11"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_11"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -530,16 +530,16 @@
             android:id="@+id/timeline_row_box_12"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_12"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -569,16 +569,16 @@
             android:id="@+id/timeline_row_box_13"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_13"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -608,16 +608,16 @@
             android:id="@+id/timeline_row_box_14"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_14"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -647,16 +647,16 @@
             android:id="@+id/timeline_row_box_15"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_15"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -686,16 +686,16 @@
             android:id="@+id/timeline_row_box_16"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_16"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -725,16 +725,16 @@
             android:id="@+id/timeline_row_box_17"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_17"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -764,16 +764,16 @@
             android:id="@+id/timeline_row_box_18"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_18"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -803,16 +803,16 @@
             android:id="@+id/timeline_row_box_19"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_19"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -842,16 +842,16 @@
             android:id="@+id/timeline_row_box_20"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_20"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -881,16 +881,16 @@
             android:id="@+id/timeline_row_box_21"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_21"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -920,16 +920,16 @@
             android:id="@+id/timeline_row_box_22"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_22"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -959,16 +959,16 @@
             android:id="@+id/timeline_row_box_23"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_23"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
@@ -998,16 +998,16 @@
             android:id="@+id/timeline_row_box_24"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="26dp"
+            android:minHeight="36dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
                 android:id="@+id/timeline_check_24"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="38dp"
+                android:layout_height="36dp"
                 android:gravity="center_vertical|center_horizontal"
                 android:text="□"
-                android:textSize="21sp"
+                android:textSize="23sp"
                 android:visibility="gone"
                 android:contentDescription="Dagblok afvinken" />
             <ImageView
