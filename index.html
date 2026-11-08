@@ -2782,18 +2782,41 @@
     state.focus.durationSec=300;state.focus.remainingSec=300;
     selectFocusItem('habit',id);
   }
-  function householdLimit(){return dayLoadSuggestion().capacity; }
-  function householdEffortLabel(n){ return ({1:'Licht',2:'Normaal',3:'Meer energie'})[Number(n)]||'Licht'; }
-  function householdFrequencyLabel(n){ n=Number(n)||1; return n===1?'Dagelijks':n===2?'Om de 2 dagen':n===3?'Om de 3 dagen':n===4?'Om de 4 dagen':n===5?'Om de 5 dagen':n===7?'Wekelijks':n===14?'Om de 2 weken':n===28?'Elke 4 weken':n===30?'Maandelijks':`Om de ${n} dagen`; }
-  function dateDiffDays(a,b){ return Math.round((new Date(a+'T12:00:00')-new Date(b+'T12:00:00'))/86400000); }
-  function householdLastDone(t){ const days=Object.keys(t.history||{}).filter(k=>t.history[k]).sort(); return days.length?days[days.length-1]:''; }
-  function householdDoneToday(t){ return Boolean(t.history?.[localDateKey()]); }
-  function householdIsDue(t){ const today=localDateKey(); if(t.paused)return false; if(t.deferUntil&&t.deferUntil>today)return false; if(householdDoneToday(t))return false; const last=householdLastDone(t); if(!last)return true; return dateDiffDays(today,last)>=Number(t.frequency||1); }
-  function householdPriority(t){ const last=householdLastDone(t); if(!last)return 999; return dateDiffDays(localDateKey(),last)-Number(t.frequency||1); }
-  function householdTodayChoiceState(){ const today=localDateKey(); if(!state.householdTodayChoice||state.householdTodayChoice.date!==today)state.householdTodayChoice={date:today,taskIds:[]}; state.householdTodayChoice.taskIds=Array.isArray(state.householdTodayChoice.taskIds)?state.householdTodayChoice.taskIds:[]; return state.householdTodayChoice; }
-  function householdSkipTodayState(){ const today=localDateKey(); if(!state.householdSkipToday||state.householdSkipToday.date!==today)state.householdSkipToday={date:today,taskIds:[]}; state.householdSkipToday.taskIds=Array.isArray(state.householdSkipToday.taskIds)?state.householdSkipToday.taskIds:[]; return state.householdSkipToday; }
-  // Bij een grote afspraak (bijv. een GVB-opleidingsdienst) stellen we geen
-  // EXTRA huishoudklussen voor. Zelf gekozen klusjes en vaste reminders blijven.
+  function householdLimit(){return dayLoadSuggestion().capacity;}
+  function householdEffortLabel(n){return ({1:'Licht',2:'Normaal',3:'Grote klus'})[Number(n)]||'Licht';}
+  function householdFrequencyLabel(item){
+    const n=Number(typeof item==='object'?item.frequency:item)||0;
+    const weekly=typeof item==='object'?Number(item.weeklyTarget||0):0;
+    if(weekly===3)return '3× per week';
+    if(weekly===2)return '2× per week';
+    return n===0?'Wanneer nodig':n===1?'Dagelijks':n===2?'Om de 2 dagen':n===3?'Om de 3 dagen':n===4?'Om de 4 dagen':n===5?'Om de 5 dagen':n===7?'Wekelijks':n===14?'Om de 2 weken':n===28?'Elke 4 weken':n===30?'Maandelijks':'Om de '+n+' dagen';
+  }
+  function dateDiffDays(a,b){return Math.round((new Date(a+'T12:00:00')-new Date(b+'T12:00:00'))/86400000);}
+  function laundryOpenLoads(){return (state.laundryLoads||[]).filter(load=>Array.isArray(load.steps)&&load.steps.some(done=>!done));}
+  function laundryCompletedToday(){return (state.laundryLoads||[]).some(load=>load.completedOn===localDateKey()&&load.steps.every(Boolean));}
+  function laundryTask(){return state.householdTasks.find(h=>h.kind==='laundry'&&!h.retired);}
+  function householdLarge(t){return t.kind==='laundry'||Number(t.effort)>=3||Number(t.durationMinutes||0)>=20;}
+  function householdLastDone(t){const days=Object.keys(t.history||{}).filter(k=>t.history[k]).sort();return days.length?days[days.length-1]:'';}
+  function householdDoneToday(t){
+    if(t.kind==='laundry')return laundryOpenLoads().length===0&&laundryCompletedToday();
+    return Boolean(t.history?.[localDateKey()]);
+  }
+  function householdIsDue(t){
+    const today=localDateKey();
+    if(t.retired||t.paused||t.manualOnly||t.frequency===0)return false;
+    if(t.deferUntil&&t.deferUntil>today)return false;
+    if(householdDoneToday(t))return false;
+    const last=householdLastDone(t);
+    if(Number(t.weeklyTarget)>0){
+      const recent=Object.keys(t.history||{}).filter(k=>t.history[k]&&k<=today&&dateDiffDays(today,k)<7).length;
+      if(recent>=Number(t.weeklyTarget))return false;
+    }
+    return !last||dateDiffDays(today,last)>=Number(t.frequency||1);
+  }
+  function householdPriority(t){const last=householdLastDone(t);if(!last)return 999;return dateDiffDays(localDateKey(),last)-Number(t.frequency||1);}
+  function householdTodayChoiceState(){const today=localDateKey();if(!state.householdTodayChoice||state.householdTodayChoice.date!==today)state.householdTodayChoice={date:today,taskIds:[]};state.householdTodayChoice.taskIds=Array.isArray(state.householdTodayChoice.taskIds)?state.householdTodayChoice.taskIds:[];return state.householdTodayChoice;}
+  function householdSkipTodayState(){const today=localDateKey();if(!state.householdSkipToday||state.householdSkipToday.date!==today)state.householdSkipToday={date:today,taskIds:[]};state.householdSkipToday.taskIds=Array.isArray(state.householdSkipToday.taskIds)?state.householdSkipToday.taskIds:[];return state.householdSkipToday;}
+  // Bij een lange opleiding of dienst geen EXTRA huishoudklus voorstellen.
   function dayHasLongCommitment(date=localDateKey()){
     const plan=storedDayTimeline(date);
     const scheduled=(plan?.blocks||[]).some(b=>{
@@ -2814,16 +2837,56 @@
   }
   function householdVisibleToday(){
     const energy=dayLoadSuggestion().capacity,limit=householdLimit();
-    const choice=householdTodayChoiceState(), skipped=new Set(householdSkipTodayState().taskIds||[]);
-    const fixed=state.householdTasks.filter(t=>t.fixedReminder&&!skipped.has(t.id)&&(householdDoneToday(t)||householdIsDue(t)));
-    const doneToday=state.householdTasks.filter(t=>!t.fixedReminder&&householdDoneToday(t));
-    const byId=new Map(state.householdTasks.map(t=>[t.id,t]));
+    const choice=householdTodayChoiceState(),skipped=new Set(householdSkipTodayState().taskIds||[]);
+    const valid=state.householdTasks.filter(t=>!t.retired);
+    const fixed=valid.filter(t=>t.fixedReminder&&!skipped.has(t.id)&&(householdDoneToday(t)||householdIsDue(t)));
+    const doneToday=valid.filter(t=>!t.fixedReminder&&householdDoneToday(t));
+    const byId=new Map(valid.map(t=>[t.id,t]));
     const manual=choice.taskIds.map(id=>byId.get(id)).filter(t=>t&&!t.fixedReminder&&!householdDoneToday(t)&&!t.paused&&!skipped.has(t.id));
-    const manualIds=new Set(manual.map(t=>t.id));
-    const openSlots=Math.max(0,limit-doneToday.length);
-    const picked=manual; // Bewust voor Vandaag gekozen klusjes blijven staan, ook bij een drukke dag.
-    const due=state.householdTasks.filter(t=>!t.fixedReminder&&householdIsDue(t)&&Number(t.effort||1)<=energy&&!manualIds.has(t.id)&&!skipped.has(t.id)).sort((a,b)=>householdPriority(b)-householdPriority(a)||Number(a.effort)-Number(b.effort));
-    return [...fixed,...doneToday,...picked,...due.slice(0,dayHasLongCommitment()?0:Math.max(0,openSlots-picked.length))];
+    const activeLaundry=valid.filter(t=>t.kind==='laundry'&&laundryOpenLoads().length>0&&!t.paused);
+    const picked=[...manual];
+    for(const task of activeLaundry)if(!picked.some(t=>t.id===task.id))picked.unshift(task);
+    const pickedIds=new Set(picked.map(t=>t.id));
+    const due=valid.filter(t=>!t.fixedReminder&&householdIsDue(t)&&Number(t.effort||1)<=energy&&!pickedIds.has(t.id)&&!skipped.has(t.id))
+      .sort((a,b)=>householdPriority(b)-householdPriority(a)||Number(a.effort)-Number(b.effort));
+    const slots=dayHasLongCommitment()?0:Math.max(0,limit-doneToday.length-picked.length);
+    const proposed=[],hasBig=()=>[...doneToday,...picked,...proposed].some(householdLarge);
+    const long=due.find(householdLarge);
+    if(slots>0&&energy>=2&&!hasBig()&&long)proposed.push(long);
+    const short=due.filter(t=>!householdLarge(t));
+    for(const t of short){if(proposed.length>=slots)break;proposed.push(t);}
+    return [...fixed,...doneToday,...picked,...proposed];
+  }
+  function laundryLoadsHtml(){
+    const active=laundryOpenLoads(),today=(state.laundryLoads||[]).filter(x=>x.completedOn===localDateKey());
+    const labels=['Was inzetten','Was ophangen of in droger','Was opvouwen en opruimen'],durations=[5,10,10];
+    return '<div class="laundry-steps">'+active.map((load,index)=>
+      '<div class="laundry-load"><div class="laundry-head"><strong>Was '+(index+1)+'</strong><button type="button" data-laundry-remove="'+escapeHtml(load.id)+'">Verwijder was</button></div>'
+      +labels.map((label,i)=>'<label class="laundry-step"><input class="check" type="checkbox" data-laundry-step="'+escapeHtml(load.id)+'|'+i+'" '+(load.steps[i]?'checked':'')+'/><span>'+escapeHtml(label)+'</span><small>'+durations[i]+' min</small></label>').join('')
+      +'</div>').join('')
+      +(today.length?'<p class="small-muted">'+today.length+' '+(today.length===1?'was':'wassen')+' vandaag helemaal afgerond.</p>':'')
+      +'<button class="secondary-button laundry-add" type="button" data-laundry-add>+ '+(active.length?'Nog een was toevoegen':'Was starten')+'</button>'
+      +'<p class="small-muted">Elke was heeft drie eigen vinkjes. Onvoltooide stappen blijven morgen staan.</p></div>';
+  }
+  function addLaundryLoad(){
+    state.laundryLoads||=[];
+    state.laundryLoads.push({id:uid('wash'),createdOn:localDateKey(),steps:[false,false,false],completedOn:''});
+    const t=laundryTask();if(t){t.paused=false;t.deferUntil='';}
+    saveState();renderToday();renderHouseholdManage();renderDayCalendar();
+    showToast('Nieuwe was toegevoegd met drie stappen.');
+  }
+  function setLaundryStep(loadId,index,checked){
+    const load=(state.laundryLoads||[]).find(x=>x.id===loadId);
+    if(!load||index<0||index>2)return;
+    load.steps[index]=checked;
+    load.completedOn=load.steps.every(Boolean)?localDateKey():'';
+    const task=laundryTask();
+    if(task){
+      task.history||={};
+      if(laundryOpenLoads().length===0&&laundryCompletedToday())task.history[localDateKey()]=true;
+      else delete task.history[localDateKey()];
+    }
+    saveState();renderToday();renderHouseholdManage();renderDayCalendar();
   }
   function renderHousehold(){ const list=document.getElementById('householdList');if(!list)return; const shown=householdVisibleToday(),active=shown.filter(t=>!householdDoneToday(t)),completed=state.householdTasks.filter(householdDoneToday),limit=householdLimit(),regularShown=shown.filter(t=>!t.fixedReminder).length; const counter=document.getElementById('householdCounter');if(counter)counter.textContent=`${regularShown} / ${limit}`; const note=document.getElementById('householdNote');if(note){const load=dayLoadSuggestion();note.textContent=(dayHasLongCommitment()?'Lange afspraak vandaag: geen extra klussen voorgesteld. Zelf gekozen klusjes blijven staan. ':load.pressure?'Drukke dag: ':'')+'Maximaal '+limit+' passende '+(limit===1?'klus':'klussen')+' plus vaste reminders. Energie '+load.energy+'/3.';} list.innerHTML=active.length?active.map(t=>`<div class="household-item"><input class="check" type="checkbox" data-household-check="${t.id}" aria-label="Huishoudtaak afvinken"/><div class="household-copy"><div class="household-name">${escapeHtml(t.name)}</div>${t.description?`<div class="household-detail">${escapeHtml(t.description)}</div>`:''}<div class="household-meta">${t.time?`<span class="household-badge light">⏰ ${escapeHtml(t.time)}</span>`:''}${t.alarmEnabled?'<span class="household-badge light">Alarm</span>':''}${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span></div></div><div class="focus-item-actions"><button class="focus-list-button" data-focus-household="${t.id}">Focus</button>${t.fixedReminder?'':`<button class="focus-list-button" data-household-swap="${t.id}">Andere</button>`}<button class="basis-options" data-item-action="household|${t.id}" aria-label="Bewerken en opties">•••</button></div></div>`).join(''):`<div class="empty-state">${completed.length?'Alle huishoudklusjes voor vandaag zijn afgerond.':'Voor vandaag zijn er geen passende huishoudklusjes nodig.'}</div>`; const wrap=document.getElementById('completedHouseholdWrap');if(wrap)wrap.innerHTML=completed.length?`<details class="completed-habits"><summary>Vandaag afgerond (${completed.length})<span>Bekijken</span></summary><div class="completed-habits-list">${completed.map(t=>`<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">${escapeHtml(t.name)}</div><div class="completed-habit-meta">${escapeHtml(t.fixedReminder?'Vaste reminder':householdEffortLabel(t.effort))} · ${escapeHtml(householdFrequencyLabel(t.frequency))}</div></div><button class="habit-undo-button" data-household-undo="${t.id}">Ongedaan</button></div>`).join('')}</div></details>`:''; }
   function renderHouseholdManage(){ const wrap=document.getElementById('householdManageList');if(!wrap)return; const today=localDateKey(),chosen=new Set(householdTodayChoiceState().taskIds||[]);wrap.innerHTML=state.householdTasks.length?state.householdTasks.map(t=>`<div class="household-manage-item ${t.paused?'paused':''}"><div class="household-manage-top"><div class="household-manage-name">${escapeHtml(t.name)}<div class="household-meta">${t.fixedReminder?'<span class="household-badge light">Vaste reminder</span>':`<span class="household-badge ${Number(t.effort)===1?'light':''}">${escapeHtml(householdEffortLabel(t.effort))}</span>`}<span class="household-badge">${escapeHtml(householdFrequencyLabel(t.frequency))}</span>${chosen.has(t.id)?'<span class="household-badge light">Vandaag gekozen</span>':''}${t.paused?'<span class="household-badge">Gepauzeerd</span>':''}${t.deferUntil&&t.deferUntil>today?`<span class="household-badge">Tot ${escapeHtml(formatDateShort(t.deferUntil))}</span>`:''}</div></div></div><div class="household-manage-actions">${t.fixedReminder?'':`<button class="accent" data-household-today="${t.id}">${chosen.has(t.id)?'Vandaag ✓':'Vandaag'}</button>`}<button data-household-edit="${t.id}">Bewerken</button><button data-item-reminders="household|${t.id}">🔔 ${t.reminders?.length||0}</button><button data-household-tomorrow="${t.id}">Morgen</button><button data-household-pause="${t.id}">${t.paused?'Activeren':'Pauzeren'}</button><button class="danger" data-household-delete="${t.id}">Verwijderen</button></div></div>`).join(''):`<div class="empty-state">Nog geen huishoudklusjes.</div>`; const target=document.getElementById('myDayHouseholdAll');if(target)target.innerHTML='<p class="small-muted">Alle huishoudelijke klusjes, ook als ze niet voor vandaag zijn ingepland.</p>'+wrap.innerHTML; }
