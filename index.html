@@ -4403,8 +4403,7 @@
     select.innerHTML='<option value="">+ Nieuwe taak typen</option>'
       +(tasks.length?'<optgroup label="Bestaande taken">'+formatOptions('task',tasks)+'</optgroup>':'')
       +(habits.length?'<optgroup label="Routines">'+formatOptions('habit',habits)+'</optgroup>':'')
-      +(household.length?'<optgroup label="Huishouden">'+formatOptions('household',household)+'</optgroup>':'')
-      ;
+      +(household.length?'<optgroup label="Huishouden">'+formatOptions('household',household)+'</optgroup>':'');
     document.getElementById('quickPlanTaskName').value='';
     document.getElementById('quickPlanDuration').value='15';
     const nowMinutes=dayPlanElapsedMinutes();
