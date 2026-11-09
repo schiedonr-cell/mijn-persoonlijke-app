@@ -84,6 +84,58 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         R.id.timeline_text_17,R.id.timeline_text_18,R.id.timeline_text_19,R.id.timeline_text_20,
         R.id.timeline_text_21,R.id.timeline_text_22,R.id.timeline_text_23,R.id.timeline_text_24
     };
+    private static final int[] UP_IDS = {
+        R.id.timeline_up_1,
+        R.id.timeline_up_2,
+        R.id.timeline_up_3,
+        R.id.timeline_up_4,
+        R.id.timeline_up_5,
+        R.id.timeline_up_6,
+        R.id.timeline_up_7,
+        R.id.timeline_up_8,
+        R.id.timeline_up_9,
+        R.id.timeline_up_10,
+        R.id.timeline_up_11,
+        R.id.timeline_up_12,
+        R.id.timeline_up_13,
+        R.id.timeline_up_14,
+        R.id.timeline_up_15,
+        R.id.timeline_up_16,
+        R.id.timeline_up_17,
+        R.id.timeline_up_18,
+        R.id.timeline_up_19,
+        R.id.timeline_up_20,
+        R.id.timeline_up_21,
+        R.id.timeline_up_22,
+        R.id.timeline_up_23,
+        R.id.timeline_up_24
+    };
+    private static final int[] DOWN_IDS = {
+        R.id.timeline_down_1,
+        R.id.timeline_down_2,
+        R.id.timeline_down_3,
+        R.id.timeline_down_4,
+        R.id.timeline_down_5,
+        R.id.timeline_down_6,
+        R.id.timeline_down_7,
+        R.id.timeline_down_8,
+        R.id.timeline_down_9,
+        R.id.timeline_down_10,
+        R.id.timeline_down_11,
+        R.id.timeline_down_12,
+        R.id.timeline_down_13,
+        R.id.timeline_down_14,
+        R.id.timeline_down_15,
+        R.id.timeline_down_16,
+        R.id.timeline_down_17,
+        R.id.timeline_down_18,
+        R.id.timeline_down_19,
+        R.id.timeline_down_20,
+        R.id.timeline_down_21,
+        R.id.timeline_down_22,
+        R.id.timeline_down_23,
+        R.id.timeline_down_24
+    };
     private static final Pattern CLOCK = Pattern.compile("(\\d{1,2}):(\\d{2})");
     private static final String ACTION_TOGGLE = "nl.mijnpersoonlijkeapp.widgets.TIMELINE_TOGGLE";
     private static final String ACTION_QUICK = "nl.mijnpersoonlijkeapp.widgets.MIXED_TOGGLE";
@@ -91,9 +143,94 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
     private static final String AGENDA_PREFS = "timeline_agenda_local_checks";
     private static final String ACTION_NEXT_PAGE = "nl.mijnpersoonlijkeapp.widgets.TIMELINE_NEXT_PAGE";
     private static final String PAGE_PREFS = "timeline_widget_pages";
+    private static final String ORDER_PREFS = "timeline_widget_order_mode";
+    private static final String ACTION_ORDER_MODE = "nl.mijnpersoonlijkeapp.widgets.ORDER_MODE";
+    private static final String ACTION_ORDER_SHIFT = "nl.mijnpersoonlijkeapp.widgets.ORDER_SHIFT";
+    private static final String ACTION_NOOP = "nl.mijnpersoonlijkeapp.widgets.ORDER_NOOP";
+
+    private static boolean reorderMode(Context context, int widgetId, boolean tomorrow) {
+        if (tomorrow) return false;
+        SharedPreferences p = context.getSharedPreferences(ORDER_PREFS,Context.MODE_PRIVATE);
+        return SnapshotStore.todayKey().equals(p.getString("date-"+widgetId,""))
+                && p.getBoolean("editing-"+widgetId,false);
+    }
+
+    private static PendingIntent reorderAction(Context context, int widgetId) {
+        Intent intent=new Intent(context,TodayTimelineWidgetProvider.class);
+        intent.setAction(ACTION_ORDER_MODE);
+        intent.setData(android.net.Uri.parse("mijndag://ordermode/"+widgetId));
+        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,widgetId);
+        return PendingIntent.getBroadcast(context,0,intent,
+                PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    private static PendingIntent moveAction(Context context, int widgetId, boolean timed,
+                                             String key, int direction) {
+        Intent intent=new Intent(context,TodayTimelineWidgetProvider.class);
+        intent.setAction(ACTION_ORDER_SHIFT);
+        intent.setData(android.net.Uri.parse("mijndag://ordershift/"+widgetId+"/"
+                +(timed?"timed":"untimed")+"/"+android.net.Uri.encode(key)+"/"+direction));
+        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,widgetId);
+        intent.putExtra("date",SnapshotStore.todayKey());
+        intent.putExtra("timed",timed);
+        intent.putExtra("key",key);
+        intent.putExtra("direction",direction);
+        return PendingIntent.getBroadcast(context,0,intent,
+                PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    private static PendingIntent noOp(Context context, int widgetId) {
+        Intent intent=new Intent(context,TodayTimelineWidgetProvider.class);
+        intent.setAction(ACTION_NOOP);
+        intent.setData(android.net.Uri.parse("mijndag://ordernoop/"+widgetId));
+        return PendingIntent.getBroadcast(context,0,intent,
+                PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    private static boolean movable(JSONObject row, boolean timed) {
+        if(row==null||"Agenda".equals(row.optString("kind","")))return false;
+        if(timed)return !row.optBoolean("fixed",false)
+                && !row.optString("blockId","").isEmpty()
+                && !row.optBoolean("done",false);
+        String type=row.optString("itemType","");
+        return ("task".equals(type)||"habit".equals(type)
+                ||"household".equals(type)||"lunch".equals(type))
+                && !row.optString("itemId","").isEmpty();
+    }
+
+    private static String moveKey(JSONObject row, boolean timed) {
+        return timed?row.optString("blockId","")
+                :row.optString("itemType","")+":"+row.optString("itemId","");
+    }
 
     @Override public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
+        if(intent!=null&&(ACTION_ORDER_MODE.equals(intent.getAction())
+                ||ACTION_ORDER_SHIFT.equals(intent.getAction()))){
+            int widgetId=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,
+                    AppWidgetManager.INVALID_APPWIDGET_ID);
+            AppWidgetManager manager=AppWidgetManager.getInstance(context);
+            android.appwidget.AppWidgetProviderInfo info=manager.getAppWidgetInfo(widgetId);
+            if(info==null||info.provider==null
+                    ||!TodayTimelineWidgetProvider.class.getName().equals(info.provider.getClassName())
+                    ||DayTabsWidgetProvider.isTomorrow(context,widgetId))return;
+            SharedPreferences prefs=context.getSharedPreferences(ORDER_PREFS,Context.MODE_PRIVATE);
+            if(ACTION_ORDER_MODE.equals(intent.getAction())){
+                boolean editing=reorderMode(context,widgetId,false);
+                prefs.edit().putString("date-"+widgetId,SnapshotStore.todayKey())
+                        .putBoolean("editing-"+widgetId,!editing).apply();
+                updateOne(context,manager,widgetId);
+            }else if(reorderMode(context,widgetId,false)){
+                String date=intent.getStringExtra("date");
+                String key=intent.getStringExtra("key");
+                int direction=intent.getIntExtra("direction",0);
+                boolean timed=intent.getBooleanExtra("timed",false);
+                SnapshotStore.moveWidgetRow(context,date,timed,key,direction);
+                updateOne(context,manager,widgetId);
+            }
+            return;
+        }
+        if(intent!=null&&ACTION_NOOP.equals(intent.getAction()))return;
         if (intent != null && ACTION_TOGGLE.equals(intent.getAction())) {
             String date=intent.getStringExtra("date"),blockId=intent.getStringExtra("blockId");
             if(date!=null&&blockId!=null){
@@ -172,6 +309,11 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.timeline_header, WidgetLinks.open(context, "today", 521));
         v.setOnClickPendingIntent(R.id.timeline_home, WidgetLinks.open(context, "home", 522));
         boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context, id);
+        boolean editing=reorderMode(context,id,tomorrow);
+        v.setTextViewText(R.id.timeline_reorder,editing?"✓":"↕");
+        v.setOnClickPendingIntent(R.id.timeline_reorder,reorderAction(context,id));
+        v.setContentDescription(R.id.timeline_reorder,
+                editing?"Volgorde klaar":"Volgorde aanpassen");
         int bg = WidgetStyle.background(context, id);
         String textMode = WidgetStyle.textMode(context, id);
         boolean light = WidgetStyle.TEXT_LIGHT.equals(textMode)
@@ -236,12 +378,30 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         pref.edit().putString("token-" + id, token).putInt("page-" + id, page).apply();
         int start = page * maxRows;
         int visible = Math.min(maxRows, items.size() - start);
+        List<String> moveKeys=new ArrayList<>();
+        if(!tomorrow)for(JSONObject row:items)if(movable(row,usingDayPlan)){
+            String key=moveKey(row,usingDayPlan);
+            if(!moveKeys.contains(key))moveKeys.add(key);
+        }
         SharedPreferences agendaPrefs=context.getSharedPreferences(AGENDA_PREFS,Context.MODE_PRIVATE);
         java.util.Set<String> checkedAgenda=snapshot.optString("date").equals(agendaPrefs.getString("date",""))
                 ?agendaPrefs.getStringSet("checked",java.util.Collections.emptySet())
                 :java.util.Collections.emptySet();
         for(int i=0;i<visible;i++) {
             JSONObject row=items.get(start+i);
+            String orderKey=moveKey(row,usingDayPlan);
+            int orderAt=moveKeys.indexOf(orderKey);
+            if(editing&&movable(row,usingDayPlan)&&orderAt>=0){
+                v.setViewVisibility(UP_IDS[i],orderAt>0?View.VISIBLE:View.INVISIBLE);
+                v.setViewVisibility(DOWN_IDS[i],orderAt+1<moveKeys.size()?View.VISIBLE:View.INVISIBLE);
+                v.setTextColor(UP_IDS[i],active);
+                v.setTextColor(DOWN_IDS[i],active);
+                v.setOnClickPendingIntent(UP_IDS[i],moveAction(context,id,usingDayPlan,orderKey,-1));
+                v.setOnClickPendingIntent(DOWN_IDS[i],moveAction(context,id,usingDayPlan,orderKey,1));
+            }else{
+                v.setViewVisibility(UP_IDS[i],View.GONE);
+                v.setViewVisibility(DOWN_IDS[i],View.GONE);
+            }
             String kind=row.optString("kind","");
             String rawTime=row.optString("time","").trim();
             String clock=displayTime(rawTime);
@@ -307,7 +467,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             // neemt alleen ruimte in en maakt de tekst op smalle widgets korter.
             v.setViewVisibility(CHECK_IDS[i], View.GONE);
             v.setViewVisibility(ROW_BOX_IDS[i], View.VISIBLE);
-            v.setOnClickPendingIntent(ROW_BOX_IDS[i], rowClick);
+            v.setOnClickPendingIntent(ROW_BOX_IDS[i], editing?noOp(context,id):rowClick);
         }
 
         if (items.isEmpty()) {
@@ -414,7 +574,11 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
     }
 
     private static void hideRows(RemoteViews v) {
-        for(int id:ROW_BOX_IDS) v.setViewVisibility(id, View.GONE);
+        for(int i=0;i<ROW_BOX_IDS.length;i++){
+            v.setViewVisibility(ROW_BOX_IDS[i],View.GONE);
+            v.setViewVisibility(UP_IDS[i],View.GONE);
+            v.setViewVisibility(DOWN_IDS[i],View.GONE);
+        }
     }
 
     private static String friendlyDate(boolean tomorrow) {
