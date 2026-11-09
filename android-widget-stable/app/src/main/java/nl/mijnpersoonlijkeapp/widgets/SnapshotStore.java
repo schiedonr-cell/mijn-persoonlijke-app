@@ -778,6 +778,7 @@ final class SnapshotStore {
                 row.put("done", done);
                 row.put("blockId", b.optString("id", ""));
                 row.put("linkType", linkType);
+                row.put("fixed", b.optBoolean("fixed",false) || "agenda".equals(linkType));
                 out.put(row);
             } catch (Exception ignored) {}
         }
