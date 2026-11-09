@@ -31,6 +31,7 @@ final class SnapshotStore {
     private static final String CACHED_STATE = "last_web_state";
     private static final String CACHED_CALENDAR = "last_calendar_state";
     private static final String CACHED_HOUSEHOLD = "last_household_state";
+    private static final String ORDER_PENDING = "today_widget_order_pending";
 
     private SnapshotStore() {}
 
@@ -48,6 +49,7 @@ final class SnapshotStore {
                     .commit();
             applyPendingToSnapshotState(context, state);
             applyPendingQuickToSnapshotState(context, state);
+            applyWidgetOrderToState(context, state);
             JSONObject snapshot = build(context, state, calendarJson, liveHouseholdJson);
             persistAndRefresh(context, snapshot);
         } catch (Exception ignored) {}
@@ -306,6 +308,278 @@ final class SnapshotStore {
                 }
             }
         }catch(Exception ignored){}
+    }
+
+    // Pijltjes in de Vandaag-widget: één opdracht voor de huidige dag.
+    // De WebView krijgt dezelfde opdracht en bevestigt haar na het opslaan.
+    static synchronized String widgetOrderPending(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString(ORDER_PENDING, "");
+    }
+
+    static synchronized void acknowledgeWidgetOrder(Context context, String operationId) {
+        if (operationId == null || operationId.isEmpty()) return;
+        try {
+            JSONObject op = new JSONObject(widgetOrderPending(context));
+            if (operationId.equals(op.optString("id"))) {
+                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                        .remove(ORDER_PENDING).commit();
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private static boolean isMovableMixed(JSONObject row) {
+        if (row == null) return false;
+        String type = row.optString("itemType", "");
+        return ("task".equals(type) || "habit".equals(type)
+                || "household".equals(type) || "lunch".equals(type))
+                && !row.optString("itemId", "").isEmpty();
+    }
+
+    private static String mixedKey(JSONObject row) {
+        return row.optString("itemType", "") + ":" + row.optString("itemId", "");
+    }
+
+    private static void applyWidgetOrderToState(Context context, JSONObject state) {
+        try {
+            String raw = widgetOrderPending(context);
+            if (raw.isEmpty()) return;
+            JSONObject op = new JSONObject(raw);
+            if (!todayKey().equals(op.optString("date", ""))) return;
+            if ("untimed".equals(op.optString("mode", ""))) {
+                JSONObject saved = new JSONObject();
+                saved.put("date", op.optString("date"));
+                saved.put("keys", op.optJSONArray("keys"));
+                state.put("untimedOrder", saved);
+                JSONObject next = new JSONObject();
+                next.put("date", JSONObject.NULL);
+                next.put("type", "");
+                next.put("itemId", "");
+                state.put("untimedNext", next);
+            } else if ("timed".equals(op.optString("mode", ""))) {
+                JSONObject plan = state.optJSONObject("dayTimeline");
+                if (plan == null || !todayKey().equals(plan.optString("date"))) return;
+                JSONArray blocks = plan.optJSONArray("blocks"), changed = op.optJSONArray("blocks");
+                if (blocks == null || changed == null) return;
+                for (int i = 0; i < changed.length(); i++) {
+                    JSONObject change = changed.optJSONObject(i);
+                    if (change == null) continue;
+                    JSONObject block = findById(blocks, change.optString("id", ""));
+                    if (block == null || block.optBoolean("fixed", false)
+                            || "agenda".equals(block.optString("linkType"))) continue;
+                    block.put("start", change.optString("start"));
+                    block.put("originalStart", change.optString("start"));
+                    if (!change.optString("end").isEmpty()) {
+                        block.put("end", change.optString("end"));
+                        block.put("originalEnd", change.optString("end"));
+                    }
+                }
+                sortPlanBlocks(plan);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private static int minute(String clock) {
+        if (clock == null || !clock.matches("\\d{1,2}:\\d{2}")) return -1;
+        String[] bits = clock.split(":");
+        int h = Integer.parseInt(bits[0]), m = Integer.parseInt(bits[1]);
+        return h >= 0 && h < 48 && m < 60 ? h * 60 + m : -1;
+    }
+
+    private static String clock(int minutes) {
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", minutes / 60, minutes % 60);
+    }
+
+    private static int length(JSONObject block) {
+        int start = minute(block.optString("start")), end = minute(block.optString("end"));
+        return start < 0 ? -1 : Math.max(1, end > start ? end - start : 1);
+    }
+
+    private static void sortPlanBlocks(JSONObject plan) throws Exception {
+        JSONArray blocks = plan.optJSONArray("blocks");
+        if (blocks == null) return;
+        List<JSONObject> sorted = new ArrayList<>();
+        for (int i = 0; i < blocks.length(); i++) {
+            JSONObject block = blocks.optJSONObject(i);
+            if (block != null) sorted.add(block);
+        }
+        sorted.sort((a,b) -> Integer.compare(minute(a.optString("start")), minute(b.optString("start"))));
+        JSONArray arranged = new JSONArray(), ids = new JSONArray();
+        StringBuilder source = new StringBuilder();
+        for (JSONObject block : sorted) {
+            arranged.put(block);
+            ids.put(block.optString("id", ""));
+            if (!block.optString("postponedTo", "").isEmpty()) continue;
+            if (source.length() > 0) source.append('\n');
+            source.append(block.optString("start"))
+                    .append(block.optString("end").isEmpty() ? "" : "–" + block.optString("end"))
+                    .append(' ').append(block.optString("text"));
+        }
+        plan.put("blocks", arranged);
+        plan.put("manualOrderIds", ids);
+        plan.put("sourceText", source.toString());
+    }
+
+    // Dezelfde beschermende dagregel als in de app: vaste en al afgeronde
+    // blokken mogen niet verschuiven; langere taken behouden hun eigen duur.
+    private static List<int[]> calculateSlots(JSONArray all, List<JSONObject> flexible,
+                                                  List<JSONObject> reordered, boolean preserveGaps) {
+        List<int[]> reserved = new ArrayList<>();
+        java.util.Set<String> moving = new HashSet<>();
+        for (JSONObject block : reordered) moving.add(block.optString("id"));
+        for (int i = 0; i < all.length(); i++) {
+            JSONObject b = all.optJSONObject(i);
+            if (b == null || !b.optString("postponedTo").isEmpty()
+                    || moving.contains(b.optString("id"))) continue;
+            int start = minute(b.optString("start")), d = length(b);
+            if (start >= 0 && d >= 0) reserved.add(new int[]{start,start+d});
+        }
+        reserved.sort((a,b)->Integer.compare(a[0],b[0]));
+        int cursor = minute(flexible.get(0).optString("start"));
+        int lastEnd = 0;
+        for (JSONObject b : flexible) {
+            int start=minute(b.optString("start")), d=length(b);
+            if (start < 0 || d < 0) return null;
+            lastEnd = Math.max(lastEnd, start+d);
+        }
+        List<int[]> slots = new ArrayList<>();
+        for (int i = 0; i < reordered.size(); i++) {
+            JSONObject b = reordered.get(i);
+            int duration = length(b);
+            int start = Math.max(cursor, preserveGaps ? minute(flexible.get(i).optString("start"))
+                                                     : minute(flexible.get(0).optString("start")));
+            for (int[] fixed : reserved) {
+                if (start < fixed[1] && start + duration > fixed[0]) start = fixed[1];
+            }
+            if (start < 0 || start + duration > 2880) return null;
+            slots.add(new int[]{start,start+duration});
+            cursor = start+duration;
+        }
+        return cursor <= lastEnd ? slots : null;
+    }
+
+    private static boolean timedReorder(Context context, JSONObject state, JSONObject operation,
+                                         String blockId, int direction) throws Exception {
+        JSONObject plan = state.optJSONObject("dayTimeline");
+        if (plan == null || !todayKey().equals(plan.optString("date"))) return false;
+        JSONArray blocks = plan.optJSONArray("blocks");
+        if (blocks == null || blocks.length() == 0) return false;
+        if (state.optJSONObject("dayTimelineFocus") != null
+                && todayKey().equals(state.optJSONObject("dayTimelineFocus").optString("date")))
+            return false;
+        JSONObject focus = state.optJSONObject("focus");
+        if (focus != null && focus.optBoolean("running", false)) return false;
+
+        // Filter via de daadwerkelijke open tijdlijn: afgeronde en agenda-blokken
+        // kunnen niet worden verplaatst, net als in de app.
+        JSONArray openRows = buildDayTimelineRows(state, todayKey());
+        Set<String> open = new HashSet<>();
+        for (int i = 0; i < openRows.length(); i++) {
+            JSONObject row = openRows.optJSONObject(i);
+            if (row != null) open.add(row.optString("blockId", ""));
+        }
+        List<JSONObject> flexible = new ArrayList<>();
+        for (int i = 0; i < blocks.length(); i++) {
+            JSONObject b = blocks.optJSONObject(i);
+            if (b == null || !open.contains(b.optString("id"))
+                    || b.optBoolean("fixed", false)
+                    || "agenda".equals(b.optString("linkType"))) continue;
+            if (minute(b.optString("start")) < 0) continue;
+            flexible.add(b);
+        }
+        flexible.sort((a,b)->Integer.compare(minute(a.optString("start")),minute(b.optString("start"))));
+        int at = -1;
+        for (int i=0;i<flexible.size();i++)if(blockId.equals(flexible.get(i).optString("id")))at=i;
+        if(at<0 || at+direction<0 || at+direction>=flexible.size())return false;
+        List<JSONObject> rearranged=new ArrayList<>(flexible);
+        Collections.swap(rearranged,at,at+direction);
+        List<int[]> slots=calculateSlots(blocks,flexible,rearranged,true);
+        if (slots == null) slots=calculateSlots(blocks,flexible,rearranged,false);
+        if (slots == null) return false;
+
+        JSONArray changed=new JSONArray();
+        for (int i=0;i<rearranged.size();i++) {
+            JSONObject b=rearranged.get(i);
+            String start=clock(slots.get(i)[0]),end=clock(slots.get(i)[1]);
+            boolean hasEnd=minute(b.optString("end"))>minute(b.optString("start"));
+            b.put("start",start);
+            b.put("originalStart",start);
+            if(hasEnd){b.put("end",end);b.put("originalEnd",end);}
+            JSONObject item=new JSONObject();
+            item.put("id",b.optString("id"));
+            item.put("start",start);
+            if(hasEnd)item.put("end",end);
+            changed.put(item);
+        }
+        sortPlanBlocks(plan);
+        operation.put("blocks",changed);
+        return true;
+    }
+
+    private static boolean untimedReorder(JSONObject state, JSONObject operation,
+                                           JSONArray displayed, String key, int direction) throws Exception {
+        if (displayed == null) return false;
+        List<String> items=new ArrayList<>();
+        for (int i=0;i<displayed.length();i++) {
+            JSONObject row=displayed.optJSONObject(i);
+            if(isMovableMixed(row) && !items.contains(mixedKey(row)))items.add(mixedKey(row));
+        }
+        int at=items.indexOf(key);
+        if(at<0||at+direction<0||at+direction>=items.size())return false;
+        Collections.swap(items,at,at+direction);
+        JSONArray keys=new JSONArray();
+        for(String item:items)keys.put(item);
+        operation.put("keys",keys);
+        return true;
+    }
+
+    static synchronized boolean moveWidgetRow(Context context, String date, boolean timed,
+                                               String key, int direction) {
+        if (!todayKey().equals(date) || (direction != -1 && direction != 1)
+                || key == null || key.isEmpty()) return false;
+        SharedPreferences prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE);
+        try {
+            String raw=prefs.getString(CACHED_STATE,"");
+            if(raw.isEmpty())return false;
+            JSONObject state=new JSONObject(raw);
+            applyPendingToSnapshotState(context,state);
+            applyPendingQuickToSnapshotState(context,state);
+            applyWidgetOrderToState(context,state);
+            JSONObject snapshot=build(context,state,prefs.getString(CACHED_CALENDAR,""),
+                    prefs.getString(CACHED_HOUSEHOLD,""));
+            JSONObject operation=new JSONObject();
+            operation.put("id",java.util.UUID.randomUUID().toString());
+            operation.put("date",date);
+            operation.put("mode",timed?"timed":"untimed");
+            boolean ok=timed?timedReorder(context,state,operation,key,direction)
+                    :untimedReorder(state,operation,snapshot.optJSONArray("mixedRows"),key,direction);
+            if(!ok)return false;
+            prefs.edit().putString(ORDER_PENDING,operation.toString()).commit();
+            applyWidgetOrderToState(context,state);
+            JSONObject rebuilt=build(context,state,prefs.getString(CACHED_CALENDAR,""),
+                    prefs.getString(CACHED_HOUSEHOLD,""));
+            if(timed) {
+                JSONArray changed=operation.optJSONArray("blocks");
+                JSONObject plan=state.optJSONObject("dayTimeline");
+                if(changed!=null&&plan!=null)for(int i=0;i<changed.length();i++){
+                    JSONObject line=changed.optJSONObject(i);
+                    if(line==null)continue;
+                    String id="dayplan-"+date+"-"+line.optString("id");
+                    NativeAlarmScheduler.cancel(context,id);
+                    JSONObject block=findById(plan.optJSONArray("blocks"),line.optString("id"));
+                    if(block==null||!block.optBoolean("remind",false))continue;
+                    int minutes=minute(block.optString("start"));
+                    if(minutes<0)continue;
+                    long at=LocalDate.parse(date).atStartOfDay(java.time.ZoneId.systemDefault())
+                            .plusMinutes(minutes).toInstant().toEpochMilli();
+                    if(at<=System.currentTimeMillis()+1000L)continue;
+                    NativeAlarmScheduler.schedule(context,id,block.optString("text","Dagplanning"),
+                            "Dagplanning · "+block.optString("start")+"–"+block.optString("end"),at,"today");
+                }
+            }
+            persistAndRefresh(context,rebuilt);
+            return true;
+        }catch(Exception ignored){return false;}
     }
 
     static String todayKey() {
