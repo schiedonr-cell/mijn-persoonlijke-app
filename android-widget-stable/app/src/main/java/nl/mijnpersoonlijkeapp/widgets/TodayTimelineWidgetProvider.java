@@ -225,7 +225,10 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
                 String key=intent.getStringExtra("key");
                 int direction=intent.getIntExtra("direction",0);
                 boolean timed=intent.getBooleanExtra("timed",false);
-                SnapshotStore.moveWidgetRow(context,date,timed,key,direction);
+                boolean moved=SnapshotStore.moveWidgetRow(context,date,timed,key,direction);
+                if(!moved)android.widget.Toast.makeText(context,
+                        "Verplaatsen lukt hier niet door vaste tijden of een lopende focus.",
+                        android.widget.Toast.LENGTH_SHORT).show();
                 updateOne(context,manager,widgetId);
             }
             return;
@@ -309,6 +312,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.timeline_header, WidgetLinks.open(context, "today", 521));
         v.setOnClickPendingIntent(R.id.timeline_home, WidgetLinks.open(context, "home", 522));
         boolean tomorrow = DayTabsWidgetProvider.isTomorrow(context, id);
+        v.setViewVisibility(R.id.timeline_reorder,tomorrow?View.GONE:View.VISIBLE);
         boolean editing=reorderMode(context,id,tomorrow);
         v.setTextViewText(R.id.timeline_reorder,editing?"✓":"↕");
         v.setOnClickPendingIntent(R.id.timeline_reorder,reorderAction(context,id));
