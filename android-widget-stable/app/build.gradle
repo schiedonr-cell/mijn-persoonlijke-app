@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgetveilig'
         minSdk 26
         targetSdk 35
-        versionCode 2
-        versionName 'mijn-dag-veilige-overstap-2'
+        versionCode 3
+        versionName 'mijn-dag-widget-pijltjes-3'
     }
 
     buildTypes {
