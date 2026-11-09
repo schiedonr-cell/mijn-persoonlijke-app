@@ -398,8 +398,10 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             if(editing&&movable(row,usingDayPlan)&&orderAt>=0){
                 v.setViewVisibility(UP_IDS[i],orderAt>0?View.VISIBLE:View.INVISIBLE);
                 v.setViewVisibility(DOWN_IDS[i],orderAt+1<moveKeys.size()?View.VISIBLE:View.INVISIBLE);
-                v.setTextColor(UP_IDS[i],active);
-                v.setTextColor(DOWN_IDS[i],active);
+                // De pijlen gebruiken precies dezelfde gekozen widget-accentkleur.
+                int accent=WidgetStyle.accent(context,id);
+                v.setTextColor(UP_IDS[i],accent);
+                v.setTextColor(DOWN_IDS[i],accent);
                 v.setOnClickPendingIntent(UP_IDS[i],moveAction(context,id,usingDayPlan,orderKey,-1));
                 v.setOnClickPendingIntent(DOWN_IDS[i],moveAction(context,id,usingDayPlan,orderKey,1));
             }else{
