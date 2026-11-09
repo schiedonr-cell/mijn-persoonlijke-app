@@ -5844,6 +5844,57 @@
     }
   };
 
+  // Vandaag-widget: met pijltjes een volgorde kiezen zonder eerst de app te openen.
+  // De widget bewaart deze wijziging tijdelijk native en bevestigt haar hier
+  // zodra de WebView draait; zo blijven dezelfde taken in beide overzichten staan.
+  window.applyNativeWidgetOrder=function(raw){
+    let operation;
+    try{operation=JSON.parse(raw||'{}');}catch{return;}
+    if(!operation?.id||!operation.date||operation.date!==localDateKey())return;
+    let applied=false;
+    if(operation.mode==='untimed'&&Array.isArray(operation.keys)){
+      const valid=new Set(untimedNextOptions().map(untimedItemKey));
+      const keys=[...new Set(operation.keys.filter(k=>typeof k==='string'&&valid.has(k)))];
+      state.untimedOrder={date:operation.date,keys};
+      state.untimedNext={date:null,type:'',itemId:''};
+      applied=true;
+    }else if(operation.mode==='timed'&&Array.isArray(operation.blocks)){
+      const plan=state.dayTimeline;
+      if(plan?.date===operation.date && dayPlanIsCurrent(plan) && !activeDayPlanFocus()
+        && !state.focus?.running){
+        const byId=new Map((plan.blocks||[]).map(b=>[b.id,b]));
+        const changes=operation.blocks;
+        if(changes.length && changes.every(item=>{
+          const b=byId.get(item?.id);
+          return b&&dayPlanBlockMode(b)!=='fixed'&&!dayPlanBlockDone(b)
+            &&dayPlanMinutes(item.start)!==null
+            &&(!item.end||dayPlanMinutes(item.end)!==null);
+        })){
+          cancelDayPlanAlarms(plan);
+          for(const item of changes){
+            const block=byId.get(item.id);
+            block.start=item.start;
+            block.originalStart=item.start;
+            if(item.end){block.end=item.end;block.originalEnd=item.end;}
+          }
+          plan.blocks.sort((a,b)=>(dayPlanMinutes(a.start)??99999)-(dayPlanMinutes(b.start)??99999));
+          plan.manualOrderIds=plan.blocks.map(b=>b.id);
+          plan.sourceText=plan.blocks.filter(b=>!b.postponedTo)
+            .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+          applied=true;
+        }
+      }
+    }else return;
+    if(applied){
+      saveState();
+      renderToday();
+      renderFocus();
+      if(operation.mode==='timed')scheduleDayPlanAlarms();
+    }
+    // Ook een door latere wijzigingen ongeldige opdracht niet blijven herhalen.
+    try{window.AndroidWidgetBridge?.ackWidgetOrder?.(operation.id);}catch{}
+  };
+
   // Door Android-homescreenwidgets opgeslagen afvinkacties toepassen op de echte appdata.
   // Gebeurt vóór de volgende snapshotsynchronisatie vanuit de WebView.
   window.applyNativeDayTimelineChanges=function(raw){
