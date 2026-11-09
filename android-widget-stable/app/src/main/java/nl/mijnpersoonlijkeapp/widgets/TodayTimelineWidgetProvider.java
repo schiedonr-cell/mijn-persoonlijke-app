@@ -371,7 +371,7 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
             }
         });
 
-        int maxRows = Math.min(rowsForHeight(manager, id), ROW_BOX_IDS.length);
+        int maxRows = Math.min(rowsForHeight(manager, id, items.size()), ROW_BOX_IDS.length);
         int pages = Math.max(1, (items.size() + maxRows - 1) / maxRows);
         SharedPreferences pref = context.getSharedPreferences(PAGE_PREFS, Context.MODE_PRIVATE);
         // Houd de huidige pagina aan wanneer een afgevinkte regel verdwijnt.
@@ -521,18 +521,19 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         return value.startsWith("Vandaag") || value.equals("Hele dag");
     }
 
-    private static int rowsForHeight(AppWidgetManager manager, int id) {
+    private static int rowsForHeight(AppWidgetManager manager, int id, int itemCount) {
         try {
-            Bundle o=manager.getAppWidgetOptions(id);
-            int h=o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 300);
-            // Kop (42dp), Vandaag/Morgen (30dp), scheidingslijn (11dp),
-            // paneelranden (28dp) en eventuele paginaknop (21dp)
-            // nemen samen 132dp in. Laat het teveel aan taken op de
-            // volgende pagina zien, in plaats van rijen samen te drukken
-            // of de laatste regel buiten beeld te laten vallen.
-            final int rowHeightDp = 38;
-            final int chromeHeightDp = 132;
-            return Math.max(2, Math.min(24, (h - chromeHeightDp) / rowHeightDp));
+            Bundle options=manager.getAppWidgetOptions(id);
+            int height=options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,300);
+            // 30dp vaste rijhoogte voor een rustiger overzicht. Kop, tabs,
+            // scheiding en paneelranden nemen 111dp in beslag.
+            // Alleen bij echte paginering reserveert de widget ook 22dp
+            // voor de navigatieregel. Daardoor passen 9/10 taken vaak
+            // gewoon op één pagina, zonder een bijna lege tweede pagina.
+            final int rowHeight=30, fixedChrome=111, pageFooter=22;
+            int withoutFooter=Math.max(2, Math.min(24, (height-fixedChrome)/rowHeight));
+            if(itemCount<=withoutFooter)return withoutFooter;
+            return Math.max(2, Math.min(24, (height-fixedChrome-pageFooter)/rowHeight));
         } catch(Exception ignored) { return 8; }
     }
 
