@@ -366,7 +366,7 @@ public class MainActivity extends Activity {
             }
         });
         setContentView(webView);
-        webView.loadUrl(BASE + "?open=" + Uri.encode(target) + "&nativev=47");
+        webView.loadUrl(BASE + "?open=" + Uri.encode(target) + "&nativev=49");
     }
 
     private void importIntoWebView() {

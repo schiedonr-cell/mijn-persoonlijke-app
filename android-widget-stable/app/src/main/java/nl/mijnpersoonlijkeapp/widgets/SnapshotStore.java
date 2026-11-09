@@ -740,6 +740,9 @@ final class SnapshotStore {
             String end = b.optString("end", "").trim();
             String linkType = b.optString("linkType", "");
             String linkId = b.optString("linkId", "");
+            // Een vroeger automatisch aangemaakt lunchblok niet meer tonen.
+            if ("lunch".equals(linkType)
+                    || (!"agenda".equals(linkType) && isRemovedLunchLabel(text))) continue;
             if (text.isEmpty() || start.isEmpty()) continue;
 
             boolean done = b.optBoolean("done", false);
@@ -787,6 +790,11 @@ final class SnapshotStore {
 
     // Een rustige dagvolgorde zonder tijden. De bestaande losse vier widgets
     // blijven de originele categoriegegevens uit "rows" gebruiken.
+    private static boolean isRemovedLunchLabel(String title) {
+        if(title==null)return false;
+        return title.trim().toLowerCase(Locale.ROOT).matches("^(?:lunchen|lunch|lunch gehad\\??)$");
+    }
+
     private static JSONArray buildMixedRows(JSONArray source, JSONObject state, String today) {
         JSONArray out=new JSONArray();
         List<JSONObject> tasks=new ArrayList<>(),house=new ArrayList<>(),other=new ArrayList<>(),agenda=new ArrayList<>();
@@ -794,6 +802,9 @@ final class SnapshotStore {
         for(int i=0;i<source.length();i++){
             JSONObject row=source.optJSONObject(i);
             if(row==null)continue;
+            if(!"Agenda".equals(row.optString("kind",""))
+                    && ("lunch".equals(row.optString("itemType",""))
+                    || isRemovedLunchLabel(row.optString("text",""))))continue;
             String type=row.optString("itemType"),id=row.optString("itemId");
             if("Agenda".equals(row.optString("kind")))agenda.add(row);
             else if("habit".equals(type)){
@@ -813,15 +824,6 @@ final class SnapshotStore {
         if(stretch!=null)out.put(stretch);
         if(!tasks.isEmpty())out.put(tasks.remove(0));
         if(!house.isEmpty())out.put(house.remove(0));
-        JSONObject selfCare=state.optJSONObject("selfCare");
-        if(selfCare==null||!today.equals(selfCare.optString("date"))||!selfCare.optBoolean("lunchDone",false)){
-            JSONObject lunch=new JSONObject();
-            try{
-                lunch.put("kind","Zelfzorg");lunch.put("text","Lunch gehad?");
-                lunch.put("itemType","lunch");lunch.put("itemId","lunch");lunch.put("time","");
-                out.put(lunch);
-            }catch(Exception ignored){}
-        }
         if(move!=null)out.put(move);
         if(!tasks.isEmpty())out.put(tasks.remove(0));
         if(!house.isEmpty())out.put(house.remove(0));

@@ -26,7 +26,7 @@ final class NativeAlarmScheduler {
     static boolean isUnwantedLunchReminder(String title) {
         if (title == null) return false;
         String normalized = title.trim().toLowerCase(java.util.Locale.ROOT);
-        return normalized.matches("^(?:(?:taak|herinnering)\\s*[:\\-–]\\s*)?(?:lunchen|lunch)$");
+        return normalized.matches("^(?:(?:taak|herinnering)\\s*[:\\-–]\\s*)?(?:lunchen|lunch|lunch gehad\\??)$");
     }
 
     static synchronized void removeUnwantedLunchReminders(Context context) {
