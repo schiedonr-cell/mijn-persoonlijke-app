@@ -741,7 +741,8 @@ final class SnapshotStore {
             String linkType = b.optString("linkType", "");
             String linkId = b.optString("linkId", "");
             // Een vroeger automatisch aangemaakt lunchblok niet meer tonen.
-            if ("lunch".equals(linkType) || isRemovedLunchLabel(text)) continue;
+            if ("lunch".equals(linkType)
+                    || (!"agenda".equals(linkType) && isRemovedLunchLabel(text))) continue;
             if (text.isEmpty() || start.isEmpty()) continue;
 
             boolean done = b.optBoolean("done", false);
@@ -801,8 +802,9 @@ final class SnapshotStore {
         for(int i=0;i<source.length();i++){
             JSONObject row=source.optJSONObject(i);
             if(row==null)continue;
-            if("lunch".equals(row.optString("itemType",""))
-                    || isRemovedLunchLabel(row.optString("text","")))continue;
+            if(!"Agenda".equals(row.optString("kind",""))
+                    && ("lunch".equals(row.optString("itemType",""))
+                    || isRemovedLunchLabel(row.optString("text",""))))continue;
             String type=row.optString("itemType"),id=row.optString("itemId");
             if("Agenda".equals(row.optString("kind")))agenda.add(row);
             else if("habit".equals(type)){
