@@ -109,7 +109,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_1"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -146,7 +146,7 @@
             <TextView
                 android:id="@+id/timeline_up_1"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -155,7 +155,7 @@
             <TextView
                 android:id="@+id/timeline_down_1"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -165,7 +165,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_2"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -202,7 +202,7 @@
             <TextView
                 android:id="@+id/timeline_up_2"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -211,7 +211,7 @@
             <TextView
                 android:id="@+id/timeline_down_2"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -221,7 +221,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_3"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -258,7 +258,7 @@
             <TextView
                 android:id="@+id/timeline_up_3"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -267,7 +267,7 @@
             <TextView
                 android:id="@+id/timeline_down_3"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -277,7 +277,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_4"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -314,7 +314,7 @@
             <TextView
                 android:id="@+id/timeline_up_4"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -323,7 +323,7 @@
             <TextView
                 android:id="@+id/timeline_down_4"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -333,7 +333,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_5"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -370,7 +370,7 @@
             <TextView
                 android:id="@+id/timeline_up_5"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -379,7 +379,7 @@
             <TextView
                 android:id="@+id/timeline_down_5"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -389,7 +389,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_6"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -426,7 +426,7 @@
             <TextView
                 android:id="@+id/timeline_up_6"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -435,7 +435,7 @@
             <TextView
                 android:id="@+id/timeline_down_6"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -445,7 +445,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_7"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -482,7 +482,7 @@
             <TextView
                 android:id="@+id/timeline_up_7"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -491,7 +491,7 @@
             <TextView
                 android:id="@+id/timeline_down_7"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -501,7 +501,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_8"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -538,7 +538,7 @@
             <TextView
                 android:id="@+id/timeline_up_8"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -547,7 +547,7 @@
             <TextView
                 android:id="@+id/timeline_down_8"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -557,7 +557,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_9"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -594,7 +594,7 @@
             <TextView
                 android:id="@+id/timeline_up_9"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -603,7 +603,7 @@
             <TextView
                 android:id="@+id/timeline_down_9"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -613,7 +613,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_10"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -650,7 +650,7 @@
             <TextView
                 android:id="@+id/timeline_up_10"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -659,7 +659,7 @@
             <TextView
                 android:id="@+id/timeline_down_10"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -669,7 +669,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_11"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -706,7 +706,7 @@
             <TextView
                 android:id="@+id/timeline_up_11"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -715,7 +715,7 @@
             <TextView
                 android:id="@+id/timeline_down_11"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -725,7 +725,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_12"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -762,7 +762,7 @@
             <TextView
                 android:id="@+id/timeline_up_12"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -771,7 +771,7 @@
             <TextView
                 android:id="@+id/timeline_down_12"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -781,7 +781,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_13"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -818,7 +818,7 @@
             <TextView
                 android:id="@+id/timeline_up_13"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -827,7 +827,7 @@
             <TextView
                 android:id="@+id/timeline_down_13"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -837,7 +837,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_14"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -874,7 +874,7 @@
             <TextView
                 android:id="@+id/timeline_up_14"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -883,7 +883,7 @@
             <TextView
                 android:id="@+id/timeline_down_14"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -893,7 +893,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_15"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -930,7 +930,7 @@
             <TextView
                 android:id="@+id/timeline_up_15"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -939,7 +939,7 @@
             <TextView
                 android:id="@+id/timeline_down_15"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -949,7 +949,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_16"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -986,7 +986,7 @@
             <TextView
                 android:id="@+id/timeline_up_16"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -995,7 +995,7 @@
             <TextView
                 android:id="@+id/timeline_down_16"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -1005,7 +1005,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_17"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1042,7 +1042,7 @@
             <TextView
                 android:id="@+id/timeline_up_17"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -1051,7 +1051,7 @@
             <TextView
                 android:id="@+id/timeline_down_17"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -1061,7 +1061,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_18"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1098,7 +1098,7 @@
             <TextView
                 android:id="@+id/timeline_up_18"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -1107,7 +1107,7 @@
             <TextView
                 android:id="@+id/timeline_down_18"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -1117,7 +1117,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_19"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1154,7 +1154,7 @@
             <TextView
                 android:id="@+id/timeline_up_19"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -1163,7 +1163,7 @@
             <TextView
                 android:id="@+id/timeline_down_19"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -1173,7 +1173,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_20"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1210,7 +1210,7 @@
             <TextView
                 android:id="@+id/timeline_up_20"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -1219,7 +1219,7 @@
             <TextView
                 android:id="@+id/timeline_down_20"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -1229,7 +1229,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_21"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1266,7 +1266,7 @@
             <TextView
                 android:id="@+id/timeline_up_21"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -1275,7 +1275,7 @@
             <TextView
                 android:id="@+id/timeline_down_21"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -1285,7 +1285,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_22"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1322,7 +1322,7 @@
             <TextView
                 android:id="@+id/timeline_up_22"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -1331,7 +1331,7 @@
             <TextView
                 android:id="@+id/timeline_down_22"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -1341,7 +1341,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_23"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1378,7 +1378,7 @@
             <TextView
                 android:id="@+id/timeline_up_23"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -1387,7 +1387,7 @@
             <TextView
                 android:id="@+id/timeline_down_23"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
@@ -1397,7 +1397,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_24"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="30dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1434,7 +1434,7 @@
             <TextView
                 android:id="@+id/timeline_up_24"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↑"
                 android:textSize="22sp"
@@ -1443,7 +1443,7 @@
             <TextView
                 android:id="@+id/timeline_down_24"
                 android:layout_width="34dp"
-                android:layout_height="36dp"
+                android:layout_height="30dp"
                 android:gravity="center"
                 android:text="↓"
                 android:textSize="22sp"
