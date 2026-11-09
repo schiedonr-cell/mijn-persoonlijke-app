@@ -266,7 +266,9 @@ final class WidgetStyle {
         applyOutlinedPanel(v, context, appWidgetId, R.id.timeline_box, R.id.timeline_panel, base, opacity, transparency);
         setText(v, R.id.timeline_title, text);
         try { v.setViewVisibility(R.id.timeline_title, showName(context, appWidgetId) ? View.VISIBLE : View.GONE); } catch (Exception ignored) {}
-        setText(v, R.id.timeline_date, muted);
+        // Datum en verplaatsknop volgen dezelfde accentkleur als de huis- en taakpictogrammen.
+        setText(v, R.id.timeline_date, accent);
+        setText(v, R.id.timeline_reorder, accent);
         setText(v, R.id.timeline_home, accent);
         setBackgroundColor(v, R.id.timeline_divider, divider);
 
