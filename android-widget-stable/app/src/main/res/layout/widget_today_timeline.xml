@@ -44,17 +44,17 @@
                     android:id="@+id/timeline_date"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="5dp"
+                    android:layout_marginEnd="6dp"
                     android:text="do 8 okt"
-                    android:textSize="11sp"
+                    android:textSize="12sp"
                     android:textStyle="bold" />
                 <TextView
                     android:id="@+id/timeline_reorder"
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
                     android:gravity="center"
                     android:text="↕"
-                    android:textSize="22sp"
+                    android:textSize="29sp"
                     android:textStyle="bold"
                     android:contentDescription="Volgorde aanpassen" />
                 <TextView
