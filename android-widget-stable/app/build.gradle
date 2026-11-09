@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgetveilig'
         minSdk 26
         targetSdk 35
-        versionCode 5
-        versionName 'mijn-dag-widget-gelijke-regelafstand-5'
+        versionCode 6
+        versionName 'mijn-dag-widget-afspraken-6'
     }
 
     buildTypes {
