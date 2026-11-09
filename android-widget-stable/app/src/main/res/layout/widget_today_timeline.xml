@@ -109,8 +109,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_1"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -166,8 +165,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_2"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -223,8 +221,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_3"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -280,8 +277,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_4"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -337,8 +333,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_5"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -394,8 +389,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_6"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -451,8 +445,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_7"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -508,8 +501,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_8"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -565,8 +557,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_9"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -622,8 +613,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_10"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -679,8 +669,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_11"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -736,8 +725,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_12"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -793,8 +781,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_13"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -850,8 +837,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_14"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -907,8 +893,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_15"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -964,8 +949,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_16"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1021,8 +1005,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_17"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1078,8 +1061,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_18"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1135,8 +1117,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_19"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1192,8 +1173,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_20"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1249,8 +1229,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_21"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1306,8 +1285,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_22"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1363,8 +1341,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_23"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView
@@ -1420,8 +1397,7 @@
         <LinearLayout
             android:id="@+id/timeline_row_box_24"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
             <TextView

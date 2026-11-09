@@ -525,7 +525,14 @@ public class TodayTimelineWidgetProvider extends AppWidgetProvider {
         try {
             Bundle o=manager.getAppWidgetOptions(id);
             int h=o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 300);
-            return Math.max(3, Math.min(24, (h-76)/36));
+            // Kop (42dp), Vandaag/Morgen (30dp), scheidingslijn (11dp),
+            // paneelranden (28dp) en eventuele paginaknop (21dp)
+            // nemen samen 132dp in. Laat het teveel aan taken op de
+            // volgende pagina zien, in plaats van rijen samen te drukken
+            // of de laatste regel buiten beeld te laten vallen.
+            final int rowHeightDp = 38;
+            final int chromeHeightDp = 132;
+            return Math.max(2, Math.min(24, (h - chromeHeightDp) / rowHeightDp));
         } catch(Exception ignored) { return 8; }
     }
 
