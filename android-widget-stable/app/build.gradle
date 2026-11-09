@@ -18,8 +18,8 @@ android {
         applicationId 'nl.mijnpersoonlijkeapp.widgetveilig'
         minSdk 26
         targetSdk 35
-        versionCode 7
-        versionName 'mijn-dag-widget-compacte-regels-7'
+        versionCode 8
+        versionName 'mijn-dag-zonder-lunchen-herinnering-8'
     }
 
     buildTypes {
