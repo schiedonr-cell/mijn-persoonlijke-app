@@ -38,6 +38,12 @@ public class ReminderReceiver extends BroadcastReceiver {
         String title = intent == null ? null : intent.getStringExtra("title");
         String body = intent == null ? null : intent.getStringExtra("body");
         String target = intent == null ? null : intent.getStringExtra("target");
+        // Extra bescherming tegen oude Android-alarmen die net tijdens een
+        // update afgaan: geen Lunchen-melding tonen of opnieuw plannen.
+        if (NativeAlarmScheduler.isUnwantedLunchReminder(title)) {
+            NativeAlarmScheduler.cancel(context, id);
+            return;
+        }
 
         if (ACTION_STOP.equals(action)) {
             suppressGroup(context, groupKeyFromId(id), System.currentTimeMillis() + STOP_SUPPRESS_MS);

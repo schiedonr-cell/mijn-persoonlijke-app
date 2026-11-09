@@ -79,6 +79,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         ReminderReceiver.ensureChannel(this);
         NativeAlarmScheduler.clearLegacySnoozesOnce(this);
+        NativeAlarmScheduler.removeUnwantedLunchReminders(this);
         NativeAlarmScheduler.rescheduleAll(this);
         readTarget(getIntent());
         if (acceptSharedTransfer(getIntent()) || imported() || importFile().exists()) openApp();

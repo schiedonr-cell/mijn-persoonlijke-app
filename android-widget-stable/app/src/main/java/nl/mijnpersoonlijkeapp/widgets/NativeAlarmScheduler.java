@@ -21,6 +21,27 @@ final class NativeAlarmScheduler {
 
     private NativeAlarmScheduler() {}
 
+    // De gebruiker wil geen terugkerend alarm voor de taak 'Lunchen'.
+    // Bewaar het lunchmoment zelf; verwijder alleen de meldingen.
+    static boolean isUnwantedLunchReminder(String title) {
+        if (title == null) return false;
+        String normalized = title.trim().toLowerCase(java.util.Locale.ROOT);
+        return normalized.matches("^(?:(?:taak|herinnering)\\s*[:\\-–]\\s*)?(?:lunchen|lunch)$");
+    }
+
+    static synchronized void removeUnwantedLunchReminders(Context context) {
+        JSONObject items = load(context);
+        ArrayList<String> unwanted = new ArrayList<>();
+        Iterator<String> ids = items.keys();
+        while (ids.hasNext()) {
+            String id = ids.next();
+            JSONObject item = items.optJSONObject(id);
+            if (item != null && isUnwantedLunchReminder(item.optString("title", "")))
+                unwanted.add(id);
+        }
+        for (String id : unwanted) cancel(context, id);
+    }
+
     static void schedule(Context context, String id, String title, String body, long triggerAt, String target) {
         scheduleInternal(context, id, title, body, Math.max(System.currentTimeMillis() + 1000L, triggerAt), target, false, -1, -1, 0);
     }
@@ -52,6 +73,11 @@ final class NativeAlarmScheduler {
     private static void scheduleInternal(Context context, String id, String title, String body, long at, String target,
                                          boolean repeatDaily, int hour, int minute, int repeatDays) {
         if (id == null || id.trim().isEmpty()) return;
+        if (isUnwantedLunchReminder(title)) {
+            // Ook oude herhaalalarmen en hun snoozes mogen niet terugkomen.
+            cancel(context, id);
+            return;
+        }
         // Een opnieuw ingestelde begintijd maakt eerdere snoozes van dat alarm ongeldig.
         if (!id.contains("-snooze-")) {
             JSONObject previous = load(context).optJSONObject(id);
