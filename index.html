@@ -2381,6 +2381,42 @@
     } catch(error) {console.error('Mijn dag opslaan mislukt',error);}
   }
 
+  // Geen dagelijkse herinnering meer voor 'Lunchen'.
+  // De lunch-registratie en eventuele taak blijven bestaan; uitsluitend de
+  // melding en zijn herhalingen worden uit de opgeslagen planning gehaald.
+  function isUnwantedLunchAlarmName(value){
+    const name=String(value||'').trim().toLowerCase();
+    return /^(?:(?:taak|herinnering)\s*[:\-–]\s*)?(?:lunchen|lunch)$/.test(name);
+  }
+  function clearUnwantedLunchAlarms(){
+    let changed=false;
+    for(const [type,items] of [['task',state.tasks],['habit',state.habits],['household',state.householdTasks]]){
+      for(const item of items||[]){
+        if(!isUnwantedLunchAlarmName(item.name))continue;
+        if(item.alarmEnabled){item.alarmEnabled=false;changed=true;}
+        if(Array.isArray(item.reminders)&&item.reminders.length){
+          for(const reminder of item.reminders){
+            try{window.AndroidWidgetBridge?.cancelReminder?.(type+'-'+item.id+'-'+reminder.id);}catch{}
+          }
+          item.reminders=[];changed=true;
+        }
+        try{window.AndroidWidgetBridge?.cancelReminder?.('timed-'+type+'-'+item.id);}catch{}
+      }
+    }
+    const plans=[state.dayTimeline,...Object.values(state.dayTimelines||{})];
+    for(const plan of plans){
+      for(const block of plan?.blocks||[]){
+        if(block.remind&&isUnwantedLunchAlarmName(block.text)){
+          block.remind=false;
+          changed=true;
+          try{window.AndroidWidgetBridge?.cancelReminder?.('dayplan-'+plan.date+'-'+block.id);}catch{}
+        }
+      }
+    }
+    if(changed)saveState();
+  }
+  clearUnwantedLunchAlarms();
+
   function showView(name){ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===name)); window.scrollTo({top:0,behavior:'instant'}); if(name==='today'){ setDailyTab(dailyTab); renderToday(); } if(name==='food'){ setFoodTab(foodTab); renderFoodAll(); } if(name==='projects')renderProjects(); if(name==='notes')renderNotes(); }
   function setMyDayMode(mode){
     if(!['planning','onderdelen','taken','routines','huishouden','agenda','energie'].includes(mode))return;
