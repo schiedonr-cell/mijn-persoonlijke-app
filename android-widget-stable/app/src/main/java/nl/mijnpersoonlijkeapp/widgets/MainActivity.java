@@ -69,6 +69,7 @@ public class MainActivity extends Activity {
         @Override public void run() {
             applyPendingTimelineChanges();
             applyPendingQuickChanges();
+            applyPendingWidgetOrderChanges();
             syncWidget();
             handler.postDelayed(this, 1200);
         }
@@ -357,6 +358,7 @@ public class MainActivity extends Activity {
                     syncWidget();
                     applyPendingTimelineChanges();
                     applyPendingQuickChanges();
+                    applyPendingWidgetOrderChanges();
                     startSync();
                     requestCalendarIfNeeded();
                 }
@@ -573,6 +575,14 @@ public class MainActivity extends Activity {
         String pending=SnapshotStore.quickPending(this);
         if("[]".equals(pending))return;
         String js="if(window.applyNativeQuickChanges)window.applyNativeQuickChanges("+JSONObject.quote(pending)+");";
+        try{webView.evaluateJavascript(js,null);}catch(Exception ignored){}
+    }
+
+    private void applyPendingWidgetOrderChanges(){
+        if(webView==null||!imported())return;
+        String pending=SnapshotStore.widgetOrderPending(this);
+        if(pending.isEmpty())return;
+        String js="if(window.applyNativeWidgetOrder)window.applyNativeWidgetOrder("+JSONObject.quote(pending)+");";
         try{webView.evaluateJavascript(js,null);}catch(Exception ignored){}
     }
 
@@ -857,6 +867,9 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public void ackDayTimelineUpdates(String idsJson) {
             SnapshotStore.acknowledge(getApplicationContext(),idsJson);
+        }
+        @JavascriptInterface public void ackWidgetOrder(String id){
+            SnapshotStore.acknowledgeWidgetOrder(getApplicationContext(),id);
         }
         @JavascriptInterface public void ackQuickUpdates(String idsJson){
             SnapshotStore.acknowledgeQuick(getApplicationContext(),idsJson);
