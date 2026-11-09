@@ -1398,7 +1398,6 @@
             <div class="section-card today-section-card self-care-card" id="todaySelfCareBlock">
               <div class="section-heading"><div class="today-block-title"><div class="today-block-icon">♡</div><div><h3>Vandaag voor jezelf</h3><span class="small-muted">Drie kleine gewoontes, zonder vaste alarmen.</span></div></div></div>
               <div id="selfCareSummary" class="self-care-rows"></div>
-              <button type="button" class="secondary-button self-care-lunch" data-self-care-lunch>Lunch gehad</button>
               <div id="selfCareOffer" class="self-care-offer" hidden aria-live="polite"></div>
             </div>
             <div class="section-card today-section-card" id="dayTimelineBlock">
@@ -2323,7 +2322,7 @@
         todayPlan: saved.todayPlan && Array.isArray(saved.todayPlan.taskIds) ? saved.todayPlan : {date:null,taskIds:[]},
         dayQuickTasks: saved.dayQuickTasks && Array.isArray(saved.dayQuickTasks.taskIds) ? saved.dayQuickTasks : {date:null,taskIds:[]},
         untimedNext:(saved.untimedNext&&typeof saved.untimedNext==='object'
-          &&['habit','task','household','lunch'].includes(saved.untimedNext.type)
+          &&['habit','task','household'].includes(saved.untimedNext.type)
           &&typeof saved.untimedNext.itemId==='string')
           ?{date:String(saved.untimedNext.date||''),type:saved.untimedNext.type,itemId:saved.untimedNext.itemId}
           :{date:null,type:'',itemId:''},
@@ -2416,6 +2415,76 @@
     if(changed)saveState();
   }
   clearUnwantedLunchAlarms();
+
+  // 'Lunch gehad?' werd automatisch toegevoegd; geen gewone taak in Taken.
+  // Verwijder deze dagtaak en eventueel gelijknamige losse taak-/routine-items,
+  // maar behoud agenda-afspraken, andere maaltijden en het beweeganker.
+  function removeUnwantedLunchTasks(){
+    const isLunch=name=>/^(?:lunchen|lunch|lunch gehad\??)$/i.test(String(name||'').trim());
+    const deletedTaskIds=new Set((state.tasks||[]).filter(t=>isLunch(t.name)).map(t=>t.id));
+    const deletedHabitIds=new Set((state.habits||[]).filter(h=>isLunch(h.name)).map(h=>h.id));
+    let changed=deletedTaskIds.size>0||deletedHabitIds.size>0;
+    if(deletedTaskIds.size)state.tasks=state.tasks.filter(t=>!deletedTaskIds.has(t.id));
+    if(deletedHabitIds.size)state.habits=state.habits.filter(h=>!deletedHabitIds.has(h.id));
+    for(const key of ['todayPlan','dayQuickTasks']){
+      const plan=state[key];
+      if(plan&&Array.isArray(plan.taskIds)){
+        const next=plan.taskIds.filter(id=>!deletedTaskIds.has(id));
+        if(next.length!==plan.taskIds.length){plan.taskIds=next;changed=true;}
+      }
+    }
+    if(state.untimedNext?.type==='lunch'
+      ||(state.untimedNext?.type==='task'&&deletedTaskIds.has(state.untimedNext.itemId))
+      ||(state.untimedNext?.type==='habit'&&deletedHabitIds.has(state.untimedNext.itemId))){
+      state.untimedNext={date:null,type:'',itemId:''};
+      changed=true;
+    }
+    if(Array.isArray(state.untimedOrder?.keys)){
+      const keys=state.untimedOrder.keys.filter(key=>key!=='lunch:lunch'
+        && !deletedTaskIds.has(key.startsWith('task:')?key.slice(5):'')
+        && !deletedHabitIds.has(key.startsWith('habit:')?key.slice(6):''));
+      if(keys.length!==state.untimedOrder.keys.length){state.untimedOrder.keys=keys;changed=true;}
+    }
+    if(Array.isArray(state.daySkippedSuggestions?.keys)){
+      const keys=state.daySkippedSuggestions.keys.filter(key=>key!=='lunch:lunch');
+      if(keys.length!==state.daySkippedSuggestions.keys.length){state.daySkippedSuggestions.keys=keys;changed=true;}
+    }
+    const removed=new Set();
+    for(const plan of [state.dayTimeline,...Object.values(state.dayTimelines||{})]){
+      if(!Array.isArray(plan?.blocks))continue;
+      const next=plan.blocks.filter(block=>{
+        if(block.linkType==='agenda')return true;
+        const linked=block.linkType==='lunch'
+          ||(block.linkType==='task'&&deletedTaskIds.has(block.linkId))
+          ||(block.linkType==='habit'&&deletedHabitIds.has(block.linkId));
+        const standalone=isLunch(block.text)&&(!block.linkType||block.linkType==='task');
+        if(!linked&&!standalone)return true;
+        const alarmId=(plan.date||'')+':'+block.id;
+        if(block.id&&!removed.has(alarmId)){
+          removed.add(alarmId);
+          try{window.AndroidWidgetBridge?.cancelReminder?.('dayplan-'+plan.date+'-'+block.id);}catch{}
+        }
+        changed=true;
+        return false;
+      });
+      if(next.length!==plan.blocks.length){
+        plan.blocks=next;
+        const valid=new Set(next.map(b=>b.id));
+        plan.manualOrderIds=(plan.manualOrderIds||[]).filter(id=>valid.has(id));
+        plan.sourceText=next.filter(b=>!b.postponedTo)
+          .map(b=>b.start+(b.end?'–'+b.end:'')+' '+b.text).join('\n');
+      }
+    }
+    for(const id of deletedTaskIds){
+      try{window.AndroidWidgetBridge?.cancelReminder?.('timed-task-'+id);}catch{}
+    }
+    for(const id of deletedHabitIds){
+      try{window.AndroidWidgetBridge?.cancelReminder?.('timed-habit-'+id);}catch{}
+    }
+    if(changed)saveState();
+  }
+  removeUnwantedLunchTasks();
+
 
   function showView(name){ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===name)); window.scrollTo({top:0,behavior:'instant'}); if(name==='today'){ setDailyTab(dailyTab); renderToday(); } if(name==='food'){ setFoodTab(foodTab); renderFoodAll(); } if(name==='projects')renderProjects(); if(name==='notes')renderNotes(); }
   function setMyDayMode(mode){
@@ -2765,14 +2834,12 @@
     return recoveryMinutesTotal(kind)>=recoveryMinuteGoal(kind);
   }
   function renderSelfCare(){
-    const data=selfCareToday(),summary=document.getElementById('selfCareSummary'),offer=document.getElementById('selfCareOffer'),lunch=document.querySelector('[data-self-care-lunch]');
-    if(!summary||!offer||!lunch)return;
+    const data=selfCareToday(),summary=document.getElementById('selfCareSummary'),offer=document.getElementById('selfCareOffer');
+    if(!summary||!offer)return;
     const rows=[['stretch','Stretchen',recoveryMinutesTotal('stretch')+' / '+recoveryMinuteGoal('stretch')+' min'],
       ['move','Bewegen',selfCareDone('move')?'Afgerond':'Nog doen'],
       ['relax','Bewust ontspannen',recoveryMinutesTotal('relax')+' / '+recoveryMinuteGoal('relax')+' min']];
     summary.innerHTML=rows.map(([kind,label,progress])=>'<div class="self-care-row"><strong>'+escapeHtml(label)+'</strong><span class="'+(selfCareDone(kind)?'is-done':'')+'">'+(selfCareDone(kind)?'✓ ':'')+escapeHtml(progress)+'</span></div>').join('');
-    lunch.textContent=data.lunchDone?'✓ Lunch gehad':'Lunch gehad';
-    lunch.setAttribute('aria-pressed',String(data.lunchDone));
     if(!data.offer||selfCareDone(data.offer)){data.offer=null;offer.hidden=true;offer.innerHTML='';return;}
     const repeat=Number(data.later[data.offer]||0)>0;
     const names={stretch:'stretchen',move:'bewegen',relax:'bewust ontspannen'};
@@ -4010,7 +4077,6 @@
     add(remove(habits,'habit-morning'));
     add(remove(habits,'basis-stretch'));
     add(tasks.shift());add(household.shift());
-    if(!selfCareToday().lunchDone)add({type:'lunch',itemId:'lunch',name:'Lunch gehad',kind:'Voor jezelf'});
     add(remove(habits,'basis-move'));
     add(tasks.shift());add(household.shift());
     add(remove(habits,'basis-relax'));
@@ -4331,15 +4397,13 @@
       .map(item=>'<option value="'+escapeHtml(type+':'+item.id)+'">'+escapeHtml(item.name)+'</option>').join('');
     const tasks=quickPlanExistingCandidates();
     const today=localDateKey();
-    const lunchAvailable=!selfCareToday().lunchDone&&!used.has('lunch:lunch');
     const habits=state.habits.filter(h=>(!h.startedOn||h.startedOn<=today)&&!h.history?.[today]);
     const household=(timed?state.householdTasks:householdVisibleToday())
       .filter(h=>!h.retired&&!h.paused&&(!h.manualOnly||laundryOpenLoads().length>0)&&!householdDoneToday(h));
     select.innerHTML='<option value="">+ Nieuwe taak typen</option>'
       +(tasks.length?'<optgroup label="Bestaande taken">'+formatOptions('task',tasks)+'</optgroup>':'')
       +(habits.length?'<optgroup label="Routines">'+formatOptions('habit',habits)+'</optgroup>':'')
-      +(household.length?'<optgroup label="Huishouden">'+formatOptions('household',household)+'</optgroup>':'')
-      +(lunchAvailable&&timed?'<optgroup label="Dagelijks"><option value="lunch:lunch">Lunch gehad</option></optgroup>':'');
+      +(household.length?'<optgroup label="Huishouden">'+formatOptions('household',household)+'</optgroup>':'');
     document.getElementById('quickPlanTaskName').value='';
     document.getElementById('quickPlanDuration').value='15';
     const nowMinutes=dayPlanElapsedMinutes();
