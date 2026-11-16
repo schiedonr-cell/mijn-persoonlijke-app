@@ -2893,7 +2893,7 @@
     state.focus.durationSec=300;state.focus.remainingSec=300;
     selectFocusItem('habit',id);
   }
-  function householdLimit(){return dayLoadSuggestion().capacity;}
+  function householdLimit(){return dayLoadSuggestion().energy;}
   function householdEffortLabel(n){return ({1:'Licht',2:'Normaal',3:'Grote klus'})[Number(n)]||'Licht';}
   function householdFrequencyLabel(item){
     const n=Number(typeof item==='object'?item.frequency:item)||0;
@@ -2934,8 +2934,7 @@
       if(b.postponedTo)return false;
       const start=dayPlanMinutes(b.start),end=dayPlanMinutes(b.end);
       return start!==null&&end!==null&&end-start>=240
-        &&(dayPlanBlockMode(b)==='fixed'
-          ||/\b(opleiding|dienst|werk|cursus|training|stage)\b/i.test(dayPlanNormalizeText(b.text)));
+        &&/\b(opleiding|dienst|werk|cursus|training|stage|gvb|meerijden|rijles)\b/i.test(dayPlanNormalizeText(b.text));
     });
     if(scheduled)return true;
     if(date!==localDateKey())return false;
@@ -2943,11 +2942,12 @@
       if(!event?.start?.dateTime||!event?.end?.dateTime)return false;
       const start=new Date(event.start.dateTime),end=new Date(event.end.dateTime);
       return !Number.isNaN(start.getTime())&&!Number.isNaN(end.getTime())
-        &&localDateKey(start)===date&&(end-start)>=240*60000;
+        &&localDateKey(start)===date&&(end-start)>=240*60000
+        &&/\b(opleiding|dienst|werk|cursus|training|stage|gvb|meerijden|rijles)\b/i.test(String(event.summary||''));
     });
   }
   function householdVisibleToday(){
-    const energy=dayLoadSuggestion().capacity,limit=householdLimit();
+    const energy=householdLimit(),limit=householdLimit();
     const choice=householdTodayChoiceState(),skipped=new Set(householdSkipTodayState().taskIds||[]);
     const valid=state.householdTasks.filter(t=>!t.retired);
     const fixed=valid.filter(t=>t.fixedReminder&&!skipped.has(t.id)&&(householdDoneToday(t)||householdIsDue(t)));
