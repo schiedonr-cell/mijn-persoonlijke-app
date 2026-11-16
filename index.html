@@ -3032,6 +3032,20 @@
       +completed.map(t=>'<div class="completed-habit-row"><div class="completed-habit-check">✓</div><div class="completed-habit-copy"><div class="completed-habit-name">'+escapeHtml(t.name)+'</div><div class="completed-habit-meta">'+escapeHtml(t.fixedReminder?'Vaste reminder':householdEffortLabel(t.effort))+' · '+escapeHtml(householdFrequencyLabel(t))+'</div></div>'
         +(t.kind==='laundry'?'':'<button class="habit-undo-button" data-household-undo="'+escapeHtml(t.id)+'">Ongedaan</button>')+'</div>').join('')+'</div></details>':'';
   }
+  // Huishoudgeschiedenis alleen lezen; afvinkdata en herhaaltermijnen blijven ongemoeid.
+  function householdHistoryDates(t){
+    return Object.keys(t.history||{})
+      .filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date)&&t.history[date])
+      .sort().reverse();
+  }
+  function householdHistorySummary(t){
+    const dates=householdHistoryDates(t);
+    const last=dates.length?escapeHtml(formatDateShort(dates[0])):'nog geen registratie';
+    const extra=dates.length>1
+      ?'<details class="household-history"><summary>Afvinkgeschiedenis ('+dates.length+')</summary><div class="small-muted">'+dates.slice(0,12).map(date=>escapeHtml(formatDateShort(date))).join(' · ')+(dates.length>12?' · …':'')+'</div></details>'
+      :'';
+    return '<div class="small-muted">Laatst afgevinkt: '+last+'</div>'+extra;
+  }
   function renderHouseholdManage(){
     const wrap=document.getElementById('householdManageList');if(!wrap)return;
     const today=localDateKey(),chosen=new Set(householdTodayChoiceState().taskIds||[]);
@@ -3047,7 +3061,7 @@
         +(chosen.has(t.id)?'<span class="household-badge light">Vandaag gekozen</span>':'')
         +(t.paused?'<span class="household-badge">Gepauzeerd</span>':'')
         +(t.deferUntil&&t.deferUntil>today?'<span class="household-badge">Tot '+escapeHtml(formatDateShort(t.deferUntil))+'</span>':'')
-        +'</div></div></div><div class="household-manage-actions">'
+        +'</div>'+householdHistorySummary(t)+'</div></div><div class="household-manage-actions">'
         +(t.fixedReminder?'':'<button class="accent" data-household-today="'+escapeHtml(t.id)+'">'+(chosen.has(t.id)?'Vandaag ✓':'Vandaag')+'</button>')
         +'<button data-household-edit="'+escapeHtml(t.id)+'">Bewerken</button>'
         +'<button data-item-reminders="household|'+escapeHtml(t.id)+'">🔔 '+(t.reminders?.length||0)+'</button>'
